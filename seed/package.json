@@ -1,0 +1,20 @@
+{
+  "name": "@pulsechain/seed",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "generate": "tsx src/generate.ts",
+    "load": "tsx src/load.ts",
+    "reset": "tsx src/reset.ts"
+  },
+  "dependencies": {
+    "@pulsechain/shared": "*",
+    "@aws-sdk/client-dynamodb": "^3.645.0",
+    "@aws-sdk/lib-dynamodb": "^3.645.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsx": "^4.19.1",
+    "@types/node": "^22.5.5"
+  }
+}

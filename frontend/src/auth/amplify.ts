@@ -1,0 +1,2 @@
+// Amplify Auth config
+export {};

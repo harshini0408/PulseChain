@@ -1,0 +1,2 @@
+// GET /dashboard/impact
+export {};

@@ -1,0 +1,13 @@
+{
+  "name": "pulsechain",
+  "private": true,
+  "workspaces": ["shared", "backend", "seed", "frontend"],
+  "scripts": {
+    "test": "npm run test -w shared",
+    "dev": "npm run dev -w frontend",
+    "build:backend": "npm run build -w backend",
+    "deploy:backend": "cd backend && sam build && sam deploy",
+    "seed": "npm run load -w seed",
+    "reset": "npm run reset -w seed"
+  }
+}

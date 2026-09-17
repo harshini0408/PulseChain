@@ -1,0 +1,133 @@
+{
+  "PulseChain": [
+    { "PutRequest": { "Item": {
+      "PK": { "S": "FACILITY#CBE-BC-01" }, "SK": { "S": "PROFILE" },
+      "entityType": { "S": "FACILITY" },
+      "facilityId": { "S": "CBE-BC-01" },
+      "name": { "S": "Coimbatore Central Blood Centre (sample)" },
+      "type": { "S": "BLOOD_CENTRE" },
+      "city": { "S": "Coimbatore" },
+      "lat": { "N": "11.0168" }, "lng": { "N": "76.9558" },
+      "components": { "L": [ { "S": "PLATELETS" }, { "S": "RBC" }, { "S": "PLASMA" } ] },
+      "contactEmail": { "S": "centre-demo@example.com" },
+      "GSI1PK": { "S": "FACILITIES" }, "GSI1SK": { "S": "BLOOD_CENTRE#CBE-BC-01" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "FACILITY#CBE-HOSP-04" }, "SK": { "S": "PROFILE" },
+      "entityType": { "S": "FACILITY" },
+      "facilityId": { "S": "CBE-HOSP-04" },
+      "name": { "S": "Coimbatore East Hospital (sample)" },
+      "type": { "S": "HOSPITAL" },
+      "city": { "S": "Coimbatore" },
+      "lat": { "N": "11.0510" }, "lng": { "N": "77.0240" },
+      "components": { "L": [ { "S": "PLATELETS" }, { "S": "RBC" }, { "S": "PLASMA" } ] },
+      "contactEmail": { "S": "hospital-demo@example.com" },
+      "GSI1PK": { "S": "FACILITIES" }, "GSI1SK": { "S": "HOSPITAL#CBE-HOSP-04" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "FACILITY#TUP-HOSP-01" }, "SK": { "S": "PROFILE" },
+      "entityType": { "S": "FACILITY" },
+      "facilityId": { "S": "TUP-HOSP-01" },
+      "name": { "S": "Tiruppur General Hospital (sample)" },
+      "type": { "S": "HOSPITAL" },
+      "city": { "S": "Tiruppur" },
+      "lat": { "N": "11.1085" }, "lng": { "N": "77.3411" },
+      "components": { "L": [ { "S": "PLATELETS" }, { "S": "RBC" } ] },
+      "contactEmail": { "S": "tiruppur-demo@example.com" },
+      "GSI1PK": { "S": "FACILITIES" }, "GSI1SK": { "S": "HOSPITAL#TUP-HOSP-01" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "FACILITY#CBE-BC-01" }, "SK": { "S": "DIST#008.4#CBE-HOSP-04" },
+      "entityType": { "S": "DISTANCE" },
+      "toFacilityId": { "S": "CBE-HOSP-04" }, "distanceKm": { "N": "8.4" }
+    } } },
+    { "PutRequest": { "Item": {
+      "PK": { "S": "FACILITY#CBE-HOSP-04" }, "SK": { "S": "DIST#008.4#CBE-BC-01" },
+      "entityType": { "S": "DISTANCE" },
+      "toFacilityId": { "S": "CBE-BC-01" }, "distanceKm": { "N": "8.4" }
+    } } },
+    { "PutRequest": { "Item": {
+      "PK": { "S": "FACILITY#CBE-BC-01" }, "SK": { "S": "DIST#043.3#TUP-HOSP-01" },
+      "entityType": { "S": "DISTANCE" },
+      "toFacilityId": { "S": "TUP-HOSP-01" }, "distanceKm": { "N": "43.3" }
+    } } },
+    { "PutRequest": { "Item": {
+      "PK": { "S": "FACILITY#TUP-HOSP-01" }, "SK": { "S": "DIST#043.3#CBE-BC-01" },
+      "entityType": { "S": "DISTANCE" },
+      "toFacilityId": { "S": "CBE-BC-01" }, "distanceKm": { "N": "43.3" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "FACILITY#CBE-HOSP-04" }, "SK": { "S": "DEMAND#PLATELETS#O-" },
+      "entityType": { "S": "DEMAND" },
+      "facilityId": { "S": "CBE-HOSP-04" },
+      "component": { "S": "PLATELETS" }, "bloodGroup": { "S": "O-" },
+      "weeklyUnits": { "N": "6" }, "level": { "S": "HIGH" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "UNIT#PLT-102" }, "SK": { "S": "META" },
+      "entityType": { "S": "UNIT" },
+      "unitId": { "S": "PLT-102" }, "facilityId": { "S": "CBE-BC-01" },
+      "component": { "S": "PLATELETS" }, "bloodGroup": { "S": "O-" },
+      "volumeMl": { "N": "250" }, "valueInr": { "N": "1500" },
+      "collectedAt": { "S": "2026-09-14T06:00:00Z" },
+      "expiresAt": { "S": "2026-09-19T06:00:00Z" },
+      "status": { "S": "AVAILABLE" }, "version": { "N": "1" },
+      "GSI1PK": { "S": "QUEUE#AVAILABLE#PLATELETS" }, "GSI1SK": { "S": "2026-09-19T06:00:00Z#PLT-102" },
+      "GSI2PK": { "S": "FACILITY#CBE-BC-01#STOCK" }, "GSI2SK": { "S": "2026-09-19T06:00:00Z#PLT-102" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "UNIT#RBC-441" }, "SK": { "S": "META" },
+      "entityType": { "S": "UNIT" },
+      "unitId": { "S": "RBC-441" }, "facilityId": { "S": "CBE-BC-01" },
+      "component": { "S": "RBC" }, "bloodGroup": { "S": "B+" },
+      "volumeMl": { "N": "300" }, "valueInr": { "N": "1500" },
+      "collectedAt": { "S": "2026-09-03T06:00:00Z" },
+      "expiresAt": { "S": "2026-10-08T06:00:00Z" },
+      "status": { "S": "AVAILABLE" }, "version": { "N": "1" },
+      "GSI1PK": { "S": "QUEUE#AVAILABLE#RBC" }, "GSI1SK": { "S": "2026-10-08T06:00:00Z#RBC-441" },
+      "GSI2PK": { "S": "FACILITY#CBE-BC-01#STOCK" }, "GSI2SK": { "S": "2026-10-08T06:00:00Z#RBC-441" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "REQ#REQ-2001" }, "SK": { "S": "META" },
+      "entityType": { "S": "REQUISITION" },
+      "reqId": { "S": "REQ-2001" }, "hospitalId": { "S": "CBE-HOSP-04" },
+      "component": { "S": "PLATELETS" }, "bloodGroup": { "S": "O-" },
+      "unitsRequested": { "N": "2" }, "unitsFilled": { "N": "0" },
+      "urgency": { "S": "HIGH" },
+      "neededBy": { "S": "2026-09-18T02:30:00Z" },
+      "status": { "S": "OPEN" }, "source": { "S": "MANUAL" },
+      "createdAt": { "S": "2026-09-17T12:00:00Z" },
+      "GSI1PK": { "S": "OPENREQ#PLATELETS" }, "GSI1SK": { "S": "O-#2026-09-18T02:30:00Z" },
+      "GSI2PK": { "S": "FACILITY#CBE-HOSP-04#REQS" }, "GSI2SK": { "S": "2026-09-18T02:30:00Z" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "STATS" }, "SK": { "S": "DAY#2026-09-16" },
+      "entityType": { "S": "STATS" },
+      "unitsSaved": { "N": "3" }, "unitsLost": { "N": "1" },
+      "valueSavedInr": { "N": "4500" }, "valueLostInr": { "N": "1500" }
+    } } },
+
+    { "PutRequest": { "Item": {
+      "PK": { "S": "POOL#PSG-ITECH" }, "SK": { "S": "META" },
+      "entityType": { "S": "DONOR_POOL" },
+      "poolId": { "S": "PSG-ITECH" },
+      "name": { "S": "PSG iTech campus pool (seeded)" },
+      "poolType": { "S": "COLLEGE" },
+      "lat": { "N": "11.0655" }, "lng": { "N": "77.0930" },
+      "registered": { "N": "512" },
+      "groupCounts": { "M": {
+        "O+": { "N": "184" }, "A+": { "N": "126" }, "B+": { "N": "102" }, "AB+": { "N": "38" },
+        "O-": { "N": "12" }, "A-": { "N": "19" }, "B-": { "N": "27" }, "AB-": { "N": "4" }
+      } },
+      "GSI1PK": { "S": "POOLS" }, "GSI1SK": { "S": "PSG-ITECH" }
+    } } }
+  ]
+}

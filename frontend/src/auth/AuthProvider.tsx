@@ -1,0 +1,2 @@
+// Session, role, facilityId
+export {};

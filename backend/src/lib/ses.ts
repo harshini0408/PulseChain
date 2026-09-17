@@ -1,0 +1,2 @@
+// Offer notification email
+export {};

@@ -1,0 +1,19 @@
+{
+  "name": "@pulsechain/backend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pulsechain/shared": "*",
+    "@aws-sdk/client-dynamodb": "^3.645.0",
+    "@aws-sdk/lib-dynamodb": "^3.645.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "esbuild": "^0.23.1",
+    "@types/aws-lambda": "^8.10.143",
+    "@types/node": "^22.5.5"
+  }
+}
