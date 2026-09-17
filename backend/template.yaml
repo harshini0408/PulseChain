@@ -1,1 +1,163 @@
-# TODO — Table, HTTP API + Cognito authorizer, Lambdas, Scheduler, state machines, SES policy
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: PulseChain backend skeleton
+
+Parameters:
+  DemoMode:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Enable demo mode with shortened expiry thresholds
+  ExistingTableName:
+    Type: String
+    Default: ""
+    Description: Name of existing DynamoDB table (leave empty to create table)
+
+Conditions:
+  CreateTable: !Equals [!Ref ExistingTableName, ""]
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+    MemorySize: 256
+    Timeout: 10
+    Environment:
+      Variables:
+        TABLE_NAME: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        DEMO_MODE: !Ref DemoMode
+
+Resources:
+  PulseChainTable:
+    Type: AWS::DynamoDB::Table
+    Condition: CreateTable
+    Properties:
+      TableName: PulseChain
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: project
+          Value: pulsechain
+        - Key: event
+          Value: bharat-builds-first-commit
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+
+  FacilitiesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/facilities.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+      Events:
+        GetFacilities:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /facilities
+            Method: GET
+        GetFacilityById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /facilities/{id}
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/facilities.ts
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/demo.health
+      Events:
+        GetHealth:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /health
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/demo.ts
+
+Outputs:
+  ApiUrl:
+    Description: HTTP API URL
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+
