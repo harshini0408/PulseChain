@@ -4,6 +4,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "outDir": "dist",
+    "types": ["vite/client"],
     "paths": {
       "@pulsechain/shared": ["../shared/src/index.ts"]
     }

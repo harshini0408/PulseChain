@@ -1,1 +1,61 @@
-/* Tailwind layers + design tokens */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
+}
+
+.tnum {
+  font-feature-settings: 'tnum' on, 'lnum' on;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d5dae1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b4bcc6;
+}
+
+/* Pulse urgency animation */
+@keyframes criticalPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(193, 61, 80, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(193, 61, 80, 0);
+  }
+}
+
+.pulse-critical {
+  animation: criticalPulse 2s infinite ease-in-out;
+}
+
+/* Component Badge Stems */
+.badge-plt {
+  background-color: #FBE9EC;
+  color: #92283A;
+  border-left: 3px solid #C13D50;
+}
+
+.badge-rbc {
+  background-color: #FFF2D8;
+  color: #81500B;
+  border-left: 3px solid #B97818;
+}
+
+.badge-plasma {
+  background-color: #DFF4F0;
+  color: #12665F;
+  border-left: 3px solid #16877E;
+}

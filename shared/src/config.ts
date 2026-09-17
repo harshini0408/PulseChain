@@ -41,8 +41,9 @@ export interface Config {
 function resolveMode(override?: Mode): Mode {
   if (override) return override;
   try {
-    if (typeof process !== "undefined" && process.env) {
-      return process.env.DEMO_MODE === "false" ? "PROD" : "DEMO";
+    const gProcess = (globalThis as any).process;
+    if (typeof gProcess !== "undefined" && gProcess?.env) {
+      return gProcess.env.DEMO_MODE === "false" ? "PROD" : "DEMO";
     }
   } catch {
     // browser: no process

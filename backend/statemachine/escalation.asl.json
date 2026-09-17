@@ -1,0 +1,209 @@
+{
+  "Comment": "PulseChain 3-Ring Expiry Escalation Orchestrator",
+  "StartAt": "MatchRing1",
+  "States": {
+    "MatchRing1": {
+      "Type": "Task",
+      "Resource": "${MatchRingFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 1
+      },
+      "ResultPath": "$.ring1Match",
+      "Next": "ChoiceRing1Candidates"
+    },
+    "ChoiceRing1Candidates": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ring1Match.hasCandidates",
+          "BooleanEquals": true,
+          "Next": "CreateOffers1"
+        }
+      ],
+      "Default": "MatchRing2"
+    },
+    "CreateOffers1": {
+      "Type": "Task",
+      "Resource": "${CreateOffersFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 1,
+        "candidates.$": "$.ring1Match.candidates"
+      },
+      "ResultPath": "$.ring1Offers",
+      "Next": "WaitRing1"
+    },
+    "WaitRing1": {
+      "Type": "Wait",
+      "SecondsPath": "$.ring1Offers.offerWindowSeconds",
+      "Next": "CheckOffers1"
+    },
+    "CheckOffers1": {
+      "Type": "Task",
+      "Resource": "${CheckOffersFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 1
+      },
+      "ResultPath": "$.ring1Check",
+      "Next": "ChoiceRing1Claimed"
+    },
+    "ChoiceRing1Claimed": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ring1Check.claimed",
+          "BooleanEquals": true,
+          "Next": "FinishEscalationResolved"
+        }
+      ],
+      "Default": "MatchRing2"
+    },
+    "MatchRing2": {
+      "Type": "Task",
+      "Resource": "${MatchRingFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 2
+      },
+      "ResultPath": "$.ring2Match",
+      "Next": "ChoiceRing2Candidates"
+    },
+    "ChoiceRing2Candidates": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ring2Match.hasCandidates",
+          "BooleanEquals": true,
+          "Next": "CreateOffers2"
+        }
+      ],
+      "Default": "MatchRing3"
+    },
+    "CreateOffers2": {
+      "Type": "Task",
+      "Resource": "${CreateOffersFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 2,
+        "candidates.$": "$.ring2Match.candidates"
+      },
+      "ResultPath": "$.ring2Offers",
+      "Next": "WaitRing2"
+    },
+    "WaitRing2": {
+      "Type": "Wait",
+      "SecondsPath": "$.ring2Offers.offerWindowSeconds",
+      "Next": "CheckOffers2"
+    },
+    "CheckOffers2": {
+      "Type": "Task",
+      "Resource": "${CheckOffersFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 2
+      },
+      "ResultPath": "$.ring2Check",
+      "Next": "ChoiceRing2Claimed"
+    },
+    "ChoiceRing2Claimed": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ring2Check.claimed",
+          "BooleanEquals": true,
+          "Next": "FinishEscalationResolved"
+        }
+      ],
+      "Default": "MatchRing3"
+    },
+    "MatchRing3": {
+      "Type": "Task",
+      "Resource": "${MatchRingFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 3
+      },
+      "ResultPath": "$.ring3Match",
+      "Next": "ChoiceRing3Candidates"
+    },
+    "ChoiceRing3Candidates": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ring3Match.hasCandidates",
+          "BooleanEquals": true,
+          "Next": "CreateOffers3"
+        }
+      ],
+      "Default": "FinishEscalationExhausted"
+    },
+    "CreateOffers3": {
+      "Type": "Task",
+      "Resource": "${CreateOffersFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 3,
+        "candidates.$": "$.ring3Match.candidates"
+      },
+      "ResultPath": "$.ring3Offers",
+      "Next": "WaitRing3"
+    },
+    "WaitRing3": {
+      "Type": "Wait",
+      "SecondsPath": "$.ring3Offers.offerWindowSeconds",
+      "Next": "CheckOffers3"
+    },
+    "CheckOffers3": {
+      "Type": "Task",
+      "Resource": "${CheckOffersFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "ring": 3
+      },
+      "ResultPath": "$.ring3Check",
+      "Next": "ChoiceRing3Claimed"
+    },
+    "ChoiceRing3Claimed": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ring3Check.claimed",
+          "BooleanEquals": true,
+          "Next": "FinishEscalationResolved"
+        }
+      ],
+      "Default": "FinishEscalationExhausted"
+    },
+    "FinishEscalationResolved": {
+      "Type": "Task",
+      "Resource": "${FinishEscalationFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "resolved": true
+      },
+      "End": true
+    },
+    "FinishEscalationExhausted": {
+      "Type": "Task",
+      "Resource": "${FinishEscalationFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "resolved": false
+      },
+      "End": true
+    }
+  }
+}

@@ -5,7 +5,6 @@ import {
   PutCommand,
   QueryCommand,
   TransactWriteCommand,
-  type TransactWriteCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 
 const ddbClient = new DynamoDBClient({});
@@ -98,17 +97,48 @@ export async function putItem<T extends Record<string, any>>(
   );
 }
 
-export type TransactItem = NonNullable<TransactWriteCommandInput["TransactItems"]>[number];
+export interface TransactItem {
+  Put?: {
+    TableName?: string;
+    Item: Record<string, any>;
+    ConditionExpression?: string;
+    ExpressionAttributeNames?: Record<string, string>;
+    ExpressionAttributeValues?: Record<string, any>;
+  };
+  Update?: {
+    TableName?: string;
+    Key: Record<string, any>;
+    UpdateExpression: string;
+    ConditionExpression?: string;
+    ExpressionAttributeNames?: Record<string, string>;
+    ExpressionAttributeValues?: Record<string, any>;
+  };
+  Delete?: {
+    TableName?: string;
+    Key: Record<string, any>;
+    ConditionExpression?: string;
+    ExpressionAttributeNames?: Record<string, string>;
+    ExpressionAttributeValues?: Record<string, any>;
+  };
+  ConditionCheck?: {
+    TableName?: string;
+    Key: Record<string, any>;
+    ConditionExpression: string;
+    ExpressionAttributeNames?: Record<string, string>;
+    ExpressionAttributeValues?: Record<string, any>;
+  };
+}
 
 export async function transact(items: TransactItem[]): Promise<void> {
   if (!items || items.length === 0) return;
   const tableName = requireTableName();
   const normalizedItems = items.map((item) => {
-    if (item.Put && !item.Put.TableName) item.Put.TableName = tableName;
-    if (item.Update && !item.Update.TableName) item.Update.TableName = tableName;
-    if (item.Delete && !item.Delete.TableName) item.Delete.TableName = tableName;
-    if (item.ConditionCheck && !item.ConditionCheck.TableName) item.ConditionCheck.TableName = tableName;
-    return item;
+    const normalized: any = {};
+    if (item.Put) normalized.Put = { TableName: tableName, ...item.Put };
+    if (item.Update) normalized.Update = { TableName: tableName, ...item.Update };
+    if (item.Delete) normalized.Delete = { TableName: tableName, ...item.Delete };
+    if (item.ConditionCheck) normalized.ConditionCheck = { TableName: tableName, ...item.ConditionCheck };
+    return normalized;
   });
 
   await docClient.send(
@@ -117,4 +147,3 @@ export async function transact(items: TransactItem[]): Promise<void> {
     })
   );
 }
-

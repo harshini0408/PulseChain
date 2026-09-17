@@ -8,7 +8,10 @@
   "dependencies": {
     "@pulsechain/shared": "*",
     "@aws-sdk/client-dynamodb": "^3.645.0",
-    "@aws-sdk/lib-dynamodb": "^3.645.0"
+    "@aws-sdk/lib-dynamodb": "^3.645.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.645.0",
+    "@aws-sdk/client-ses": "^3.645.0",
+    "@aws-sdk/client-sfn": "^3.645.0"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

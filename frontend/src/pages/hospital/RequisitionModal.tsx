@@ -8,13 +8,12 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  X,
 } from "lucide-react";
 import type { Component, BloodGroup, Urgency, Requisition } from "@pulsechain/shared";
 import { api } from "../../api/client.js";
 import { useAuth } from "../../auth/context.js";
 
-export const RequisitionsPage: React.FC = () => {
+export const RequisitionPage: React.FC = () => {
   const { facilityId, facilityName } = useAuth();
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
   const [loading, setLoading] = useState(false);
@@ -103,24 +102,24 @@ export const RequisitionsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white rounded-xl p-6 border border-neutral-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-6 rounded-2xl">
         <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-base font-bold text-neutral-900">Hospital Blood Requisitions</h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-crimson-100 text-crimson-800 font-mono font-bold">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-extrabold text-white">Blood Requisitions & Emergency Demand</h1>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-800 font-mono">
               {facilityId}
             </span>
           </div>
-          <p className="text-xs text-neutral-600 mt-1">
-            {facilityName} • Create standing institutional demands and urgent emergency requisitions
+          <p className="text-xs text-slate-400 mt-1">
+            {facilityName} • Active blood requisitions that feed the matching and rescue engine
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={loadRequisitions}
             disabled={loading}
-            className="px-3.5 py-2 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-300 border border-slate-700 transition"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -128,21 +127,21 @@ export const RequisitionsPage: React.FC = () => {
 
           <button
             onClick={() => setShowModal(true)}
-            className="px-4 py-2 bg-crimson-700 hover:bg-crimson-800 text-white rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 transition"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-lg shadow-rose-900/40 transition"
           >
             <Plus className="w-4 h-4" />
-            Create Requisition (Bedrock AI)
+            Create Requisition (AI Support)
           </button>
         </div>
       </div>
 
-      {/* Requisitions Grid */}
+      {/* Requisitions List */}
       {requisitions.length === 0 && !loading ? (
-        <div className="bg-white rounded-xl p-12 text-center border border-neutral-200 shadow-sm">
-          <FileText className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-          <h3 className="text-sm font-bold text-neutral-700">No Active Blood Requisitions</h3>
-          <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto">
-            Log an open blood request to receive automated priority matching from blood centres when near-expiry units occur.
+        <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800">
+          <FileText className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+          <h3 className="text-sm font-bold text-slate-300">No Active Blood Requisitions</h3>
+          <p className="text-xs text-slate-500 mt-1">
+            Create an open demand request to automatically receive priority matching from regional blood centres.
           </p>
         </div>
       ) : (
@@ -150,33 +149,33 @@ export const RequisitionsPage: React.FC = () => {
           {requisitions.map((req) => (
             <div
               key={req.reqId}
-              className="bg-white rounded-xl p-5 border border-neutral-200 shadow-sm hover:border-neutral-400 transition"
+              className="glass-panel p-5 rounded-2xl border border-slate-800/80 transition-all glass-panel-hover"
             >
               <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-lg bg-neutral-900 text-white flex items-center justify-center font-mono font-bold text-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-rose-950 border border-rose-800 flex items-center justify-center text-rose-400 font-extrabold text-sm">
                     {req.bloodGroup}
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-neutral-900 font-mono flex items-center gap-2">
+                    <div className="text-sm font-bold text-white flex items-center gap-2">
                       {req.reqId}
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-neutral-100 text-neutral-700 font-bold">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
                         {req.component}
                       </span>
                     </div>
-                    <div className="text-xs text-neutral-500">
-                      Units: <strong className="text-neutral-900 font-mono">{req.unitsRequested}</strong> (Filled: {req.unitsFilled})
+                    <div className="text-[11px] text-slate-400">
+                      Requested: {req.unitsRequested} units (Filled: {req.unitsFilled})
                     </div>
                   </div>
                 </div>
 
                 <span
-                  className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                  className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full ${
                     req.urgency === "CRITICAL"
-                      ? "bg-crimson-100 text-crimson-800 border border-crimson-300 pulse-critical"
+                      ? "bg-rose-950 text-rose-300 border border-rose-700 glow-urgent"
                       : req.urgency === "HIGH"
-                      ? "bg-amber-100 text-amber-800 border border-amber-300"
-                      : "bg-neutral-100 text-neutral-700"
+                      ? "bg-amber-950 text-amber-300 border border-amber-700"
+                      : "bg-slate-800 text-slate-300"
                   }`}
                 >
                   {req.urgency}
@@ -184,15 +183,15 @@ export const RequisitionsPage: React.FC = () => {
               </div>
 
               {req.rawText && (
-                <div className="my-2.5 p-2 rounded-lg bg-neutral-50 text-[11px] text-neutral-600 italic border border-neutral-200">
+                <div className="my-2.5 p-2 rounded-lg bg-slate-900/90 text-[11px] text-slate-400 italic border border-slate-800">
                   "{req.rawText}"
                 </div>
               )}
 
-              <div className="mt-4 pt-3 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-500">
-                <span>Required By:</span>
-                <span className="font-mono text-neutral-900 font-semibold">
-                  {new Date(req.neededBy).toLocaleDateString()} {new Date(req.neededBy).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">Needed By:</span>
+                <span className="font-mono text-slate-200">
+                  {new Date(req.neededBy).toLocaleDateString()} {new Date(req.neededBy).toLocaleTimeString()}
                 </span>
               </div>
             </div>
@@ -202,41 +201,45 @@ export const RequisitionsPage: React.FC = () => {
 
       {/* Multilingual AI Requisition Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/70 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-xl p-6 shadow-2xl border border-neutral-300">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-200 mb-4">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-crimson-600" />
-                <h3 className="text-base font-bold text-neutral-900">Create Requisition</h3>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-crimson-50 text-crimson-700 font-bold border border-crimson-200">
-                  Bedrock NLP
-                </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-lg rounded-2xl p-6 border border-rose-500/30">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-rose-950 border border-rose-800 flex items-center justify-center text-rose-400">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Create Blood Requisition</h3>
+                  <p className="text-xs text-slate-400">AI-Assisted Natural Language Intake</p>
+                </div>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-neutral-400 hover:text-neutral-700">
-                <X className="w-5 h-5" />
-              </button>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                Bedrock LLM
+              </span>
             </div>
 
-            {/* AI Natural Language Prompt */}
-            <div className="mb-4 p-3 rounded-lg bg-neutral-50 border border-neutral-200">
-              <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5 mb-1.5">
-                <Languages className="w-3.5 h-3.5 text-crimson-600" />
-                Multilingual Free-Text Input (Tamil / Hindi / English)
-              </span>
+            {/* AI Text Prompt Area */}
+            <div className="mb-4 p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-rose-300 flex items-center gap-1.5">
+                  <Languages className="w-3.5 h-3.5" />
+                  Multilingual Free-Text Prompt (Tamil / Hindi / English)
+                </span>
+              </div>
               <textarea
                 value={aiText}
                 onChange={(e) => setAiText(e.target.value)}
-                placeholder="Type in English, Tamil or Hindi (e.g. Urgent 2 units O negative platelets needed for surgery at Coimbatore East Hospital before tomorrow morning)"
-                className="w-full h-20 bg-white border border-neutral-300 rounded-lg p-2.5 text-xs text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-crimson-600 focus:outline-none resize-none"
+                placeholder="Example: Emergency 2 bags of O negative platelets needed for surgery at Coimbatore East Hospital tomorrow morning 8 AM"
+                className="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:ring-1 focus:ring-rose-500 focus:outline-none resize-none"
               />
               <button
                 type="button"
                 onClick={handleAiParse}
                 disabled={parsingAi || !aiText.trim()}
-                className="mt-2 w-full py-2 rounded-lg bg-crimson-700 hover:bg-crimson-800 text-white text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
+                className="mt-2 w-full py-2 rounded-lg bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-xs font-bold text-white shadow-md shadow-rose-900/30 transition flex items-center justify-center gap-1.5"
               >
                 <Sparkles className={`w-3.5 h-3.5 ${parsingAi ? "animate-spin" : ""}`} />
-                {parsingAi ? "Extracting with Bedrock AI..." : "Extract Structured Fields with AI"}
+                {parsingAi ? "Extracting with Bedrock AI..." : "Extract Fields with AI"}
               </button>
             </div>
 
@@ -244,11 +247,13 @@ export const RequisitionsPage: React.FC = () => {
             <form onSubmit={handleCreateRequisition} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-neutral-700 font-semibold mb-1">Component</label>
+                  <label className="block text-slate-300 font-medium mb-1">Component</label>
                   <select
                     value={formData.component}
-                    onChange={(e) => setFormData({ ...formData, component: e.target.value as Component })}
-                    className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 font-medium focus:ring-2 focus:ring-crimson-700"
+                    onChange={(e) =>
+                      setFormData({ ...formData, component: e.target.value as Component })
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-rose-500"
                   >
                     <option value="PLATELETS">Platelets</option>
                     <option value="RBC">Red Blood Cells (RBC)</option>
@@ -257,11 +262,13 @@ export const RequisitionsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-neutral-700 font-semibold mb-1">Blood Group</label>
+                  <label className="block text-slate-300 font-medium mb-1">Blood Group</label>
                   <select
                     value={formData.bloodGroup}
-                    onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value as BloodGroup })}
-                    className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 font-mono font-medium focus:ring-2 focus:ring-crimson-700"
+                    onChange={(e) =>
+                      setFormData({ ...formData, bloodGroup: e.target.value as BloodGroup })
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-rose-500"
                   >
                     <option value="O-">O Negative</option>
                     <option value="O+">O Positive</option>
@@ -277,21 +284,25 @@ export const RequisitionsPage: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-neutral-700 font-semibold mb-1">Quantity</label>
+                  <label className="block text-slate-300 font-medium mb-1">Units</label>
                   <input
                     type="number"
                     value={formData.unitsRequested}
-                    onChange={(e) => setFormData({ ...formData, unitsRequested: Number(e.target.value) })}
-                    className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 font-mono focus:ring-2 focus:ring-crimson-700"
+                    onChange={(e) =>
+                      setFormData({ ...formData, unitsRequested: Number(e.target.value) })
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-rose-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-neutral-700 font-semibold mb-1">Urgency</label>
+                  <label className="block text-slate-300 font-medium mb-1">Urgency</label>
                   <select
                     value={formData.urgency}
-                    onChange={(e) => setFormData({ ...formData, urgency: e.target.value as Urgency })}
-                    className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 font-medium focus:ring-2 focus:ring-crimson-700"
+                    onChange={(e) =>
+                      setFormData({ ...formData, urgency: e.target.value as Urgency })
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-rose-500"
                   >
                     <option value="NORMAL">Normal</option>
                     <option value="HIGH">High</option>
@@ -300,28 +311,30 @@ export const RequisitionsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-neutral-700 font-semibold mb-1">Needed Within (h)</label>
+                  <label className="block text-slate-300 font-medium mb-1">Needed Within</label>
                   <input
                     type="number"
                     value={formData.neededHours}
-                    onChange={(e) => setFormData({ ...formData, neededHours: Number(e.target.value) })}
-                    className="w-full bg-neutral-50 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 font-mono focus:ring-2 focus:ring-crimson-700"
+                    onChange={(e) =>
+                      setFormData({ ...formData, neededHours: Number(e.target.value) })
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-rose-500"
                   />
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-neutral-200 flex justify-end space-x-2">
+              <div className="mt-6 flex justify-end gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold rounded-lg"
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 bg-crimson-700 hover:bg-crimson-800 text-white font-bold rounded-lg shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition shadow-lg shadow-rose-900/40"
                 >
                   {actionLoading ? "Submitting..." : "Submit Requisition"}
                 </button>

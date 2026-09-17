@@ -65,3 +65,10 @@ export function monthKey(iso: string): string {
 export function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
+
+/**
+ * Current date as "yyyy-mm-dd" in UTC.
+ */
+export function todayKey(now: Date = new Date()): string {
+  return dayKey(isoNow(now));
+}
