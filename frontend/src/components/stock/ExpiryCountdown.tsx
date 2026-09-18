@@ -8,6 +8,8 @@ import React from "react";
 import { useCountdown } from "../../lib/countdown";
 import { Clock } from "lucide-react";
 
+import { getConfig } from "@pulsechain/shared";
+
 interface ExpiryCountdownProps {
   expiresAt: string;
   isPastThreshold?: boolean;
@@ -18,6 +20,7 @@ export const ExpiryCountdown: React.FC<ExpiryCountdownProps> = ({
   isPastThreshold,
 }) => {
   const countdown = useCountdown(expiresAt);
+  const cfg = getConfig();
 
   if (countdown.isExpired) {
     return (
@@ -28,8 +31,8 @@ export const ExpiryCountdown: React.FC<ExpiryCountdownProps> = ({
     );
   }
 
-  // Highlight urgent countdowns inside threshold (< 48h for platelets)
-  const isUrgent = countdown.totalSeconds < 48 * 3600;
+  // Highlight urgent countdowns inside threshold
+  const isUrgent = isPastThreshold || countdown.totalSeconds < (cfg.thresholdHours.PLATELETS * 3600);
 
   return (
     <span

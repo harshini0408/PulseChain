@@ -7,9 +7,12 @@ import { ErrorState } from "../../components/ui/ErrorState";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Droplets, Activity, CheckCircle2, AlertCircle } from "lucide-react";
 
+import { getConfig } from "@pulsechain/shared";
+
 export function StockConsolePage() {
   const { user, facilityId, facilityName } = useAuth();
   const effectiveFacilityId = facilityId ?? "FAC_CBE_SNBC";
+  const cfg = getConfig();
 
   const { data: units, isLoading, isError, error, refetch } = useStockQuery(effectiveFacilityId);
 
@@ -19,7 +22,7 @@ export function StockConsolePage() {
     units?.filter(
       (u) =>
         u.status === "AVAILABLE" &&
-        u.hoursRemaining <= (u.component === "PLATELETS" ? 48 : 168),
+        u.hoursRemaining <= (cfg.thresholdHours[u.component] ?? cfg.thresholdHours.PLATELETS),
     ).length ?? 0;
 
   return (

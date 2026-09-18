@@ -1,5 +1,6 @@
 import React from "react";
 import type { StockUnit } from "../../api/client";
+import { getConfig } from "@pulsechain/shared";
 import { ExpiryCountdown } from "./ExpiryCountdown";
 import { formatDate } from "../../lib/countdown";
 import { Activity, Check, AlertCircle, Truck, PackageCheck, Ban } from "lucide-react";
@@ -8,8 +9,8 @@ export const UnitRow: React.FC<{ unit: StockUnit; isMobileCard?: boolean }> = ({
   unit,
   isMobileCard,
 }) => {
-  const isPlatelets = unit.component === "PLATELETS";
-  const thresholdHours = isPlatelets ? 48 : unit.component === "RBC" ? 168 : 720;
+  const cfg = getConfig();
+  const thresholdHours = cfg.thresholdHours[unit.component] ?? cfg.thresholdHours.PLATELETS;
   const isInsideThreshold = unit.hoursRemaining <= thresholdHours && unit.hoursRemaining > 0;
 
   let rowStyle = "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors";

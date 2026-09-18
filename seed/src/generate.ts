@@ -78,7 +78,14 @@ function rng(): number {
 }
 
 function pickBloodGroup(): BloodGroup {
-  return weightedBloodGroup(_seed * 1000);
+  const rVal = rng();
+  const total = BG_WEIGHTS.reduce((s, [, w]) => s + w, 0);
+  let r = rVal * total;
+  for (const [g, w] of BG_WEIGHTS) {
+    r -= w;
+    if (r <= 0) return g;
+  }
+  return "O+";
 }
 
 function pickBetween(min: number, max: number): number {
