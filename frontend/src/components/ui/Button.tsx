@@ -1,65 +1,67 @@
-﻿import { type ButtonHTMLAttributes, forwardRef } from "react";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { Spinner } from "./Spinner";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "quiet";
 type Size = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   loading?: boolean;
+  /** Tier A brand surfaces use full-round pill buttons; consoles do not. */
+  pill?: boolean;
+  fullWidth?: boolean;
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary:
-    "bg-accent text-white hover:bg-accent-hover focus-visible:ring-accent/40",
+  primary: "bg-accent text-text-inverse hover:bg-accent-hover shadow-card",
   secondary:
-    "bg-surface-overlay text-text border border-border hover:bg-surface-raised focus-visible:ring-border",
-  ghost:
-    "text-text-muted hover:text-text hover:bg-surface-overlay focus-visible:ring-border",
-  danger:
-    "bg-platelet text-white hover:bg-platelet/90 focus-visible:ring-platelet/40",
+    "bg-surface-raised text-text border border-border hover:border-border-strong hover:bg-surface-overlay",
+  ghost: "text-text-muted hover:text-text hover:bg-surface-overlay",
+  danger: "bg-brand-oxblood text-text-inverse hover:bg-brand-oxblood/90",
+  quiet: "bg-surface-overlay text-text hover:bg-border",
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: "h-7 px-3 text-xs rounded-lg",
-  md: "h-9 px-4 text-sm rounded-xl",
-  lg: "h-11 px-6 text-base rounded-xl",
+  sm: "h-8 px-3 text-xs gap-1.5",
+  md: "h-10 px-4 text-sm gap-2",
+  lg: "h-12 px-6 text-base gap-2",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
-    { variant = "primary", size = "md", loading, children, className = "", disabled, ...props },
+    {
+      variant = "primary",
+      size = "md",
+      loading = false,
+      pill = false,
+      fullWidth = false,
+      children,
+      className = "",
+      disabled,
+      ...props
+    },
     ref,
-  ) => {
-    return (
-      <button
-        ref={ref}
-        disabled={disabled ?? loading}
-        className={[
-          "inline-flex items-center justify-center gap-2 font-medium transition-colors duration-150",
-          "focus-visible:outline-none focus-visible:ring-2",
-          "disabled:opacity-50 disabled:cursor-not-allowed",
-          variantClasses[variant],
-          sizeClasses[size],
-          className,
-        ].join(" ")}
-        {...props}
-      >
-        {loading && (
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-          </svg>
-        )}
-        {children}
-      </button>
-    );
-  },
+  ) => (
+    <button
+      ref={ref}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={[
+        "inline-flex items-center justify-center font-semibold transition-colors duration-150",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
+        pill ? "rounded-full" : "rounded-xl",
+        fullWidth ? "w-full" : "",
+        variantClasses[variant],
+        sizeClasses[size],
+        className,
+      ].join(" ")}
+      {...props}
+    >
+      {loading && <Spinner size="sm" className="text-current" />}
+      {children}
+    </button>
+  ),
 );
 
 Button.displayName = "Button";

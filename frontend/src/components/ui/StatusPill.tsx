@@ -1,53 +1,55 @@
-// Color-coded status pill using CSS variable tokens.
-// All colours come from the design token system — no hardcoded hex here.
+/**
+ * Every status pill in the application. The label and the colour both come
+ * from lib/status.ts — this component only decides the shape.
+ */
 
-type Status =
-  | "OPEN"
-  | "CLAIMED"
-  | "IN_TRANSIT"
-  | "RECEIVED"
-  | "LOST"
-  | "EXPIRED"
-  | "RUNNING"
-  | "RESOLVED"
-  | "EXHAUSTED"
-  | "AVAILABLE"
-  | "RESCUE_PENDING";
+import {
+  escalationStatusToken,
+  offerStatusToken,
+  requisitionStatusToken,
+  unitStatusToken,
+  urgencyToken,
+  type StatusToken,
+} from "../../lib/status";
+
+export type StatusKind = "unit" | "offer" | "requisition" | "escalation" | "urgency";
 
 interface StatusPillProps {
-  status: Status | string;
+  kind: StatusKind;
+  value: string;
+  size?: "sm" | "md";
+  withDot?: boolean;
   className?: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
-  OPEN: { label: "Open", classes: "text-status-open bg-[hsl(var(--status-open-bg))]" },
-  CLAIMED: { label: "Claimed", classes: "text-status-claimed bg-[hsl(var(--status-claimed-bg))]" },
-  IN_TRANSIT: { label: "In Transit", classes: "text-status-in-transit bg-[hsl(var(--status-in-transit-bg))]" },
-  RECEIVED: { label: "Received", classes: "text-status-received bg-[hsl(var(--status-received-bg))]" },
-  LOST: { label: "Lost", classes: "text-status-lost bg-[hsl(var(--status-lost-bg))]" },
-  EXPIRED: { label: "Expired", classes: "text-status-expired bg-[hsl(var(--status-expired-bg))]" },
-  AVAILABLE: { label: "Available", classes: "text-status-received bg-[hsl(var(--status-received-bg))]" },
-  RESCUE_PENDING: { label: "Rescue Pending", classes: "text-platelet bg-platelet-bg" },
-  RUNNING: { label: "Running", classes: "text-status-open bg-[hsl(var(--status-open-bg))]" },
-  RESOLVED: { label: "Resolved", classes: "text-status-received bg-[hsl(var(--status-received-bg))]" },
-  EXHAUSTED: { label: "Exhausted", classes: "text-status-lost bg-[hsl(var(--status-lost-bg))]" },
+const resolvers: Record<StatusKind, (value: string) => StatusToken> = {
+  unit: unitStatusToken,
+  offer: offerStatusToken,
+  requisition: requisitionStatusToken,
+  escalation: escalationStatusToken,
+  urgency: urgencyToken,
 };
 
-export function StatusPill({ status, className = "" }: StatusPillProps) {
-  const config = STATUS_CONFIG[status] ?? {
-    label: status,
-    classes: "text-text-muted bg-surface-overlay",
-  };
+export function StatusPill({
+  kind,
+  value,
+  size = "md",
+  withDot = false,
+  className = "",
+}: StatusPillProps) {
+  const token = resolvers[kind](value);
 
   return (
     <span
       className={[
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide",
-        config.classes,
+        "inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap",
+        size === "sm" ? "px-2 py-0.5 text-2xs" : "px-2.5 py-1 text-xs",
+        token.pill,
         className,
       ].join(" ")}
     >
-      {config.label}
+      {withDot && <span className={["h-1.5 w-1.5 rounded-full", token.dot].join(" ")} />}
+      {token.label}
     </span>
   );
 }

@@ -1,75 +1,99 @@
-import React from "react";
-import { Check, Circle, Truck, PackageCheck } from "lucide-react";
+/**
+ * Chain of custody in three steps, in unit-status order.
+ *
+ * The step labels come from lib/status.ts rather than being written here, so a
+ * stepper stage and its status pill can never disagree about what a state is
+ * called.
+ *
+ * `claimedAt` and `receivedAt` exist on BloodUnit; there is no in-transit
+ * timestamp, so that step is marked reached but undated rather than guessed at.
+ */
+
+import { Check } from "lucide-react";
+import type { UnitStatus } from "@pulsechain/shared";
+import { formatDateTime } from "../../lib/format";
+import { UNIT_STATUS } from "../../lib/status";
 
 interface TransferTimelineProps {
-  status: string; // CLAIMED | IN_TRANSIT | RECEIVED
+  status: UnitStatus;
+  claimedAt?: string;
+  receivedAt?: string;
 }
 
-export const TransferTimeline: React.FC<TransferTimelineProps> = ({ status }) => {
-  const steps = [
-    { id: "CLAIMED", label: "Claimed", icon: Check },
-    { id: "IN_TRANSIT", label: "In Transit", icon: Truck },
-    { id: "RECEIVED", label: "Received", icon: PackageCheck },
-  ];
+/** The custody stages, in order. `as const` keeps the tuple narrow so the
+ *  timestamp map below is checked against exactly these three. */
+const ORDER = ["CLAIMED", "IN_TRANSIT", "RECEIVED"] as const satisfies readonly UnitStatus[];
 
-  const getStepState = (stepId: string) => {
-    if (status === "RECEIVED") return "completed";
-    if (status === "IN_TRANSIT") {
-      if (stepId === "CLAIMED") return "completed";
-      if (stepId === "IN_TRANSIT") return "current";
-      return "upcoming";
-    }
-    if (status === "CLAIMED") {
-      if (stepId === "CLAIMED") return "current";
-      return "upcoming";
-    }
-    return "upcoming";
+type Stage = (typeof ORDER)[number];
+
+export function TransferTimeline({ status, claimedAt, receivedAt }: TransferTimelineProps) {
+  const currentIndex = ORDER.findIndex((stage) => stage === status);
+
+  // RECEIVED is terminal: the chain is closed, so its own step is complete
+  // rather than "in progress". Without this the last step of a finished
+  // transfer renders as the current step forever.
+  const isComplete = status === "RECEIVED";
+
+  const timestamps: Record<Stage, string | undefined> = {
+    CLAIMED: claimedAt,
+    IN_TRANSIT: undefined,
+    RECEIVED: receivedAt,
   };
 
+  const steps = ORDER.map((stage) => ({
+    label: UNIT_STATUS[stage].label,
+    at: timestamps[stage],
+  }));
+
   return (
-    <div className="flex items-center gap-2">
-      {steps.map((step, idx) => {
-        const state = getStepState(step.id);
-        const Icon = step.icon;
+    <ol className="flex items-start">
+      {steps.map((step, i) => {
+        const done = currentIndex > i || (isComplete && currentIndex >= i);
+        const current = !done && currentIndex === i;
+        const reached = done || current;
 
         return (
-          <React.Fragment key={step.id}>
-            <div className="flex items-center gap-1.5">
+          <li key={step.label} className="flex flex-1 items-start last:flex-initial">
+            <div className="flex min-w-0 flex-col items-center text-center">
               <span
-                className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${
-                  state === "completed"
-                    ? "bg-emerald-600 text-white"
-                    : state === "current"
-                    ? "bg-blue-600 text-white animate-pulse"
-                    : "bg-slate-200 dark:bg-slate-800 text-slate-400"
-                }`}
+                className={[
+                  "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                  done
+                    ? "bg-status-received text-text-inverse"
+                    : current
+                      ? "bg-accent text-text-inverse"
+                      : "bg-surface-overlay text-text-subtle",
+                ].join(" ")}
               >
-                <Icon className="w-3 h-3" />
+                {done ? <Check className="h-3 w-3" /> : i + 1}
               </span>
               <span
-                className={`text-xs font-semibold ${
-                  state === "completed"
-                    ? "text-emerald-700 dark:text-emerald-400"
-                    : state === "current"
-                    ? "text-blue-700 dark:text-blue-400"
-                    : "text-slate-400 dark:text-slate-600"
-                }`}
+                className={[
+                  "mt-1.5 whitespace-nowrap text-2xs font-semibold",
+                  reached ? "text-text" : "text-text-subtle",
+                ].join(" ")}
               >
                 {step.label}
               </span>
+              {step.at && (
+                <span className="mt-0.5 whitespace-nowrap text-[10px] tabular-nums text-text-subtle">
+                  {formatDateTime(step.at)}
+                </span>
+              )}
             </div>
-            {idx < steps.length - 1 && (
-              <div
-                className={`w-6 h-0.5 ${
-                  state === "completed"
-                    ? "bg-emerald-500"
-                    : "bg-slate-200 dark:bg-slate-800"
-                }`}
+
+            {i < steps.length - 1 && (
+              <span
+                className={[
+                  "mx-2 mt-3 h-0.5 flex-1 rounded-full",
+                  currentIndex > i ? "bg-status-received" : "bg-border",
+                ].join(" ")}
+                aria-hidden="true"
               />
             )}
-          </React.Fragment>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
-};
+}

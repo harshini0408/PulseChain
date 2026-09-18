@@ -2,71 +2,200 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================================
-   DESIGN TOKENS — all colour values live here as CSS variables.
-   No hex values are permitted inside components.
-   ============================================================ */
+/* ============================================================================
+   FONTS
+
+   The design specimen names Lufga, which is a commercial typeface we cannot
+   fetch from a CDN. If licensed .woff2 files are dropped into
+   frontend/public/fonts/ these @font-face rules pick them up automatically.
+   If they are absent the browser falls straight through to the next family in
+   --font-ui (Plus Jakarta Sans), which holds the same geometric-humanist
+   register. Nothing else needs to change either way.
+   ============================================================================ */
+
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
 
 @layer base {
+  /* ==========================================================================
+     DESIGN TOKENS
+
+     Every colour in this application is defined here and nowhere else.
+     Values are space-separated HSL triplets so Tailwind's <alpha-value>
+     placeholder works (e.g. `bg-accent/10`).
+
+     Seed palette, from the type-and-colour specimen in docs/design/:
+       #BB2B29  ->  1 64% 45%     primary crimson
+       #530404  ->  0 91% 17%     deep oxblood
+       #FFE8E8  ->  0 100% 96%    blush tint
+       #ECA0A0  ->  0 67% 78%     dusty rose
+
+     Everything below is derived from those four.
+     ========================================================================== */
   :root {
-    /* --- Surfaces --- */
-    --surface: 210 20% 97%;         /* near-white warm neutral */
-    --surface-raised: 0 0% 100%;    /* pure white cards */
-    --surface-overlay: 210 20% 94%; /* slightly deeper for overlays */
+    /* --- Seed, kept addressable for brand surfaces --- */
+    --brand-crimson: 1 64% 45%;
+    --brand-oxblood: 0 91% 17%;
+    --brand-blush: 0 100% 96%;
+    --brand-rose: 0 67% 78%;
 
-    /* --- Text --- */
-    --text: 220 25% 12%;            /* near-black */
-    --text-muted: 220 12% 48%;      /* secondary labels */
+    /* --- Surfaces -------------------------------------------------------
+       Tier B (operator consoles) lives on --surface / --surface-raised.
+       The blush is present but barely: the status colours are the
+       instruments, this is only the room they stand in.                  */
+    --surface: 0 50% 98%;         /* barely-tinted blush white — app background */
+    --surface-raised: 0 0% 100%;  /* pure white — cards, table bodies */
+    --surface-sunken: 0 43% 96%;  /* a step deeper — console backdrop, table heads */
+    --surface-overlay: 0 45% 95%; /* chips, hover fills, inset wells */
 
-    /* --- Border --- */
-    --border: 220 13% 88%;          /* subtle border */
+    /* --- Text -----------------------------------------------------------
+       Warm oxblood-derived rather than neutral black. This single choice
+       is what stops the console reading as a default dashboard.          */
+    --text: 0 45% 12%;
+    --text-muted: 0 12% 44%;   /* desaturated rose-grey, never blue-grey */
+    --text-subtle: 0 10% 58%;
+    --text-inverse: 0 0% 100%;
 
-    /* --- Accent (deep crimson — used sparingly for urgency) --- */
-    --accent: 352 80% 38%;
-    --accent-hover: 352 80% 32%;
+    /* --- Borders --- */
+    --border: 0 35% 91%;
+    --border-strong: 0 40% 83%;
+
+    /* --- Accent --- */
+    --accent: 1 64% 45%;
+    --accent-hover: 1 64% 38%;
+    --accent-soft: 0 100% 96%;
+
+    /* --- Brand tier (login, impact hero, empty states, 404) --- */
+    --brand-field-from: 0 100% 98%;
+    --brand-field-to: 0 78% 93%;
+    --brand-panel: 0 91% 14%;    /* the dark crimson urgent-request panel */
+    --brand-panel-text: 0 40% 92%;
 
     /* --- Sidebar --- */
-    --sidebar-bg: 220 22% 11%;      /* near-black sidebar */
-    --sidebar-text: 210 20% 80%;
+    --sidebar-bg: 0 85% 13%;
+    --sidebar-text: 0 30% 76%;
     --sidebar-text-active: 0 0% 100%;
-    --sidebar-active-bg: 352 80% 38%;
+    --sidebar-active-bg: 1 64% 45%;
 
-    /* ============================================================
-       COMPONENT CLOCK COLOURS
-       Platelet: urgent crimson (48-h clock)
-       RBC:      amber (7-day clock)
-       Plasma:   teal (30-day clock)
-       ============================================================ */
-    --platelet: 352 80% 42%;
-    --platelet-bg: 352 80% 95%;
+    /* --- Focus --- */
+    --focus: 1 64% 45%;
 
-    --rbc: 38 92% 50%;
-    --rbc-bg: 38 92% 95%;
+    /* ======================================================================
+       COMPONENT CLOCKS
+       Platelets take the crimson: they carry the 48-hour clock and they are
+       the unit the demo follows. RBC takes an amber, plasma a cool
+       slate-teal that reads as calm because a 30-day clock is not urgent.
+       ====================================================================== */
+    --platelet: 1 64% 45%;
+    --platelet-bg: 0 100% 95%;
 
-    --plasma: 175 60% 38%;
-    --plasma-bg: 175 60% 93%;
+    --rbc: 43 100% 34%;
+    --rbc-bg: 43 85% 92%;
 
-    /* ============================================================
-       UNIT STATUS COLOURS
-       OPEN / CLAIMED / IN_TRANSIT / RECEIVED / LOST / EXPIRED
-       ============================================================ */
-    --status-open: 220 70% 52%;         /* blue */
-    --status-open-bg: 220 70% 94%;
+    /* Plasma moved off teal: the validated `received` green is itself a
+       green-teal, and the two were too close to tell apart. A desaturated
+       slate reads calm without competing with a status colour. */
+    --plasma: 205 32% 42%;
+    --plasma-bg: 205 35% 94%;
 
-    --status-claimed: 262 60% 52%;      /* purple */
-    --status-claimed-bg: 262 60% 95%;
+    /* ======================================================================
+       STATUS COLOURS
+       These are not chosen by eye. The five carrying hues were run through a
+       colour-vision validator as a categorical set, all pairs, against this
+       blush surface, and tuned until every pair passed: lightness band,
+       chroma floor, CVD separation, normal-vision separation and contrast.
 
-    --status-in-transit: 38 92% 50%;    /* amber */
-    --status-in-transit-bg: 38 92% 95%;
+         open        #1F63CC   blue
+         claimed     #7A3C99   purple
+         in-transit  #AD7B00   gold
+         received    #12876E   green-teal
+         lost        #BB2B29   crimson  (brand seed, fixed)
 
-    --status-received: 145 55% 38%;     /* green */
-    --status-received-bg: 145 55% 94%;
+       Worst pair after tuning: 8.3 deltaE under deuteranopia, 15.5 with
+       normal vision. Three findings drove the final values, and changing any
+       of them reintroduces the problem:
 
-    --status-lost: 352 80% 42%;         /* crimson */
-    --status-lost-bg: 352 80% 95%;
+         - Amber and crimson did collapse, exactly as expected. A conventional
+           orange amber sat at 12.4 normal / 8.2 deutan against the crimson, so
+           in-transit moved to a true gold at hue 43.
+         - A violet `claimed` was indistinguishable from `open` (11.0 normal).
+           It moved to hue 280, away from the blue.
+         - A conventional green `received` failed under deuteranopia against
+           the crimson — the classic red/green trap, and this pair carries
+           "saved versus lost". It moved to a green-teal at hue 167.
 
-    --status-expired: 220 12% 58%;      /* grey */
-    --status-expired-bg: 220 12% 94%;
+       Re-run before changing any value here:
+         node scripts/validate_palette.js \
+           "#1F63CC,#7A3C99,#AD7B00,#12876E,#BB2B29" --mode light --pairs all
+       ====================================================================== */
+    --status-open: 216 74% 46%;        /* #1F63CC */
+    --status-open-bg: 216 70% 95%;
+
+    --status-claimed: 280 44% 42%;     /* #7A3C99 */
+    --status-claimed-bg: 280 50% 96%;
+
+    --status-in-transit: 43 100% 34%;  /* #AD7B00 */
+    --status-in-transit-bg: 43 85% 92%;
+
+    --status-received: 167 76% 30%;    /* #12876E */
+    --status-received-bg: 167 45% 93%;
+
+    --status-lost: 1 64% 45%;
+    --status-lost-bg: 0 100% 95%;
+
+    --status-expired: 0 8% 50%;
+    --status-expired-bg: 0 12% 94%;
+
+    /* --- Escalation map rings --- */
+    --ring-1: 1 64% 45%;
+    --ring-2: 43 100% 34%;
+    --ring-3: 280 44% 42%;
+
+    /* --- Typefaces ---
+       Lufga first so licensed files win when present; the Google pairing
+       behind it holds the same character.                                */
+    --font-ui: "Lufga", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-display: "Fraunces", "Lufga", Georgia, "Times New Roman", serif;
   }
 
   * {
@@ -80,9 +209,9 @@
     height: 100%;
     background-color: hsl(var(--surface));
     color: hsl(var(--text));
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-family: var(--font-ui);
     font-size: 15px;
-    line-height: 1.6;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -91,15 +220,29 @@
     height: 100%;
   }
 
-  /* Tabular numbers for any countdown / numeric display */
+  /* Display type: tight leading, slightly negative tracking, as the
+     reference hero sets it. */
+  .font-display {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+
+  /* Any number that changes over time, so a digit-width shift never
+     jitters the layout. */
   .tabular-nums,
-  .font-mono,
   [data-numeric="true"] {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
   }
 
-  /* Scrollbar styling */
+  /* Focus rings are visible everywhere, and always on the crimson. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--focus));
+    outline-offset: 2px;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -108,7 +251,95 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
+    background: hsl(var(--border-strong));
     border-radius: 3px;
+  }
+
+  /* Form controls inherit the UI face rather than the UA default. */
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  /* The blush gradient field behind every Tier A (brand) surface. */
+  .brand-field {
+    background:
+      radial-gradient(
+        120% 80% at 50% 0%,
+        hsl(var(--brand-field-from)) 0%,
+        hsl(var(--brand-field-to)) 100%
+      );
+  }
+
+  /* Skeleton block used by every loading state. Shaped like the real
+     content it stands in for, never a centred spinner. */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--surface-overlay)) 25%,
+      hsl(var(--surface-sunken)) 37%,
+      hsl(var(--surface-overlay)) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-sheen 1.4s ease-in-out infinite;
+    border-radius: 0.5rem;
+  }
+}
+
+@keyframes skeleton-sheen {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* The unit row flipping into RESCUE_PENDING. One of exactly three places
+   this application spends motion. */
+@keyframes rescue-edge {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes ring-pulse {
+  0% {
+    transform: scale(0.94);
+    opacity: 0.85;
+  }
+  70% {
+    transform: scale(1.06);
+    opacity: 0.15;
+  }
+  100% {
+    transform: scale(0.94);
+    opacity: 0.85;
+  }
+}
+
+/* Under prefers-reduced-motion state changes swap instantly rather than
+   animating, and the ring pulse becomes static. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton {
+    animation: none;
+    background: hsl(var(--surface-overlay));
   }
 }

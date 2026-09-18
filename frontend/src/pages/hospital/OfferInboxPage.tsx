@@ -1,90 +1,128 @@
-import React from "react";
+/**
+ * /hospital/inbox — brokered offers addressed to this facility.
+ *
+ * Cards, not a table: each offer is a decision with a clock on it, and a table
+ * row cannot carry a countdown ring, a reason and two actions legibly.
+ *
+ * Open offers come first, in the `rank` the backend assigned. Everything
+ * settled collapses into Recent.
+ */
+
+import { useMemo, useState } from "react";
+import { AnimatePresence } from "framer-motion";
+import { ChevronDown, Inbox } from "lucide-react";
+import type { Offer } from "@pulsechain/shared";
 import { useAuth } from "../../auth/AuthProvider";
-import { useInboxQuery, useFacilitiesQuery } from "../../api/hooks";
+import { useFacilityLookup, useInboxQuery } from "../../api/hooks";
 import { OfferCard } from "../../components/offers/OfferCard";
-import { LoadingState } from "../../components/ui/LoadingState";
-import { ErrorState } from "../../components/ui/ErrorState";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Inbox, Sparkles, AlertCircle } from "lucide-react";
+import { EmptyState, ErrorState, LoadingState, PageHeader } from "../../components/ui";
+import { ConnectionDot } from "../../components/layout/ConnectionDot";
+import { pluralise } from "../../lib/format";
 
 export function OfferInboxPage() {
-  const { facilityId, facilityName } = useAuth();
-  const effectiveFacilityId = facilityId ?? "FAC_CBE_KMCH";
+  // RequireAuth guarantees a facility here; there is no fallback ID.
+  const { facilityId } = useAuth();
+  const inbox = useInboxQuery(facilityId);
+  const { nameOf } = useFacilityLookup();
 
-  const { data: offers, isLoading, isError, error, refetch } = useInboxQuery(effectiveFacilityId);
-  const { data: facilities } = useFacilitiesQuery();
+  const [recentOpen, setRecentOpen] = useState(false);
 
-  // Map facility IDs to facility names
-  const facilityNames = React.useMemo(() => {
-    const map: Record<string, string> = {};
-    if (facilities) {
-      for (const f of facilities) {
-        map[f.facilityId] = f.name;
-      }
-    }
-    return map;
-  }, [facilities]);
-
-  const openOffers = offers?.filter((o) => o.status === "OPEN") ?? [];
+  const { open, recent } = useMemo(() => {
+    const offers: Offer[] = inbox.data ?? [];
+    return {
+      open: offers.filter((o) => o.status === "OPEN").sort((a, b) => a.rank - b.rank),
+      recent: offers
+        .filter((o) => o.status !== "OPEN")
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    };
+  }, [inbox.data]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-              Hospital Offer Inbox
-            </h1>
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {facilityName ?? "Kovai Medical Centre and Hospital"} • Live brokered offers from regional blood centres
-          </p>
-        </div>
+    <div>
+      <PageHeader
+        eyebrow="Hospital"
+        title="Offer inbox"
+        subtitle="Units the network is offering you, ranked by fit"
+        actions={<ConnectionDot />}
+      />
 
-        {/* Live Status Indicator */}
-        <div className="flex items-center gap-3">
-          {openOffers.length > 0 ? (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-300 text-xs font-bold animate-pulse">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{openOffers.length} Active Offer{openOffers.length > 1 ? "s" : ""} Available</span>
-            </div>
-          ) : (
-            <span className="text-xs text-slate-400 font-medium">
-              Awaiting next sweep detection
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Main Inbox View */}
-      {isLoading ? (
-        <LoadingState message="Polling live rescue inbox..." />
-      ) : isError ? (
+      {inbox.isLoading ? (
+        <LoadingState variant="cards" rows={3} label="Loading offers" />
+      ) : inbox.isError ? (
         <ErrorState
-          message={(error as Error)?.message ?? "Failed to fetch offers"}
-          onRetry={() => refetch()}
+          title="The inbox did not load"
+          message={
+            inbox.error instanceof Error
+              ? inbox.error.message
+              : "The inbox endpoint did not respond."
+          }
+          onRetry={() => void inbox.refetch()}
         />
-      ) : !offers || offers.length === 0 ? (
-        /* Designed Empty State — First frame of the Friday demo video */
+      ) : open.length === 0 && recent.length === 0 ? (
         <EmptyState
-          icon={<Inbox className="w-10 h-10 text-slate-400" />}
-          title="No offers in your inbox right now"
-          message="PulseChain's rescue sweep monitors regional blood centres. When a platelet unit enters its 48-hour critical window, ranked offers appear here in real time."
+          icon={<Inbox className="h-6 w-6" />}
+          title="No offers right now"
+          message="Nearby units that match what you need will appear here. An offer arrives when a blood centre's unit crosses into its expiry window and this facility is inside the escalation ring."
         />
       ) : (
-        <div className="space-y-4 max-w-4xl">
-          {offers.map((offer) => (
-            <OfferCard
-              key={offer.offerId}
-              offer={offer}
-              facilityNames={facilityNames}
-            />
-          ))}
+        <div className="space-y-8">
+          {/* ── Needs your decision ─────────────────────────────────────── */}
+          <section>
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-bold text-text">Needs your decision</h2>
+              <span className="text-xs text-text-muted">{pluralise(open.length, "offer")}</span>
+            </div>
+
+            {open.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
+                Nothing is waiting on you. Settled offers are below.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <AnimatePresence mode="popLayout">
+                  {open.map((offer) => (
+                    <OfferCard
+                      key={offer.offerId}
+                      offer={offer}
+                      originName={nameOf(offer.originFacilityId)}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </section>
+
+          {/* ── Recent ──────────────────────────────────────────────────── */}
+          {recent.length > 0 && (
+            <section>
+              <button
+                type="button"
+                onClick={() => setRecentOpen((v) => !v)}
+                aria-expanded={recentOpen}
+                className="mb-3 flex w-full items-center gap-2 text-sm font-bold text-text transition-colors hover:text-accent"
+              >
+                <ChevronDown
+                  className={["h-4 w-4 transition-transform", recentOpen ? "rotate-180" : ""].join(" ")}
+                />
+                Recent
+                <span className="text-xs font-normal text-text-muted">
+                  {pluralise(recent.length, "offer")}
+                </span>
+              </button>
+
+              {recentOpen && (
+                <div className="space-y-4">
+                  {recent.map((offer) => (
+                    <OfferCard
+                      key={offer.offerId}
+                      offer={offer}
+                      originName={nameOf(offer.originFacilityId)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </div>
       )}
     </div>

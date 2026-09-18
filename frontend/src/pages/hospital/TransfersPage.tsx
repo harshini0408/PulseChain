@@ -1,189 +1,217 @@
-import React from "react";
+/**
+ * /hospital/transfers — chain of custody for units this facility claimed.
+ *
+ * WHERE THE DATA COMES FROM
+ * -------------------------
+ * A hospital's own stock query cannot be the only source here. The backend
+ * moves a unit's `facilityId` to the recipient only on RECEIVED
+ * (backend/src/api/transfers.ts), so a CLAIMED or IN_TRANSIT unit is still
+ * filed under the origin blood centre and never appears in
+ * GET /facilities/{hospitalId}/stock.
+ *
+ * So the page composes two deployed endpoints:
+ *   - GET /facilities/{id}/inbox names the units this facility claimed;
+ *   - GET /units/{id} gives each of those its live status and timestamps.
+ * Units already RECEIVED arrive through the stock query as well, and the two
+ * sets are merged by unit ID.
+ */
+
+import { useMemo } from "react";
+import { Truck } from "lucide-react";
+import type { UnitStatus } from "@pulsechain/shared";
 import { useAuth } from "../../auth/AuthProvider";
-import { useInboxQuery, useStockQuery, useFacilitiesQuery } from "../../api/hooks";
+import { useFacilityLookup, useInboxQuery, useStockQuery, useUnitsQuery } from "../../api/hooks";
+import type { StockUnit } from "../../api/client";
 import { TransferTimeline } from "../../components/transfers/TransferTimeline";
 import { TransferActions } from "../../components/transfers/TransferActions";
-import { LoadingState } from "../../components/ui/LoadingState";
-import { ErrorState } from "../../components/ui/ErrorState";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Truck, Building2, MapPin, CheckCircle2 } from "lucide-react";
+import {
+  BloodGroupToken,
+  Card,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  StatusPill,
+} from "../../components/ui";
+import { ConnectionDot } from "../../components/layout/ConnectionDot";
+import { componentClock } from "../../lib/status";
+import { calculateRemaining } from "../../lib/countdown";
+import { formatDistanceKm, formatNumber, pluralise } from "../../lib/format";
 
-const KNOWN_FACILITIES: Record<string, string> = {
-  FAC_CBE_SNBC: "Coimbatore SNS Blood Centre",
-  FAC_CBE_KMCH: "Kovai Medical Centre and Hospital",
-  FAC_CBE_GKNM: "G. Kuppuswamy Naidu Memorial Hospital",
-  FAC_CBE_PSG: "PSG Hospitals, Peelamedu",
-  FAC_CBE_RAMA: "Sri Ramakrishna Hospital",
-  FAC_CBE_ROYAL: "Royal Care Super Speciality Hospital",
-};
+const IN_CUSTODY: UnitStatus[] = ["CLAIMED", "IN_TRANSIT", "RECEIVED"];
+
+/**
+ * The emotional payoff, in one sentence and no more: what arrived, and how
+ * close it came. Computed from expiresAt minus receivedAt.
+ */
+function saveSentence(unit: StockUnit): string {
+  const margin = calculateRemaining(unit.expiresAt, new Date(unit.receivedAt as string).getTime());
+  const clock = componentClock(unit.component).label.toLowerCase();
+
+  if (margin.isExpired) {
+    return `This ${unit.bloodGroup} ${clock} unit arrived as its clock ran out.`;
+  }
+
+  return `This ${unit.bloodGroup} ${clock} unit reached you with ${margin.label} left on its clock.`;
+}
 
 export function TransfersPage() {
-  const { facilityId, facilityName } = useAuth();
-  const effectiveFacilityId = facilityId ?? "FAC_CBE_KMCH";
+  const { facilityId } = useAuth();
+  const { nameOf } = useFacilityLookup();
 
-  const { data: offers, isLoading: inboxLoading, isError: inboxError, refetch: refetchInbox } =
-    useInboxQuery(effectiveFacilityId);
-  const { data: stock, isLoading: stockLoading, refetch: refetchStock } =
-    useStockQuery(effectiveFacilityId);
-  const { data: facilities } = useFacilitiesQuery();
+  const inbox = useInboxQuery(facilityId);
+  const stock = useStockQuery(facilityId);
 
-  const facilityMap = React.useMemo(() => {
-    const map: Record<string, string> = { ...KNOWN_FACILITIES };
-    if (facilities) {
-      for (const f of facilities) {
-        map[f.facilityId] = f.name;
-      }
+  // Units this facility claimed, per the inbox.
+  const claimedUnitIds = useMemo(
+    () =>
+      Array.from(
+        new Set((inbox.data ?? []).filter((o) => o.status === "CLAIMED").map((o) => o.unitId)),
+      ),
+    [inbox.data],
+  );
+
+  const claimedUnits = useUnitsQuery(claimedUnitIds);
+
+  // unitId -> the facility that sent it, from the offer that produced it.
+  const originByUnit = useMemo(() => {
+    const map = new Map<string, { facilityId: string; distanceKm?: number }>();
+    for (const offer of inbox.data ?? []) {
+      map.set(offer.unitId, {
+        facilityId: offer.originFacilityId,
+        distanceKm: offer.breakdown?.distanceKm,
+      });
     }
     return map;
-  }, [facilities]);
+  }, [inbox.data]);
 
-  // Find transfers from claimed/in-transit offers
-  const claimedOffers = offers?.filter((o) => o.status === "CLAIMED") ?? [];
-  const receivedStockUnits = stock?.filter((u) => u.status === "RECEIVED") ?? [];
+  const units = useMemo(() => {
+    const byId = new Map<string, StockUnit>();
+    // Units already held here (RECEIVED), then the in-flight ones by ID.
+    for (const u of stock.data ?? []) byId.set(u.unitId, u);
+    for (const u of claimedUnits.units) byId.set(u.unitId, u);
 
-  // Combine for unique transfers
-  const transferItems = React.useMemo(() => {
-    const items: Array<{
-      unitId: string;
-      component: string;
-      bloodGroup: string;
-      volumeMl: number;
-      originFacilityId: string;
-      distanceKm?: number;
-      status: string;
-    }> = [];
+    return Array.from(byId.values())
+      .filter((u) => IN_CUSTODY.includes(u.status))
+      // Everything here was claimed by this facility, or is now held by it.
+      .filter((u) => u.claimedBy === facilityId || u.facilityId === facilityId);
+  }, [stock.data, claimedUnits.units, facilityId]);
 
-    const seenUnits = new Set<string>();
+  const inProgress = units.filter((u) => u.status !== "RECEIVED");
+  const completed = units
+    .filter((u) => u.status === "RECEIVED")
+    .sort((a, b) => new Date(b.receivedAt ?? 0).getTime() - new Date(a.receivedAt ?? 0).getTime());
 
-    for (const off of claimedOffers) {
-      if (!seenUnits.has(off.unitId)) {
-        seenUnits.add(off.unitId);
-        items.push({
-          unitId: off.unitId,
-          component: off.component ?? "PLATELETS",
-          bloodGroup: off.bloodGroup ?? "O+",
-          volumeMl: off.volumeMl ?? 250,
-          originFacilityId: off.originFacilityId,
-          distanceKm: off.breakdown?.distanceKm,
-          status: "CLAIMED",
-        });
-      }
-    }
+  const isLoading = inbox.isLoading || stock.isLoading;
+  const isError = inbox.isError || stock.isError;
+  const error = inbox.error ?? stock.error;
 
-    for (const unit of receivedStockUnits) {
-      if (!seenUnits.has(unit.unitId)) {
-        seenUnits.add(unit.unitId);
-        items.push({
-          unitId: unit.unitId,
-          component: unit.component,
-          bloodGroup: unit.bloodGroup,
-          volumeMl: unit.volumeMl,
-          originFacilityId: "FAC_CBE_SNBC",
-          status: "RECEIVED",
-        });
-      }
-    }
+  const retry = () => {
+    void inbox.refetch();
+    void stock.refetch();
+    claimedUnits.refetch();
+  };
 
-    return items;
-  }, [claimedOffers, receivedStockUnits]);
+  const renderUnit = (unit: StockUnit) => {
+    const origin = originByUnit.get(unit.unitId);
 
-  const isLoading = inboxLoading && stockLoading;
+    return (
+      <Card key={unit.unitId} className="space-y-4">
+        <div className="flex flex-wrap items-start gap-4">
+          <BloodGroupToken bloodGroup={unit.bloodGroup} component={unit.component} size="sm" />
 
-  const handleRefresh = () => {
-    refetchInbox();
-    refetchStock();
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-2xs text-text-muted">{unit.unitId}</p>
+            <p className="mt-0.5 text-sm font-semibold text-text">
+              {formatNumber(unit.volumeMl)} ml
+              {origin && (
+                <>
+                  <span className="mx-1.5 text-border-strong">·</span>
+                  <span className="font-normal text-text-muted">
+                    from {nameOf(origin.facilityId)}
+                  </span>
+                  {origin.distanceKm !== undefined && (
+                    <span className="font-normal text-text-subtle">
+                      {" "}
+                      ({formatDistanceKm(origin.distanceKm)})
+                    </span>
+                  )}
+                </>
+              )}
+            </p>
+          </div>
+
+          <div className="flex flex-shrink-0 items-center gap-3">
+            <StatusPill kind="unit" value={unit.status} size="sm" withDot />
+            <TransferActions unitId={unit.unitId} status={unit.status} />
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-surface-sunken px-4 py-3.5">
+          <TransferTimeline
+            status={unit.status}
+            claimedAt={unit.claimedAt}
+            receivedAt={unit.receivedAt}
+          />
+        </div>
+
+        {unit.status === "RECEIVED" && unit.receivedAt && (
+          <p className="border-t border-border pt-3.5 text-sm font-medium text-status-received">
+            {saveSentence(unit)}
+          </p>
+        )}
+      </Card>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-              Transfers & Delivery
-            </h1>
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {facilityName ?? "Kovai Medical Centre and Hospital"} • Courier transit tracking and receipt confirmation
-          </p>
-        </div>
+    <div>
+      <PageHeader
+        eyebrow="Hospital"
+        title="Transfers"
+        subtitle="Chain of custody for every unit you claimed"
+        actions={<ConnectionDot />}
+      />
 
-        <div className="flex items-center gap-3 text-xs text-slate-400 font-medium">
-          Active Transfers: <span className="font-bold text-slate-900 dark:text-white">{transferItems.length}</span>
-        </div>
-      </div>
-
-      {/* Content */}
       {isLoading ? (
-        <LoadingState message="Loading hospital transfers..." />
-      ) : inboxError ? (
-        <ErrorState message="Failed to load transfers" onRetry={handleRefresh} />
-      ) : transferItems.length === 0 ? (
+        <LoadingState variant="cards" rows={2} label="Loading transfers" />
+      ) : isError ? (
+        <ErrorState
+          title="Transfers did not load"
+          message={error instanceof Error ? error.message : "The transfer data did not respond."}
+          onRetry={retry}
+        />
+      ) : units.length === 0 ? (
         <EmptyState
-          icon={<Truck className="w-10 h-10 text-slate-400" />}
-          title="No active transfers"
-          message="When you claim a blood unit from the offer inbox, it will appear here for courier dispatch and hospital receipt confirmation."
+          icon={<Truck className="h-6 w-6" />}
+          title="No transfers in progress"
+          message="A unit appears here the moment you claim it from the offer inbox, and stays until you confirm it arrived."
         />
       ) : (
-        <div className="space-y-4 max-w-4xl">
-          {transferItems.map((item) => {
-            const originName = facilityMap[item.originFacilityId] ?? item.originFacilityId;
+        <div className="space-y-8">
+          <section>
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-bold text-text">In progress</h2>
+              <span className="text-xs text-text-muted">{pluralise(inProgress.length, "unit")}</span>
+            </div>
+            {inProgress.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
+                Nothing is in transit. Claimed units appear here for dispatch.
+              </p>
+            ) : (
+              <div className="space-y-4">{inProgress.map(renderUnit)}</div>
+            )}
+          </section>
 
-            return (
-              <div
-                key={item.unitId}
-                className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4"
-              >
-                {/* Unit Details Header */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="px-2.5 py-1 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-xs">
-                      {item.bloodGroup}
-                    </span>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                        {item.component} ({item.volumeMl} ml)
-                      </h4>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                        <Building2 className="w-3.5 h-3.5" />
-                        <span>Origin: {originName}</span>
-                        {item.distanceKm !== undefined && (
-                          <>
-                            <span>•</span>
-                            <MapPin className="w-3.5 h-3.5" />
-                            <span>{item.distanceKm.toFixed(1)} km</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <span className="font-mono text-xs text-slate-400">
-                    Unit ID: {item.unitId}
-                  </span>
-                </div>
-
-                {/* Status Timeline */}
-                <div className="py-2 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <TransferTimeline status={item.status} />
-                </div>
-
-                {/* Transfer Action Controls */}
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <TransferActions
-                    unitId={item.unitId}
-                    status={item.status}
-                    onSuccess={handleRefresh}
-                  />
-                </div>
+          {completed.length > 0 && (
+            <section>
+              <div className="mb-3 flex items-baseline justify-between gap-3">
+                <h2 className="text-sm font-bold text-text">Completed</h2>
+                <span className="text-xs text-text-muted">{pluralise(completed.length, "unit")}</span>
               </div>
-            );
-          })}
+              <div className="space-y-4">{completed.map(renderUnit)}</div>
+            </section>
+          )}
         </div>
       )}
     </div>

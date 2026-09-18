@@ -1,11 +1,10 @@
 /**
  * frontend/src/lib/countdown.ts
  *
- * Client-side countdown hook that updates every 1000ms.
- * Independent of server polling cycles so counters remain active and ticking.
+ * Pure remaining-time calculation. Every countdown in the application is
+ * computed in the browser from an ISO timestamp — never from a server-supplied
+ * "secondsRemaining" field, which would freeze between 3.5s poll cycles.
  */
-
-import { useState, useEffect } from "react";
 
 export interface CountdownState {
   totalSeconds: number;
@@ -13,46 +12,56 @@ export interface CountdownState {
   minutes: number;
   seconds: number;
   isExpired: boolean;
-  formatted: string; // e.g. "05:42" or "2h 15m 30s"
+  /** "11h 42m" at an hour or above, "47m 03s" below it. */
+  label: string;
+  /** "01:29" — minute:second clock, for the offer claim window. */
+  clock: string;
 }
 
-export function calculateRemaining(targetIsoString?: string): CountdownState {
-  if (!targetIsoString) {
-    return {
-      totalSeconds: 0,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      isExpired: true,
-      formatted: "00:00",
-    };
-  }
+const EXPIRED: CountdownState = {
+  totalSeconds: 0,
+  hours: 0,
+  minutes: 0,
+  seconds: 0,
+  isExpired: true,
+  label: "Expired",
+  clock: "00:00",
+};
 
-  const targetMs = new Date(targetIsoString).getTime();
-  const nowMs = Date.now();
-  const diffMs = targetMs - nowMs;
+/** At or above this many hours a countdown reads in days. Display only. */
+const DAYS_ABOVE_HOURS = 72;
 
-  if (diffMs <= 0) {
-    return {
-      totalSeconds: 0,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      isExpired: true,
-      formatted: "00:00",
-    };
-  }
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+export function calculateRemaining(
+  targetIso: string | undefined,
+  now: number = Date.now(),
+): CountdownState {
+  if (!targetIso) return EXPIRED;
+
+  const targetMs = new Date(targetIso).getTime();
+  if (Number.isNaN(targetMs)) return EXPIRED;
+
+  const diffMs = targetMs - now;
+  if (diffMs <= 0) return EXPIRED;
 
   const totalSeconds = Math.floor(diffMs / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  let formatted = "";
-  if (hours > 0) {
-    formatted = `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+  // Three bands, because the useful precision changes with the scale:
+  // a plasma unit with 87 days left should not read "2099h 59m", an hour out
+  // the seconds are noise, and inside the hour the seconds are the whole point.
+  let label: string;
+  if (hours >= DAYS_ABOVE_HOURS) {
+    label = `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  } else if (hours >= 1) {
+    label = `${hours}h ${pad(minutes)}m`;
   } else {
-    formatted = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    label = `${minutes}m ${pad(seconds)}s`;
   }
 
   return {
@@ -61,52 +70,20 @@ export function calculateRemaining(targetIsoString?: string): CountdownState {
     minutes,
     seconds,
     isExpired: false,
-    formatted,
+    label,
+    clock: `${pad(hours * 60 + minutes)}:${pad(seconds)}`,
   };
 }
 
-export function useCountdown(targetIsoString?: string): CountdownState {
-  const [state, setState] = useState<CountdownState>(() =>
-    calculateRemaining(targetIsoString),
-  );
-
-  useEffect(() => {
-    setState(calculateRemaining(targetIsoString));
-
-    const timer = setInterval(() => {
-      setState(calculateRemaining(targetIsoString));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [targetIsoString]);
-
-  return state;
+/** Fraction of a window still remaining, clamped to 0..1. Drives the ring arc. */
+export function remainingFraction(
+  startIso: string | undefined,
+  endIso: string | undefined,
+  now: number = Date.now(),
+): number {
+  if (!startIso || !endIso) return 0;
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return 0;
+  return Math.min(1, Math.max(0, (end - now) / (end - start)));
 }
-
-export function formatDate(isoString: string): string {
-  try {
-    const d = new Date(isoString);
-    return d.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return isoString;
-  }
-}
-
-export function formatDistanceKm(km: number): string {
-  return `${km.toFixed(1)} km`;
-}
-
-export const formatDistance = formatDistanceKm;
-
-export function formatHoursMinutes(hours: number): string {
-  if (hours <= 0) return "0h 00m";
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  return `${h}h ${String(m).padStart(2, "0")}m`;
-}
-

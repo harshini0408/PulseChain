@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./auth/AuthProvider";
-import { RoleProvider } from "./context/RoleContext";
+import { ToastProvider } from "./components/ui";
 import { App } from "./App";
 import "./auth/amplify";
 import "./styles/index.css";
@@ -11,6 +11,8 @@ import "./styles/index.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      // Consoles poll on their own schedule; refetching on focus as well would
+      // double up every time an operator alt-tabs between two demo windows.
       refetchOnWindowFocus: false,
       retry: 1,
     },
@@ -25,9 +27,9 @@ createRoot(root).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <RoleProvider>
+          <ToastProvider>
             <App />
-          </RoleProvider>
+          </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

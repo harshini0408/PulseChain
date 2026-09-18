@@ -1,42 +1,35 @@
 /**
- * frontend/src/components/ui/EmptyState.tsx
- *
- * Designed empty state for the offer inbox and other queues.
- * Calm, intentional aesthetic intended for the first frame of the demo video.
+ * Empty states are a Tier A brand surface: blush field, serif line, room to
+ * breathe. Copy says what would appear here and what would put it here —
+ * no apologies, no exclamation marks.
  */
 
-import React from "react";
-import { Inbox } from "lucide-react";
+import { type ReactNode } from "react";
 
 interface EmptyStateProps {
-  title?: string;
-  description?: string;
-  message?: string;
-  icon?: React.ReactNode;
+  title: string;
+  message: string;
+  icon?: ReactNode;
+  action?: ReactNode;
+  className?: string;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({
-  title = "No offers right now",
-  description,
-  message,
-  icon,
-}) => {
-  const text =
-    description ??
-    message ??
-    "Your facility's inbox is clear. Nearby near-expiry units will appear here in real time when regional sweeps trigger.";
-
+export function EmptyState({ title, message, icon, action, className = "" }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-white/50 dark:bg-gray-800/40 backdrop-blur-sm my-6">
-      <div className="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4">
-        {icon ?? <Inbox className="w-7 h-7 stroke-[1.5]" />}
-      </div>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
-        {title}
-      </h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md leading-relaxed">
-        {text}
-      </p>
+    <div
+      className={[
+        "brand-field flex flex-col items-center justify-center rounded-3xl border border-border px-6 py-14 text-center sm:py-20",
+        className,
+      ].join(" ")}
+    >
+      {icon && (
+        <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-raised text-accent shadow-card">
+          {icon}
+        </span>
+      )}
+      <h3 className="font-display text-display-sm font-semibold text-text">{title}</h3>
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-text-muted">{message}</p>
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
-};
+}

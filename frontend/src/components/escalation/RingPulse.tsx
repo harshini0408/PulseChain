@@ -1,52 +1,58 @@
 /**
- * frontend/src/components/escalation/RingPulse.tsx
+ * An escalation ring on the map. The active ring expands outward on a loop;
+ * inactive rings are drawn as quiet guides so the corridor keeps its shape
+ * even when nothing is happening.
  *
- * Animated concentric ring for the SVG corridor map.
- * Shows the 10km / 30km / outer-ring boundaries emanating from the origin.
+ * Motion place three of three. Under prefers-reduced-motion the pulse becomes
+ * a static circle.
  */
 
-import { motion } from "framer-motion";
+import { ringToken } from "../../lib/status";
+import { usePrefersReducedMotion } from "../../lib/motion";
 
 interface RingPulseProps {
   cx: number;
   cy: number;
-  r: number;          // pixel radius on the SVG
-  ring: 1 | 2 | 3;   // determines colour
-  active: boolean;    // if true, the ring "breathes" with animation
+  r: number;
+  ring: number;
+  active?: boolean;
 }
 
-const RING_COLOURS: Record<number, { stroke: string; fill: string }> = {
-  1: { stroke: "#dc2626", fill: "rgba(220,38,38,0.04)" },  // crimson
-  2: { stroke: "#f59e0b", fill: "rgba(245,158,11,0.04)" }, // amber
-  3: { stroke: "#6366f1", fill: "rgba(99,102,241,0.04)" }, // indigo
-};
-
-export function RingPulse({ cx, cy, r, ring, active }: RingPulseProps) {
-  const { stroke, fill } = RING_COLOURS[ring];
+export function RingPulse({ cx, cy, r, ring, active = false }: RingPulseProps) {
+  const reducedMotion = usePrefersReducedMotion();
+  const stroke = `hsl(var(${ringToken(ring).cssVar}))`;
 
   return (
-    <motion.circle
-      cx={cx}
-      cy={cy}
-      r={r}
-      fill={active ? fill : "transparent"}
-      stroke={stroke}
-      strokeWidth={active ? 1.5 : 0.8}
-      strokeDasharray={active ? undefined : "4 3"}
-      opacity={active ? 0.9 : 0.3}
-      animate={
-        active
-          ? {
-              r: [r, r + 4, r],
-              opacity: [0.85, 0.5, 0.85],
-            }
-          : {}
-      }
-      transition={
-        active
-          ? { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
-          : {}
-      }
-    />
+    <g>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={active ? 1.6 : 0.9}
+        strokeDasharray={active ? undefined : "4 5"}
+        opacity={active ? 0.75 : 0.28}
+      />
+
+      {active && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill={stroke}
+          opacity={reducedMotion ? 0.07 : undefined}
+          style={
+            reducedMotion
+              ? undefined
+              : {
+                  transformOrigin: `${cx}px ${cy}px`,
+                  animation: "ring-pulse 2.6s ease-out infinite",
+                  opacity: 0.12,
+                }
+          }
+        />
+      )}
+    </g>
   );
 }
