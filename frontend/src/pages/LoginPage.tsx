@@ -12,6 +12,7 @@ import { ArrowRight, Building2, Hospital, Loader2, Radio } from "lucide-react";
 import { DEMO_PERSONAS, LANDING_PATHS, useAuth, type Role } from "../auth/AuthProvider";
 import { Logo } from "../components/layout/Logo";
 import { Button } from "../components/ui";
+import { BloodDropIntro } from "../components/intro/BloodDropIntro";
 
 const PERSONA_ORDER: Role[] = ["BLOOD_CENTRE", "HOSPITAL", "COORDINATOR"];
 
@@ -79,7 +80,8 @@ export function LoginPage() {
   };
 
   return (
-    <div className="brand-field min-h-screen">
+    <div className="brand-field min-h-screen relative">
+      <BloodDropIntro />
       <div className="mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 items-center gap-10 px-5 py-10 lg:grid-cols-[1.1fr_minmax(0,420px)] lg:gap-16 lg:py-16">
         {/* ── Brand column ───────────────────────────────────────────────── */}
         <div className="max-w-xl">

@@ -35,6 +35,12 @@ import { ConnectionDot } from "../../components/layout/ConnectionDot";
 import { COMPONENT, UNIT_STATUS, componentClock, isInAlertWindow } from "../../lib/status";
 import { pluralise } from "../../lib/format";
 
+import {
+  ExpiryRiskOverview,
+  classifyUnitRisk,
+  type RiskLevel,
+} from "../../components/stock/ExpiryRiskOverview";
+
 type View = "alert" | "rescue" | "claimed" | "lost";
 
 const VIEWS: View[] = ["alert", "rescue", "claimed", "lost"];
@@ -71,6 +77,7 @@ export function StockConsolePage() {
   const units = useMemo(() => stock.data ?? [], [stock.data]);
 
   const view = (params.get("view") as View | null) ?? null;
+  const risk = (params.get("risk") as RiskLevel | null) ?? null;
   const component = params.get("component") as Component | null;
   const group = params.get("group") as BloodGroup | null;
   const status = params.get("status") as UnitStatus | null;
@@ -117,20 +124,26 @@ export function StockConsolePage() {
     }
   };
 
+  const matchesRisk = (u: StockUnit): boolean => {
+    if (!risk) return true;
+    return classifyUnitRisk(u) === risk;
+  };
+
   const filtered = useMemo(
     () =>
       units.filter(
         (u) =>
           matchesView(u) &&
+          matchesRisk(u) &&
           (!component || u.component === component) &&
           (!group || u.bloodGroup === group) &&
           (!status || u.status === status),
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [units, view, component, group, status],
+    [units, view, risk, component, group, status],
   );
 
-  const hasFilter = Boolean(view || component || group || status);
+  const hasFilter = Boolean(view || risk || component || group || status);
   const plateletClock = componentClock("PLATELETS");
 
   const VIEW_META: Record<View, { label: string; value: number; caption: string; icon: JSX.Element; tone: "neutral" | "accent" | "positive" }> = {
@@ -192,65 +205,122 @@ export function StockConsolePage() {
         })}
       </div>
 
-      {/* ── Filter bar ────────────────────────────────────────────────────── */}
-      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-raised p-3 shadow-card">
-        <select
-          aria-label="Filter by component"
-          value={component ?? ""}
-          onChange={(e) => setParam("component", e.target.value)}
-          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-border-strong"
-        >
-          <option value="">All components</option>
-          {COMPONENTS.map((c) => (
-            <option key={c} value={c}>
-              {COMPONENT[c].label}
-            </option>
-          ))}
-        </select>
+        {/* ── Expiry risk overview ───────────────────────────────────────── */}
+        <ExpiryRiskOverview
+          units={units}
+          activeRiskFilter={risk}
+          onSelectRiskFilter={(r) => setParam("risk", r)}
+        />
 
-        <select
-          aria-label="Filter by blood group"
-          value={group ?? ""}
-          onChange={(e) => setParam("group", e.target.value)}
-          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-border-strong"
-        >
-          <option value="">All groups</option>
-          {BLOOD_GROUPS.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
+        {/* ── Filter bar ────────────────────────────────────────────────────── */}
+        <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-raised p-3 shadow-card">
+          {/* Quick Risk Filters */}
+          <div className="mr-2 flex items-center rounded-lg border border-border bg-surface p-0.5">
+            <button
+              type="button"
+              onClick={() => setParam("risk", null)}
+              className={[
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                !risk ? "bg-surface-raised font-bold text-text shadow-sm" : "text-text-muted hover:text-text",
+              ].join(" ")}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setParam("risk", risk === "critical" ? null : "critical")}
+              className={[
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                risk === "critical"
+                  ? "bg-accent-soft font-bold text-accent shadow-sm"
+                  : "text-text-muted hover:text-accent",
+              ].join(" ")}
+            >
+              Critical
+            </button>
+            <button
+              type="button"
+              onClick={() => setParam("risk", risk === "urgent" ? null : "urgent")}
+              className={[
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                risk === "urgent"
+                  ? "bg-status-in-transit-bg font-bold text-status-in-transit shadow-sm"
+                  : "text-text-muted hover:text-status-in-transit",
+              ].join(" ")}
+            >
+              Urgent
+            </button>
+            <button
+              type="button"
+              onClick={() => setParam("risk", risk === "safe" ? null : "safe")}
+              className={[
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                risk === "safe"
+                  ? "bg-status-received-bg font-bold text-status-received shadow-sm"
+                  : "text-text-muted hover:text-status-received",
+              ].join(" ")}
+            >
+              Safe
+            </button>
+          </div>
 
-        <select
-          aria-label="Filter by status"
-          value={status ?? ""}
-          onChange={(e) => setParam("status", e.target.value)}
-          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-border-strong"
-        >
-          <option value="">All statuses</option>
-          {UNIT_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {UNIT_STATUS[s].label}
-            </option>
-          ))}
-        </select>
-
-        {hasFilter && (
-          <button
-            type="button"
-            onClick={() => setParams(new URLSearchParams(), { replace: true })}
-            className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent-soft"
+          <select
+            aria-label="Filter by component"
+            value={component ?? ""}
+            onChange={(e) => setParam("component", e.target.value)}
+            className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-border-strong"
           >
-            Clear filters
-          </button>
-        )}
+            <option value="">All components</option>
+            {COMPONENTS.map((c) => (
+              <option key={c} value={c}>
+                {COMPONENT[c].label}
+              </option>
+            ))}
+          </select>
 
-        <span className="ml-auto text-xs text-text-muted">
-          {pluralise(filtered.length, "unit")}
-          {hasFilter && units.length !== filtered.length ? ` of ${units.length}` : ""}
-        </span>
-      </div>
+          <select
+            aria-label="Filter by blood group"
+            value={group ?? ""}
+            onChange={(e) => setParam("group", e.target.value)}
+            className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-border-strong"
+          >
+            <option value="">All groups</option>
+            {BLOOD_GROUPS.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filter by status"
+            value={status ?? ""}
+            onChange={(e) => setParam("status", e.target.value)}
+            className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-border-strong"
+          >
+            <option value="">All statuses</option>
+            {UNIT_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {UNIT_STATUS[s].label}
+              </option>
+            ))}
+          </select>
+
+          {hasFilter && (
+            <button
+              type="button"
+              onClick={() => setParams(new URLSearchParams(), { replace: true })}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent-soft"
+            >
+              Clear filters
+            </button>
+          )}
+
+          <span className="ml-auto text-xs text-text-muted">
+            {pluralise(filtered.length, "unit")}
+            {hasFilter && units.length !== filtered.length ? ` of ${units.length}` : ""}
+          </span>
+        </div>
 
       {/* ── Table ─────────────────────────────────────────────────────────── */}
       {stock.isLoading ? (

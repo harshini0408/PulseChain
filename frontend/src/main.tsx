@@ -6,6 +6,7 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { ToastProvider } from "./components/ui";
 import { App } from "./App";
 import "./auth/amplify";
+import "leaflet/dist/leaflet.css";
 import "./styles/index.css";
 
 const queryClient = new QueryClient({
@@ -25,7 +26,7 @@ if (!root) throw new Error("Root element not found");
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           <ToastProvider>
             <App />

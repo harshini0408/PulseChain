@@ -128,7 +128,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isCognitoConfigured()) {
         try {
           await signOut().catch(() => {});
-          await signIn({ username: email, password });
+          try {
+            await signIn({
+              username: email,
+              password,
+              options: { authFlowType: "USER_PASSWORD_AUTH" },
+            });
+          } catch {
+            await signIn({ username: email, password });
+          }
           const session = await fetchAuthSession({ forceRefresh: true });
           const idToken = session.tokens?.idToken;
           const claims = idToken?.payload as Record<string, unknown> | undefined;
@@ -188,12 +196,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveUser(null);
   }, [saveUser]);
 
-  // A restored Cognito session carries a token that may have expired while the
-  // tab was closed. Refresh it once on boot rather than letting every query
-  // fail with a 401.
+  // Restore session on boot. If Cognito is configured and the session lacks a token,
+  // upgrade it via Cognito sign-in, or refresh the existing Cognito token.
   useEffect(() => {
     const stored = readStoredUser();
-    if (stored?.authMode !== "cognito") {
+    if (!stored) {
+      setIsRestoring(false);
+      return;
+    }
+
+    if (isCognitoConfigured() && (!stored.token || stored.authMode !== "cognito")) {
+      login(stored.email, DEMO_PASSWORD)
+        .catch(() => {
+          saveUser(null);
+        })
+        .finally(() => {
+          setIsRestoring(false);
+        });
+      return;
+    }
+
+    if (stored.authMode !== "cognito") {
       setIsRestoring(false);
       return;
     }
@@ -219,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       cancelled = true;
     };
-  }, [saveUser]);
+  }, [login, saveUser]);
 
   return (
     <AuthContext.Provider

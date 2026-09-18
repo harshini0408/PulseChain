@@ -12,7 +12,7 @@
  * four seconds, and only then drops out. It is never removed silently.
  */
 
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { AlertTriangle, ChevronDown, MapPin } from "lucide-react";
@@ -45,7 +45,10 @@ const DECLINE_REASONS = [
   { value: "CANNOT_COLLECT_IN_TIME", label: "Cannot collect in time" },
 ] as const;
 
-export function OfferCard({ offer, originName }: OfferCardProps) {
+export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferCard(
+  { offer, originName },
+  ref,
+) {
   const claim = useClaimMutation();
   const decline = useDeclineMutation();
   const { push } = useToast();
@@ -127,6 +130,7 @@ export function OfferCard({ offer, originName }: OfferCardProps) {
 
   return (
     <motion.article
+      ref={ref}
       layout={!reducedMotion}
       {...entry}
       className={[
@@ -270,9 +274,4 @@ export function OfferCard({ offer, originName }: OfferCardProps) {
       </div>
     </motion.article>
   );
-}
-
-/** Demo-mode claim window, for copy that needs to state it. */
-export function claimWindowSeconds(): number {
-  return getConfig().offerWindowSeconds;
-}
+});

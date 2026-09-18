@@ -22,6 +22,8 @@ import { ringAdvanceAt } from "../../lib/escalation";
 import { ringToken } from "../../lib/status";
 import { formatNumber } from "../../lib/format";
 
+import { CRITICAL_DISPLAY_HOURS } from "../../lib/status";
+
 interface UnitRowProps {
   unit: StockUnit;
   escalation?: ActiveEscalation;
@@ -83,6 +85,7 @@ export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
   }, [unit.status]);
 
   const rescuing = isRescuing(unit.status);
+  const isCritical = rescuing || unit.hoursRemaining <= CRITICAL_DISPLAY_HOURS;
   const open = () => navigate(`/centre/units/${unit.unitId}`);
 
   // Under reduced motion the state change swaps instantly instead of animating.
@@ -98,13 +101,16 @@ export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
         onClick={open}
         animate={flashAnimation}
         transition={{ duration: FLASH_MS / 1000, ease: "easeOut" }}
-        className="relative w-full overflow-hidden rounded-xl border border-border bg-surface-raised p-4 text-left shadow-card"
+        className={[
+          "relative w-full overflow-hidden rounded-xl border text-left shadow-card transition-colors",
+          isCritical ? "border-accent/40 bg-accent-soft/20 p-4" : "border-border bg-surface-raised p-4",
+        ].join(" ")}
       >
-        {rescuing && (
+        {isCritical && (
           <span
             className={[
-              "absolute inset-y-0 left-0 w-1 bg-platelet",
-              reducedMotion ? "" : "animate-rescue-edge",
+              "absolute inset-y-0 left-0 w-1.5 bg-accent",
+              rescuing && !reducedMotion ? "animate-rescue-edge" : "",
             ].join(" ")}
             aria-hidden="true"
           />
@@ -112,7 +118,10 @@ export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
 
         <div className="flex items-start justify-between gap-3 pl-2">
           <div className="min-w-0">
-            <p className="truncate font-mono text-xs text-text-muted">{unit.unitId}</p>
+            <div className="flex items-center gap-1.5">
+              {isCritical && <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />}
+              <p className="truncate font-mono text-xs font-semibold text-text">{unit.unitId}</p>
+            </div>
             <p className="mt-1 font-display text-lg font-bold text-text">{unit.bloodGroup}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <ComponentClockBadge component={unit.component} />
@@ -153,19 +162,27 @@ export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
           open();
         }
       }}
-      className="group cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-surface-sunken"
+      className={[
+        "group cursor-pointer border-b border-border transition-colors last:border-0",
+        isCritical
+          ? "bg-accent-soft/20 hover:bg-accent-soft/40"
+          : "hover:bg-surface-sunken",
+      ].join(" ")}
     >
       <td className="relative py-3 pl-4 pr-3">
-        {rescuing && (
+        {isCritical && (
           <span
             className={[
-              "absolute inset-y-0 left-0 w-1 bg-platelet",
-              reducedMotion ? "" : "animate-rescue-edge",
+              "absolute inset-y-0 left-0 w-1 bg-accent",
+              rescuing && !reducedMotion ? "animate-rescue-edge" : "",
             ].join(" ")}
             aria-hidden="true"
           />
         )}
-        <span className="font-mono text-xs text-text">{unit.unitId}</span>
+        <div className="flex items-center gap-1.5">
+          {isCritical && <span className="h-1.5 w-1.5 rounded-full bg-accent flex-shrink-0 animate-pulse" />}
+          <span className="font-mono text-xs font-semibold text-text">{unit.unitId}</span>
+        </div>
         <span className="mt-0.5 block text-2xs text-text-subtle">
           {formatNumber(unit.volumeMl)} ml
         </span>

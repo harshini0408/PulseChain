@@ -139,6 +139,11 @@ async function request<T>(
     } catch {
       // Non-JSON error body; keep the status-code message.
     }
+    if (res.status === 401) {
+      try {
+        sessionStorage.removeItem("pulsechain_session_user");
+      } catch {}
+    }
     throw new ApiError(res.status, message);
   }
 
@@ -214,11 +219,26 @@ export const api = {
   /** GET /health — drives the connection dot in the top bar. */
   fetchHealth: async (): Promise<HealthProbe> => {
     const started = performance.now();
-    const res = await request<HealthResponse>("/health");
-    return {
-      ok: Boolean(res?.ok),
-      mode: res?.mode ?? "unknown",
-      latencyMs: Math.round(performance.now() - started),
-    };
+    try {
+      if (BASE_URL && !getStoredAuthHeaders().Authorization) {
+        return {
+          ok: false,
+          mode: "unauthenticated",
+          latencyMs: 0,
+        };
+      }
+      const res = await request<HealthResponse>("/health");
+      return {
+        ok: Boolean(res?.ok),
+        mode: res?.mode ?? "unknown",
+        latencyMs: Math.round(performance.now() - started),
+      };
+    } catch {
+      return {
+        ok: false,
+        mode: "unreachable",
+        latencyMs: Math.round(performance.now() - started),
+      };
+    }
   },
 };
