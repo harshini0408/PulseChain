@@ -1,75 +1,73 @@
-import {
-  escalationKey,
-  isoNow,
-  unitKey,
-  type BloodUnit,
-  type Escalation,
-} from "@pulsechain/shared";
-import { docClient, getItem, requireTableName } from "../lib/db.js";
-import { transitionUnit } from "../lib/transitions.js";
+/**
+ * backend/src/workers/finish-escalation.ts
+ *
+ * Terminal worker for Step Functions escalation workflow:
+ * - Marks escalation EXHAUSTED (or RESOLVED)
+ * - Writes ESCALATION_EXHAUSTED audit event
+ * - Unit remains RESCUE_PENDING
+ */
+
+import { isoNow, type Escalation, type BloodUnit } from "@pulsechain/shared";
+import { getItem, transact } from "../lib/db.js";
 import { writeAuditEvent } from "../lib/audit.js";
-import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
-export interface FinishEscalationInput {
+export interface FinishEscalationParams {
   unitId: string;
   escalationId: string;
-  resolved: boolean;
+  status: "EXHAUSTED" | "RESOLVED";
+  cause?: string;
+  now?: string;
 }
 
-export interface FinishEscalationOutput {
+export async function finishEscalation(params: FinishEscalationParams): Promise<{
   unitId: string;
   escalationId: string;
-  status: "RESOLVED" | "EXHAUSTED";
-  endedAt: string;
-}
+  status: string;
+}> {
+  const ts = params.now ?? isoNow();
 
-export async function handler(event: FinishEscalationInput): Promise<FinishEscalationOutput> {
-  const { unitId, escalationId, resolved } = event;
-  const status = resolved ? "RESOLVED" : "EXHAUSTED";
-  const now = isoNow();
+  const escKey = { PK: `UNIT#${params.unitId}`, SK: `ESC#${params.escalationId}` };
+  const esc = await getItem<Escalation>(escKey.PK, escKey.SK);
 
-  const escKeys = escalationKey("UNIT", unitId, escalationId);
-
-  try {
-    await docClient.send(
-      new UpdateCommand({
-        TableName: requireTableName(),
-        Key: escKeys,
-        UpdateExpression: "SET #status = :status, #endedAt = :endedAt REMOVE GSI1PK, GSI1SK",
-        ExpressionAttributeNames: {
-          "#status": "status",
-          "#endedAt": "endedAt",
+  if (esc && esc.status === "RUNNING") {
+    await transact([
+      {
+        Update: {
+          Key: escKey,
+          UpdateExpression: "SET #status = :newStatus, endedAt = :ts",
+          ExpressionAttributeNames: {
+            "#status": "status",
+          },
+          ExpressionAttributeValues: {
+            ":newStatus": params.status,
+            ":ts": ts,
+          },
         },
-        ExpressionAttributeValues: {
-          ":status": status,
-          ":endedAt": now,
-        },
-      })
-    );
-  } catch (err) {
-    console.warn(`Could not update escalation ${escalationId}:`, err);
+      },
+    ]);
   }
 
-  // If exhausted and unit is still in RESCUE_PENDING, check if past expiry
-  if (!resolved) {
-    const unitKeys = unitKey(unitId);
-    const unit = await getItem<BloodUnit>(unitKeys.PK, unitKeys.SK);
-
-    if (unit && unit.status === "RESCUE_PENDING" && unit.expiresAt <= now) {
-      try {
-        await transitionUnit(unitId, "RESCUE_PENDING", "LOST", {
-          note: `Unit expired following exhausted escalation ${escalationId}`,
-        });
-      } catch (err) {
-        console.warn(`Could not mark unit ${unitId} as LOST:`, err);
-      }
-    }
+  if (params.status === "EXHAUSTED") {
+    await writeAuditEvent({
+      eventType: "ESCALATION_EXHAUSTED",
+      subjectType: "UNIT",
+      subjectId: params.unitId,
+      timestamp: ts,
+      details: {
+        escalationId: params.escalationId,
+        cause: params.cause ?? "All 3 rings evaluated without claim",
+      },
+    });
   }
 
   return {
-    unitId,
-    escalationId,
-    status,
-    endedAt: now,
+    unitId: params.unitId,
+    escalationId: params.escalationId,
+    status: params.status,
   };
+}
+
+// Lambda handler wrapper
+export async function handler(event: FinishEscalationParams) {
+  return await finishEscalation(event);
 }

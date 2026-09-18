@@ -1,9 +1,11 @@
-﻿import { StrictMode } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "./auth/AuthProvider";
 import { RoleProvider } from "./context/RoleContext";
 import { App } from "./App";
+import "./auth/amplify";
 import "./styles/index.css";
 
 const queryClient = new QueryClient({
@@ -22,9 +24,11 @@ createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <RoleProvider>
-          <App />
-        </RoleProvider>
+        <AuthProvider>
+          <RoleProvider>
+            <App />
+          </RoleProvider>
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

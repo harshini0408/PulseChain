@@ -1,3 +1,4 @@
+// zod schemas for API input validation and deterministic requisition parsing.
 import { z } from "zod";
 import {
   COMPONENTS,
@@ -23,7 +24,7 @@ export const createUnitSchema = z.object({
 export type CreateUnitInput = z.infer<typeof createUnitSchema>;
 
 // ---------------------------------------------------------------------------
-// POST /requisitions — create a manual blood request
+// POST /requisitions — create a manual or parsed blood request
 // ---------------------------------------------------------------------------
 export const createRequisitionSchema = z.object({
   hospitalId: z.string().min(1),
@@ -32,13 +33,13 @@ export const createRequisitionSchema = z.object({
   unitsRequested: z.number().int().positive(),
   urgency: z.enum(URGENCY_LEVELS).default("NORMAL"),
   neededBy: z.string().datetime({ offset: true }),
-  source: z.enum(REQUISITION_SOURCES).optional(),
+  source: z.enum(REQUISITION_SOURCES).default("MANUAL"),
   rawText: z.string().optional(),
 });
 export type CreateRequisitionInput = z.infer<typeof createRequisitionSchema>;
 
 // ---------------------------------------------------------------------------
-// Bedrock output — parsed requisition from free text (Tamil / Hindi / English)
+// Parsed requisition schema — from free text (Tamil / Hindi / English)
 // ---------------------------------------------------------------------------
 export const parsedRequisitionSchema = z.object({
   hospitalName: z.string().optional(),
@@ -48,7 +49,7 @@ export const parsedRequisitionSchema = z.object({
   urgency: z.enum(URGENCY_LEVELS),
   /** ISO UTC datetime string for when the blood is needed */
   neededBy: z.string().datetime({ offset: true }),
-  /** Model confidence 0–1; below 0.5 trigger human review */
+  /** Confidence 0–1; below 0.6 triggers review */
   confidence: z.number().min(0).max(1),
 });
 export type ParsedRequisition = z.infer<typeof parsedRequisitionSchema>;
@@ -109,3 +110,35 @@ export const confirmDonationSchema = z.object({
 });
 export type ConfirmDonationInput = z.infer<typeof confirmDonationSchema>;
 
+// ---------------------------------------------------------------------------
+// POST /offers/:id/claim
+// ---------------------------------------------------------------------------
+export const claimOfferSchema = z.object({
+  notes: z.string().optional(),
+}).optional();
+export type ClaimOfferInput = z.infer<typeof claimOfferSchema>;
+
+// ---------------------------------------------------------------------------
+// POST /offers/:id/decline
+// ---------------------------------------------------------------------------
+export const declineOfferSchema = z.object({
+  reason: z.string().optional(),
+}).optional();
+export type DeclineOfferInput = z.infer<typeof declineOfferSchema>;
+
+// ---------------------------------------------------------------------------
+// POST /transfers/:unitId/in-transit
+// ---------------------------------------------------------------------------
+export const transferInTransitSchema = z.object({
+  courier: z.string().optional(),
+  notes: z.string().optional(),
+}).optional();
+export type TransferInTransitInput = z.infer<typeof transferInTransitSchema>;
+
+// ---------------------------------------------------------------------------
+// POST /transfers/:unitId/received
+// ---------------------------------------------------------------------------
+export const transferReceivedSchema = z.object({
+  notes: z.string().optional(),
+}).optional();
+export type TransferReceivedInput = z.infer<typeof transferReceivedSchema>;

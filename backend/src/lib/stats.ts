@@ -1,87 +1,108 @@
-import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
-import { statsDayKey, todayKey, type DailyStats } from "@pulsechain/shared";
-import { docClient, getItem, requireTableName, type TransactItem } from "./db.js";
+/**
+ * backend/src/lib/stats.ts
+ *
+ * Daily stats tracking using DynamoDB ADD updates.
+ * Provides functions to record saved/lost units and query historical stats.
+ */
 
-export interface IncrementStatsParams {
-  unitsSaved?: number;
-  unitsLost?: number;
-  valueSavedInr?: number;
-  valueLostInr?: number;
+import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { statsDayKey, isoNow, getConfig } from "@pulsechain/shared";
+import { docClient, requireTableName, queryAll } from "./db.js";
+
+export interface DailyStatsRecord {
+  PK: "STATS";
+  SK: string; // DAY#yyyy-mm-dd
+  entityType: "STATS";
+  date: string; // yyyy-mm-dd
+  unitsSaved: number;
+  unitsLost: number;
+  valueSavedInr: number;
+  valueLostInr: number;
 }
 
-export async function incrementDailyStats(
-  day: string = todayKey(),
-  params: IncrementStatsParams
-): Promise<void> {
-  const keys = statsDayKey(day);
-  const uSaved = params.unitsSaved ?? 0;
-  const uLost = params.unitsLost ?? 0;
-  const vSaved = params.valueSavedInr ?? 0;
-  const vLost = params.valueLostInr ?? 0;
+function getTodayString(isoTimestamp?: string): string {
+  const ts = isoTimestamp ?? isoNow();
+  return ts.slice(0, 10); // yyyy-mm-dd
+}
 
-  if (uSaved === 0 && uLost === 0 && vSaved === 0 && vLost === 0) {
-    return;
-  }
+/**
+ * Increment daily saved counters by atomic ADD.
+ */
+export async function recordUnitSaved(
+  valueInr?: number,
+  isoTimestamp?: string,
+): Promise<void> {
+  const day = getTodayString(isoTimestamp);
+  const key = statsDayKey(day);
+  const cfg = getConfig();
+  const value = valueInr ?? cfg.valuePerUnitInr;
 
   await docClient.send(
     new UpdateCommand({
       TableName: requireTableName(),
-      Key: keys,
+      Key: key,
       UpdateExpression:
-        "ADD #unitsSaved :uSaved, #unitsLost :uLost, #valueSavedInr :vSaved, #valueLostInr :vLost SET #entityType = if_not_exists(#entityType, :entityType)",
+        "ADD unitsSaved :one, valueSavedInr :val SET entityType = :type, #date = :day",
       ExpressionAttributeNames: {
-        "#unitsSaved": "unitsSaved",
-        "#unitsLost": "unitsLost",
-        "#valueSavedInr": "valueSavedInr",
-        "#valueLostInr": "valueLostInr",
-        "#entityType": "entityType",
+        "#date": "date",
       },
       ExpressionAttributeValues: {
-        ":uSaved": uSaved,
-        ":uLost": uLost,
-        ":vSaved": vSaved,
-        ":vLost": vLost,
-        ":entityType": "DailyStats",
+        ":one": 1,
+        ":val": value,
+        ":type": "STATS",
+        ":day": day,
       },
-    })
+    }),
   );
 }
 
-export function buildStatsTransactItem(
-  day: string = todayKey(),
-  params: IncrementStatsParams
-): TransactItem {
-  const keys = statsDayKey(day);
-  return {
-    Update: {
-      Key: keys,
+/**
+ * Increment daily lost counters by atomic ADD.
+ */
+export async function recordUnitLost(
+  valueInr?: number,
+  isoTimestamp?: string,
+): Promise<void> {
+  const day = getTodayString(isoTimestamp);
+  const key = statsDayKey(day);
+  const cfg = getConfig();
+  const value = valueInr ?? cfg.valuePerUnitInr;
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: requireTableName(),
+      Key: key,
       UpdateExpression:
-        "ADD #unitsSaved :uSaved, #unitsLost :uLost, #valueSavedInr :vSaved, #valueLostInr :vLost SET #entityType = if_not_exists(#entityType, :entityType)",
+        "ADD unitsLost :one, valueLostInr :val SET entityType = :type, #date = :day",
       ExpressionAttributeNames: {
-        "#unitsSaved": "unitsSaved",
-        "#unitsLost": "unitsLost",
-        "#valueSavedInr": "valueSavedInr",
-        "#valueLostInr": "valueLostInr",
-        "#entityType": "entityType",
+        "#date": "date",
       },
       ExpressionAttributeValues: {
-        ":uSaved": params.unitsSaved ?? 0,
-        ":uLost": params.unitsLost ?? 0,
-        ":vSaved": params.valueSavedInr ?? 0,
-        ":vLost": params.valueLostInr ?? 0,
-        ":entityType": "DailyStats",
+        ":one": 1,
+        ":val": value,
+        ":type": "STATS",
+        ":day": day,
       },
-    },
-  };
+    }),
+  );
 }
 
-export async function getDailyStats(day: string = todayKey()): Promise<DailyStats> {
-  const keys = statsDayKey(day);
-  const item = await getItem<DailyStats>(keys.PK, keys.SK);
-  return {
-    unitsSaved: item?.unitsSaved ?? 0,
-    unitsLost: item?.unitsLost ?? 0,
-    valueSavedInr: item?.valueSavedInr ?? 0,
-    valueLostInr: item?.valueLostInr ?? 0,
-  };
+/**
+ * Query stats between two dates (inclusive) for the impact dashboard.
+ */
+export async function getStatsRange(
+  fromDay: string,
+  toDay: string,
+): Promise<DailyStatsRecord[]> {
+  const items = await queryAll<DailyStatsRecord>({
+    keyCondition: "PK = :pk AND SK BETWEEN :fromSk AND :toSk",
+    values: {
+      ":pk": "STATS",
+      ":fromSk": `DAY#${fromDay}`,
+      ":toSk": `DAY#${toDay}`,
+    },
+    scanForward: true,
+  });
+
+  return items;
 }

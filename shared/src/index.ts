@@ -9,5 +9,6 @@ export * from "./config.js";
 export * from "./compatibility.js";
 export * from "./scoring.js";
 export * from "./schemas.js";
-export * from "./eligibility.js";
+export * from "./parsing.js";
 
+export * from './eligibility.js';

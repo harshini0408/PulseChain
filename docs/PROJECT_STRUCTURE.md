@@ -14,7 +14,7 @@ pulsechain/
 ├── package.json                      Root: npm workspaces + shared scripts
 ├── tsconfig.base.json                Strict TS settings every package extends
 ├── .gitignore                        node_modules, dist, .aws-sam, .env*
-├── .env.example                      AWS_REGION, TABLE_NAME, BEDROCK_MODEL_ID, SES_FROM
+├── .env.example                      AWS_REGION, TABLE_NAME, SES_FROM
 │
 ├── docs/
 │   ├── PROJECT_STRUCTURE.md          This file
@@ -39,11 +39,15 @@ pulsechain/
 │   │   ├── config.ts                 Thresholds, offer windows, ring radii, score weights; DEMO vs PROD mode
 │   │   ├── compatibility.ts          ABO/Rh rules for RBC, plasma, platelets (IDENTICAL > COMPATIBLE > ACCEPTABLE)
 │   │   ├── scoring.ts                Deterministic ranking + per-factor breakdown + reason text
+│   │   ├── parsing.ts                Deterministic multilingual parser (ta / hi / en)
+│   │   ├── parsing/
+│   │   │   └── keywords.ts           Auditable language lookup tables
 │   │   ├── time.ts                   hoursRemaining, isPastThreshold, padDistance, isoNow
-│   │   └── schemas.ts                zod schemas for API input and Bedrock output
+│   │   └── schemas.ts                zod schemas for API input and deterministic requisition parsing
 │   └── tests/
 │       ├── compatibility.test.ts     Vitest — must pass before demo
-│       └── scoring.test.ts
+│       ├── scoring.test.ts
+│       └── parsing.test.ts
 │
 ├── backend/                          AWS SAM app
 │   ├── template.yaml                 Table, HTTP API + Cognito authorizer, Lambdas, Scheduler, state machines, SES policy
@@ -62,7 +66,6 @@ pulsechain/
 │       │   ├── stats.ts              ADD unitsSaved / unitsLost to STATS#DAY
 │       │   ├── http.ts               JSON responses, error mapping, CORS
 │       │   ├── auth.ts               Read role + facilityId from Cognito JWT claims
-│       │   ├── bedrock.ts            Converse call, fence stripping, zod validation, fallback
 │       │   └── ses.ts                Offer notification email
 │       ├── api/                      API Gateway handlers
 │       │   ├── facilities.ts         GET /facilities, GET /facilities/{id}
@@ -70,7 +73,7 @@ pulsechain/
 │       │   ├── offers.ts             GET /inbox, POST /offers/{id}/claim, POST /offers/{id}/decline
 │       │   ├── transfers.ts          POST /units/{id}/in-transit, POST /units/{id}/received
 │       │   ├── requisitions.ts       GET/POST /requisitions
-│       │   ├── parse.ts              POST /requisitions/parse (Bedrock)
+│       │   ├── parse.ts              POST /requisitions/parse (deterministic parser)
 │       │   ├── escalations.ts        GET /escalations/active (coordinator)
 │       │   ├── dashboard.ts          GET /dashboard/impact
 │       │   └── demo.ts               POST /demo/sweep-now, POST /demo/reset
@@ -182,7 +185,7 @@ Packages import shared logic as `@pulsechain/shared`. SAM builds Lambdas with `B
 |---|---|
 | A — backend | `backend/`, `shared/keys.ts`, `shared/scoring.ts` |
 | B — frontend | `frontend/src/pages`, `api/`, `auth/` |
-| C — data + AI | `seed/`, `shared/compatibility.ts`, `backend/src/lib/bedrock.ts`, Cognito users |
+| C — data + parsing | `seed/`, `shared/compatibility.ts`, `shared/src/parsing.ts`, Cognito users |
 | D — design + pitch | `frontend/src/components/ui`, `escalation/`, `dashboard/`, `docs/` |
 
 ---

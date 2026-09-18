@@ -1,11 +1,11 @@
-import { useRole, type AppRole } from "../../context/RoleContext";
+import { useAuth, type Role } from "../../auth/AuthProvider";
 
-const ROLES: { value: AppRole; label: string }[] = [
+const ROLES: { value: Role; label: string }[] = [
   { value: "BLOOD_CENTRE", label: "Blood Centre" },
   { value: "HOSPITAL", label: "Hospital" },
   { value: "COORDINATOR", label: "Coordinator" },
+  { value: "COMMUNITY_COORDINATOR", label: "Community" },
   { value: "DONOR", label: "Donor" },
-  { value: "COMMUNITY_COORDINATOR", label: "Community Coordinator" },
 ];
 
 interface RoleSwitcherProps {
@@ -13,7 +13,7 @@ interface RoleSwitcherProps {
 }
 
 export function RoleSwitcher({ compact = false }: RoleSwitcherProps) {
-  const { role, setRole } = useRole();
+  const { role, loginAs } = useAuth();
 
   return (
     <div className="flex items-center gap-2">
@@ -22,8 +22,8 @@ export function RoleSwitcher({ compact = false }: RoleSwitcherProps) {
       )}
       <select
         id="role-switcher"
-        value={role}
-        onChange={(e) => setRole(e.target.value as AppRole)}
+        value={role ?? "BLOOD_CENTRE"}
+        onChange={(e) => loginAs(e.target.value as Role)}
         className="rounded-lg border border-border bg-surface-raised px-2.5 py-1.5 text-xs font-medium text-text focus:outline-none focus:ring-2 focus:ring-accent/40 transition-colors cursor-pointer hover:border-text-muted"
         aria-label="Switch demo role"
       >

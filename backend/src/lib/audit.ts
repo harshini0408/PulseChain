@@ -1,4 +1,11 @@
-import { randomUUID } from "node:crypto";
+/**
+ * backend/src/lib/audit.ts
+ *
+ * Audit event builder and persistence helpers.
+ * Every status change writes an audit row in the same transaction.
+ */
+
+import { randomUUID } from "crypto";
 import {
   auditKey,
   auditMonthGsi1,
@@ -6,7 +13,6 @@ import {
   type AuditEvent,
   type AuditEventType,
   type EscalationSubject,
-  type WithKeys,
 } from "@pulsechain/shared";
 import { putItem, type TransactItem } from "./db.js";
 
@@ -15,46 +21,65 @@ export interface CreateAuditParams {
   subjectType: EscalationSubject;
   subjectId: string;
   actorFacilityId?: string | null;
-  details?: Record<string, unknown>;
   timestamp?: string;
-  eventId?: string;
+  details?: Record<string, unknown>;
 }
 
-export function buildAuditEvent(params: CreateAuditParams): WithKeys<AuditEvent> & AuditEvent {
-  const eventId = params.eventId ?? randomUUID();
-  const timestamp = params.timestamp ?? isoNow();
-  const keys = auditKey(params.subjectType, params.subjectId, timestamp, eventId);
-  const gsi1 = auditMonthGsi1(timestamp);
+export interface AuditRecord extends AuditEvent {
+  PK: string;
+  SK: string;
+  GSI1PK: string;
+  GSI1SK: string;
+  entityType: "AUDIT";
+}
 
-  const event: AuditEvent = {
+/**
+ * Builds a complete AuditRecord object with DynamoDB PK/SK/GSI keys.
+ */
+export function buildAuditEvent(params: CreateAuditParams): AuditRecord {
+  const ts = params.timestamp ?? isoNow();
+  const eventId = `EVT_${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
+
+  const keys = auditKey(params.subjectType, params.subjectId, ts, eventId);
+  const gsi1 = auditMonthGsi1(ts);
+
+  return {
+    ...keys,
+    ...gsi1,
+    entityType: "AUDIT",
     eventId,
     eventType: params.eventType,
     subjectType: params.subjectType,
     subjectId: params.subjectId,
     actorFacilityId: params.actorFacilityId ?? null,
-    timestamp,
+    timestamp: ts,
     details: params.details ?? {},
-  };
-
-  return {
-    ...keys,
-    ...gsi1,
-    entityType: "AuditEvent",
-    ...event,
   };
 }
 
-export function buildAuditTransactItem(params: CreateAuditParams): TransactItem {
-  const item = buildAuditEvent(params);
+/**
+ * Builds a DynamoDB Put transaction item for TransactWriteItems.
+ */
+export function buildAuditTransactItem(params: CreateAuditParams): {
+  event: AuditRecord;
+  transactItem: TransactItem;
+} {
+  const event = buildAuditEvent(params);
   return {
-    Put: {
-      Item: item,
+    event,
+    transactItem: {
+      Put: {
+        Item: event,
+      },
     },
   };
 }
 
-export async function writeAuditEvent(params: CreateAuditParams): Promise<AuditEvent> {
-  const item = buildAuditEvent(params);
-  await putItem(item);
-  return item;
+/**
+ * Directly writes an audit event (used for standalone events like CLAIM_REJECTED).
+ */
+export async function writeAuditEvent(params: CreateAuditParams): Promise<AuditRecord> {
+  const event = buildAuditEvent(params);
+  await putItem(event);
+  return event;
 }

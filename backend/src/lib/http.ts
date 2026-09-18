@@ -50,6 +50,7 @@ export function conflict(msg: string): HttpResponse {
   };
 }
 
+
 export function serverError(err: unknown): HttpResponse {
   const message = err instanceof Error ? err.message : String(err);
   return {

@@ -51,8 +51,7 @@ export function CommunityRequisitionPage() {
           urgency,
           neededBy,
           source: "COMMUNITY",
-        },
-        hospitalId
+        }
       );
 
       setSuccessMsg("Community requisition registered successfully! Entering donor escalation fallback.");

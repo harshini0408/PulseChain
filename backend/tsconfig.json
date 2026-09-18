@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "paths": {
-      "@pulsechain/shared": ["../shared/src/index.ts"]
+      "@pulsechain/shared": ["../shared/src/index.ts"],
+      "@pulsechain/seed/*": ["../seed/*"]
     }
   },
   "include": ["src"]

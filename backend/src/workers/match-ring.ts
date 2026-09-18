@@ -1,116 +1,256 @@
+/**
+ * backend/src/workers/match-ring.ts
+ *
+ * Ring matching worker:
+ * 1. Loads the unit and origin facility.
+ * 2. Ring query: PK = FACILITY#<originId>, SK BETWEEN ring bounds.
+ * 3. For each candidate facility:
+ *    - Skip origin facility.
+ *    - Skip if candidate doesn't handle unit.component.
+ *    - Find open requisitions and standing demand for compatible groups.
+ *    - Drop INCOMPATIBLE candidates.
+ * 4. Scores via shared/scoring.ts, sorts descending, returns top N (config.offersPerRing = 3).
+ */
+
 import {
-  getConfig,
-  rankCandidates,
-  ringRange,
   unitKey,
   facilityKey,
-  demandKey,
-  reqsPartition,
+  ringRange,
+  getCompatibility,
+  scoreOffer,
+  getConfig,
+  hoursBetween,
+  isoNow,
+  type Component,
+  type BloodGroup,
+  type DemandLevel,
+  type Urgency,
+  type CompatibilityResult,
+  type MatchBreakdown,
   type BloodUnit,
   type Facility,
-  type StandingDemand,
-  type Requisition,
-  type Candidate,
-  type RankedCandidate,
 } from "@pulsechain/shared";
-import { getItem as dbGetItem, queryAll as dbQueryAll } from "../lib/db.js";
+import { getItem, queryAll } from "../lib/db.js";
 
-export interface MatchRingInput {
-  unitId: string;
-  ring: 1 | 2 | 3;
-  escalationId?: string;
+export interface MatchCandidate {
+  recipientFacilityId: string;
+  recipientFacilityName: string;
+  distanceKm: number;
+  score: number;
+  breakdown: MatchBreakdown;
+  reason: string;
+  requisitionId?: string;
 }
 
-export interface MatchRingOutput {
+export interface MatchRingResult {
   unitId: string;
   ring: 1 | 2 | 3;
-  escalationId: string;
-  candidates: RankedCandidate[];
-  hasCandidates: boolean;
+  candidates: MatchCandidate[];
 }
 
-export async function handler(event: MatchRingInput): Promise<MatchRingOutput> {
-  const { unitId, ring } = event;
-  const escalationId = event.escalationId || `ESC-${unitId}-${ring}`;
+export async function matchRing(params: {
+  unitId: string;
+  ring: 1 | 2 | 3;
+  now?: string;
+}): Promise<MatchRingResult> {
+  const ts = params.now ?? isoNow();
+  const cfg = getConfig();
 
-  const unitKeys = unitKey(unitId);
-  const unit = await dbGetItem<BloodUnit>(unitKeys.PK, unitKeys.SK);
-
+  // 1. Load unit
+  const unitKeys = unitKey(params.unitId);
+  const unit = await getItem<BloodUnit>(unitKeys.PK, unitKeys.SK);
   if (!unit) {
-    throw new Error(`Unit not found: ${unitId}`);
+    throw new Error(`[match-ring] Unit not found: ${params.unitId}`);
   }
 
-  const config = getConfig();
-  const ringConfig = config.rings.find((r) => r.ring === ring) ?? {
-    ring: 1 as const,
-    minKm: 0,
-    maxKm: 10,
-  };
+  const originId = unit.facilityId;
+  const originKeys = facilityKey(originId);
+  const originFacility = await getItem<Facility>(originKeys.PK, originKeys.SK);
+  if (!originFacility) {
+    throw new Error(`[match-ring] Origin facility not found: ${originId}`);
+  }
+
+  // 2. Ring query
+  const ringConfig = cfg.rings.find((r) => r.ring === params.ring);
+  if (!ringConfig) {
+    throw new Error(`[match-ring] Invalid ring: ${params.ring}`);
+  }
 
   const { from, to } = ringRange(ringConfig.minKm, ringConfig.maxKm);
-
-  // 1. Query distance pairs for origin facility
-  const distItems = await dbQueryAll<Record<string, any>>({
-    keyCondition: "PK = :pk AND SK BETWEEN :from AND :to",
+  const distItems = await queryAll<{
+    toFacilityId: string;
+    distanceKm: number;
+    SK: string;
+  }>({
+    keyCondition: "PK = :pk AND SK BETWEEN :fromSk AND :toSk",
     values: {
-      ":pk": `FACILITY#${unit.facilityId}`,
-      ":from": from,
-      ":to": to,
+      ":pk": `FACILITY#${originId}`,
+      ":fromSk": from,
+      ":toSk": to,
+    },
+    scanForward: true,
+  });
+
+  // 3. Query all open requisitions for this component once
+  const allOpenReqs = await queryAll<{
+    reqId: string;
+    hospitalId: string;
+    component: Component;
+    bloodGroup: BloodGroup;
+    urgency: Urgency;
+    status: string;
+  }>({
+    indexName: "GSI1",
+    keyCondition: "GSI1PK = :pk",
+    values: {
+      ":pk": `OPENREQ#${unit.component}`,
     },
   });
 
-  const rawCandidates: Candidate[] = [];
+  const hoursRemaining = Math.max(0, hoursBetween(ts, unit.expiresAt));
+  const scoredCandidates: MatchCandidate[] = [];
 
-  // 2. Fetch profiles, demand, and requisitions for each destination facility
   for (const distItem of distItems) {
-    const parts = distItem.SK.split("#");
-    const toFacId = parts[2];
-    const distanceKm = distItem.distanceKm ?? parseFloat(parts[1]) ?? 5.0;
+    const candidateId = distItem.toFacilityId;
+    if (candidateId === originId) continue;
 
-    if (!toFacId || toFacId === unit.facilityId) continue;
+    // Load candidate facility profile
+    const candFacility = await getItem<Facility>(`FACILITY#${candidateId}`, "PROFILE");
+    if (!candFacility) continue;
 
-    // Facility profile
-    const facKey = facilityKey(toFacId);
-    const facility = await dbGetItem<Facility>(facKey.PK, facKey.SK);
-    if (!facility) continue;
+    // Skip if candidate does not handle this component
+    if (!candFacility.components.includes(unit.component)) continue;
 
-    // Standing demand
-    const demKey = demandKey(toFacId, unit.component, unit.bloodGroup);
-    const demand = await dbGetItem<StandingDemand>(demKey.PK, demKey.SK);
+    // Find candidate's open requisitions compatible with unit
+    const candReqs = allOpenReqs.filter(
+      (r) => r.hospitalId === candidateId && r.status === "OPEN",
+    );
 
-    // Open requisitions for facility
-    const reqItems = await dbQueryAll<Requisition & Record<string, any>>({
-      indexName: "GSI2",
-      keyCondition: "GSI2PK = :pk",
+    let bestReqMatch: {
+      reqId: string;
+      urgency: Urgency;
+      compat: CompatibilityResult;
+    } | null = null;
+
+    for (const req of candReqs) {
+      const compat = getCompatibility(unit.component, unit.bloodGroup, req.bloodGroup);
+      if (compat.level !== "INCOMPATIBLE") {
+        // Prioritize CRITICAL > HIGH > NORMAL
+        const urgencyWeight = { CRITICAL: 3, HIGH: 2, NORMAL: 1 }[req.urgency];
+        const currentBestWeight = bestReqMatch
+          ? { CRITICAL: 3, HIGH: 2, NORMAL: 1 }[bestReqMatch.urgency]
+          : 0;
+
+        if (!bestReqMatch || urgencyWeight > currentBestWeight) {
+          bestReqMatch = {
+            reqId: req.reqId,
+            urgency: req.urgency,
+            compat,
+          };
+        }
+      }
+    }
+
+    // Find candidate's standing demand
+    const candDemands = await queryAll<{
+      component: Component;
+      bloodGroup: BloodGroup;
+      level: DemandLevel;
+    }>({
+      keyCondition: "PK = :pk AND begins_with(SK, :skPrefix)",
       values: {
-        ":pk": reqsPartition(toFacId),
+        ":pk": `FACILITY#${candidateId}`,
+        ":skPrefix": `DEMAND#${unit.component}#`,
       },
     });
 
-    const openReq = reqItems.find(
-      (r) =>
-        r.status === "OPEN" &&
-        r.component === unit.component &&
-        r.bloodGroup === unit.bloodGroup
-    );
+    let bestDemandMatch: {
+      level: DemandLevel;
+      compat: CompatibilityResult;
+    } | null = null;
 
-    rawCandidates.push({
-      facility,
-      distanceKm,
-      demand: demand || undefined,
-      requisition: openReq || undefined,
+    for (const dem of candDemands) {
+      const compat = getCompatibility(unit.component, unit.bloodGroup, dem.bloodGroup);
+      if (compat.level !== "INCOMPATIBLE") {
+        const levelWeight = { HIGH: 3, MEDIUM: 2, LOW: 1 }[dem.level];
+        const currentBestWeight = bestDemandMatch
+          ? { HIGH: 3, MEDIUM: 2, LOW: 1 }[bestDemandMatch.level]
+          : 0;
+
+        if (!bestDemandMatch || levelWeight > currentBestWeight) {
+          bestDemandMatch = {
+            level: dem.level,
+            compat,
+          };
+        }
+      }
+    }
+
+    // Candidate must have a compatible need (requisition or demand)
+    if (!bestReqMatch && !bestDemandMatch) {
+      // Incompatible or no interest in this blood group/component
+      continue;
+    }
+
+    // Determine final scoring inputs
+    const compatibility = bestReqMatch?.compat ?? bestDemandMatch!.compat;
+    const hasOpenRequisition = !!bestReqMatch;
+    const urgency = bestReqMatch?.urgency ?? "NORMAL";
+    const standingDemand = bestDemandMatch?.level ?? "LOW";
+
+    const scoreResult = scoreOffer({
+      compatibility,
+      distanceKm: distItem.distanceKm,
+      hasOpenRequisition,
+      standingDemand,
+      urgency,
+      hoursRemaining,
+      component: unit.component,
+    });
+
+    scoredCandidates.push({
+      recipientFacilityId: candidateId,
+      recipientFacilityName: candFacility.name,
+      distanceKm: distItem.distanceKm,
+      score: scoreResult.score,
+      breakdown: scoreResult.breakdown,
+      reason: scoreResult.reason,
+      requisitionId: bestReqMatch?.reqId,
     });
   }
 
-  // 3. Score and rank candidates
-  const ranked = rankCandidates(unit, rawCandidates);
-  const topCandidates = ranked.slice(0, config.offersPerRing);
+  // 4. Sort descending by score, take top N
+  scoredCandidates.sort((a, b) => b.score - a.score);
+  const topCandidates = scoredCandidates.slice(0, cfg.offersPerRing);
 
   return {
-    unitId,
-    ring,
-    escalationId,
+    unitId: params.unitId,
+    ring: params.ring,
     candidates: topCandidates,
-    hasCandidates: topCandidates.length > 0,
+  };
+}
+
+export async function handler(event: {
+  unitId: string;
+  ring?: 1 | 2 | 3;
+  currentRing?: 1 | 2 | 3;
+  escalationId?: string;
+  offerWindow?: number;
+  now?: string;
+}) {
+  const ring = event.ring ?? event.currentRing ?? 1;
+  const result = await matchRing({
+    unitId: event.unitId,
+    ring,
+    now: event.now,
+  });
+
+  return {
+    ...event,
+    unitId: result.unitId,
+    ring: result.ring,
+    currentRing: result.ring,
+    candidates: result.candidates,
+    candidatesCount: result.candidates.length,
   };
 }

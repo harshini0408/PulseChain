@@ -93,6 +93,7 @@
 
   /* Tabular numbers for any countdown / numeric display */
   .tabular-nums,
+  .font-mono,
   [data-numeric="true"] {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";

@@ -1,76 +1,109 @@
+/**
+ * backend/src/api/transfers.ts
+ *
+ * Transfer lifecycle endpoints:
+ * - POST /transfers/:unitId/in-transit: CLAIMED → IN_TRANSIT
+ * - POST /transfers/:unitId/received: IN_TRANSIT → RECEIVED (updates facilityId to recipient)
+ */
+
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import { badRequest, conflict, notFound, ok, withErrors } from "../lib/http.js";
-import { transitionUnit } from "../lib/transitions.js";
-import { getAuthContext } from "../lib/auth.js";
+import {
+  unitKey,
+  isoNow,
+  transferInTransitSchema,
+  transferReceivedSchema,
+  type BloodUnit,
+} from "@pulsechain/shared";
+import { getItem } from "../lib/db.js";
+import { badRequest, notFound, ok, withErrors } from "../lib/http.js";
+import { requireCallerFacility } from "../lib/auth.js";
+import {
+  transitionClaimedToInTransit,
+  transitionInTransitToReceived,
+} from "../lib/transitions.js";
 
 export const handler = withErrors(
   async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
-    const method = event.requestContext.http.method;
-    const path = event.rawPath || event.requestContext.http.path;
-    const pathParams = event.pathParameters || {};
-    const auth = getAuthContext(event);
+    const method = event.requestContext.http.method.toUpperCase();
+    const path = event.requestContext.http.path;
+    const now = isoNow();
 
-    const unitId = pathParams.id;
+    const unitId = event.pathParameters?.unitId;
     if (!unitId) {
-      return badRequest("Missing unitId in URL path");
+      return badRequest("Missing unitId parameter");
     }
 
-    let body: any = {};
-    if (event.body) {
-      try {
-        body = JSON.parse(event.body);
-      } catch {}
+    const key = unitKey(unitId);
+    const unit = await getItem<BloodUnit>(key.PK, key.SK);
+    if (!unit) {
+      return notFound(`Unit not found: ${unitId}`);
     }
 
-    // -------------------------------------------------------------------------
-    // POST /units/{id}/in-transit — Blood centre marks dispatched
-    // -------------------------------------------------------------------------
-    if (method === "POST" && path.includes("/in-transit")) {
-      try {
-        const updatedUnit = await transitionUnit(unitId, "CLAIMED", "IN_TRANSIT", {
-          actorFacilityId: auth.facilityId,
-          note: body.note || "Unit dispatched by blood centre",
-          details: {
-            courier: body.courier,
-            trackingNumber: body.trackingNumber,
-            temperatureVerified: body.temperatureVerified ?? true,
-          },
-        });
+    const callerFacility = requireCallerFacility(event);
 
-        return ok({
-          success: true,
-          message: `Unit ${unitId} is now IN_TRANSIT`,
-          unit: updatedUnit,
-        });
-      } catch (err: any) {
-        return conflict(`Could not dispatch unit: ${err.message}`);
+    // 1. POST /transfers/:unitId/in-transit
+    if (method === "POST" && path.endsWith("/in-transit")) {
+      if (unit.status !== "CLAIMED") {
+        return badRequest(`Cannot dispatch transfer: unit status is ${unit.status} (expected CLAIMED)`);
       }
-    }
 
-    // -------------------------------------------------------------------------
-    // POST /units/{id}/received — Hospital confirms receipt
-    // -------------------------------------------------------------------------
-    if (method === "POST" && path.includes("/received")) {
-      try {
-        const updatedUnit = await transitionUnit(unitId, "IN_TRANSIT", "RECEIVED", {
-          actorFacilityId: auth.facilityId,
-          note: body.note || "Unit received and accepted by hospital",
-          details: {
-            verifiedBy: body.verifiedBy || auth.userId,
-            conditionOk: body.conditionOk ?? true,
-          },
-        });
-
-        return ok({
-          success: true,
-          message: `Unit ${unitId} successfully RECEIVED. Life saved!`,
-          unit: updatedUnit,
-        });
-      } catch (err: any) {
-        return conflict(`Could not confirm receipt: ${err.message}`);
+      if (event.body) {
+        try {
+          transferInTransitSchema.parse(JSON.parse(event.body));
+        } catch (err: any) {
+          return badRequest(`Invalid payload: ${err.message}`);
+        }
       }
+
+      await transitionClaimedToInTransit({
+        unitId,
+        actorFacilityId: callerFacility,
+        timestamp: now,
+      });
+
+      return ok({
+        ok: true,
+        unitId,
+        status: "IN_TRANSIT",
+        dispatchedBy: callerFacility,
+        timestamp: now,
+      });
     }
 
-    return badRequest(`Unsupported route: ${method} ${path}`);
-  }
+    // 2. POST /transfers/:unitId/received
+    if (method === "POST" && path.endsWith("/received")) {
+      if (unit.status !== "IN_TRANSIT") {
+        return badRequest(`Cannot receive transfer: unit status is ${unit.status} (expected IN_TRANSIT)`);
+      }
+
+      if (event.body) {
+        try {
+          transferReceivedSchema.parse(JSON.parse(event.body));
+        } catch (err: any) {
+          return badRequest(`Invalid payload: ${err.message}`);
+        }
+      }
+
+      const recipientFacilityId = unit.claimedBy ?? callerFacility;
+
+      await transitionInTransitToReceived({
+        unitId,
+        recipientFacilityId,
+        expiresAt: unit.expiresAt,
+        actorFacilityId: callerFacility,
+        timestamp: now,
+      });
+
+      return ok({
+        ok: true,
+        unitId,
+        status: "RECEIVED",
+        facilityId: recipientFacilityId,
+        receivedBy: callerFacility,
+        timestamp: now,
+      });
+    }
+
+    return notFound("Route not found");
+  },
 );

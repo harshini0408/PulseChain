@@ -14,7 +14,7 @@ import {
 import { putItem, queryAll } from "../lib/db.js";
 import { badRequest, ok, withErrors } from "../lib/http.js";
 import { writeAuditEvent } from "../lib/audit.js";
-import { getAuthContext } from "../lib/auth.js";
+import { getCallerContext } from "../lib/auth.js";
 
 function generateReqId(): string {
   const ts = Date.now().toString(36).toUpperCase();
@@ -27,7 +27,7 @@ export const handler = withErrors(
     const method = event.requestContext.http.method;
     const path = event.rawPath || event.requestContext.http.path;
     const query = event.queryStringParameters || {};
-    const auth = getAuthContext(event);
+    const auth = getCallerContext(event);
 
     // -------------------------------------------------------------------------
     // POST /requisitions — Create a standing/emergency blood requisition
@@ -68,7 +68,7 @@ export const handler = withErrors(
         urgency: input.urgency,
         neededBy: input.neededBy,
         status: "OPEN",
-        source: input.rawText ? "AI_PARSED" : "MANUAL",
+        source: input.rawText ? "PARSED" : "MANUAL",
         rawText: input.rawText,
         createdAt: now,
       };

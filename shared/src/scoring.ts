@@ -1,167 +1,230 @@
-// Deterministic candidate ranking + per-factor breakdown + reason text.
+/**
+ * Deterministic offer scoring for PulseChain.
+ *
+ * Each offer is scored against five weighted factors defined in config.ts.
+ * The weights must sum to exactly 1.0 — a runtime assertion enforces this at
+ * module load so a misconfigured config.ts fails loudly rather than silently
+ * producing wrong rankings.
+ *
+ * This module has zero AWS SDK dependencies and is safe to import in the browser.
+ */
 
-import type { BloodUnit, Facility, StandingDemand, Requisition, MatchBreakdown } from "./types.js";
-import { compatibilityLevel, isUsable } from "./compatibility.js";
-import { hoursRemaining } from "./time.js";
+import type { Component, DemandLevel, Urgency } from "./enums.js";
 import { getConfig } from "./config.js";
-import type { CompatibilityLevel, Urgency } from "./enums.js";
+import type { CompatibilityResult } from "./compatibility.js";
 
-export interface Candidate {
-  facility: Facility;
+// ---------------------------------------------------------------------------
+// Public types
+// ---------------------------------------------------------------------------
+
+export interface ScoreInput {
+  compatibility: CompatibilityResult;
   distanceKm: number;
-  demand?: StandingDemand;
-  requisition?: Requisition;
+  /** Recipient has a matching open requisition for this component + compatible group */
+  hasOpenRequisition: boolean;
+  standingDemand: DemandLevel;
+  /** Urgency from the requisition, or NORMAL if none */
+  urgency: Urgency;
+  /** Unit hours to expiry at scoring time */
+  hoursRemaining: number;
+  component: Component;
 }
 
-export interface RankedCandidate extends Candidate {
+export interface ScoreResult {
+  /** 0..1, rounded to 3 decimal places */
   score: number;
-  rank: number;
-  breakdown: MatchBreakdown;
+  breakdown: {
+    compatibility: number;
+    /** Raw kilometres — stored in Offer.breakdown.distanceKm for the UI */
+    distanceKm: number;
+    distanceScore: number;
+    openRequisition: number;
+    standingDemand: number;
+    urgency: number;
+    /** Raw hours — stored in Offer.breakdown.hoursRemaining for the UI */
+    hoursRemaining: number;
+  };
   reason: string;
 }
 
-const COMPAT_SCORES: Record<CompatibilityLevel, number> = {
-  IDENTICAL: 1.0,
-  COMPATIBLE: 0.75,
-  ACCEPTABLE: 0.5,
-  INCOMPATIBLE: 0.0,
-};
+// ---------------------------------------------------------------------------
+// Weight-sum assertion — fires at module load
+// ---------------------------------------------------------------------------
 
-const URGENCY_SCORES: Record<Urgency, number> = {
-  CRITICAL: 1.0,
-  HIGH: 0.6,
-  NORMAL: 0.2,
-};
+const _cfg = getConfig();
+const _wSum =
+  _cfg.scoreWeights.compatibility +
+  _cfg.scoreWeights.distance +
+  _cfg.scoreWeights.openRequisition +
+  _cfg.scoreWeights.standingDemand +
+  _cfg.scoreWeights.urgency;
 
-function generateReason(breakdown: MatchBreakdown, compatLevel: CompatibilityLevel, req?: Requisition): string {
-  const parts: string[] = [];
-
-  if (compatLevel === "IDENTICAL") {
-    parts.push("exact blood group match");
-  } else if (compatLevel === "COMPATIBLE") {
-    parts.push("compatible blood group");
-  }
-
-  if (req) {
-    if (req.urgency === "CRITICAL") {
-      parts.push("critical active requisition");
-    } else if (req.urgency === "HIGH") {
-      parts.push("high-urgency active requisition");
-    } else {
-      parts.push("open matching requisition");
-    }
-  }
-
-  if (breakdown.distanceKm <= 10) {
-    parts.push(`close proximity (${breakdown.distanceKm.toFixed(1)} km)`);
-  } else {
-    parts.push(`within response radius (${breakdown.distanceKm.toFixed(1)} km)`);
-  }
-
-  if (breakdown.standingDemand > 0.5) {
-    parts.push("high standing weekly demand");
-  }
-
-  const topTwo = parts.slice(0, 2).join(" and ");
-  return `Ranked for ${topTwo || "regional network compatibility"}.`;
+if (Math.abs(_wSum - 1.0) > 1e-9) {
+  throw new Error(
+    `[scoring] scoreWeights in config.ts must sum to 1.0, got ${_wSum.toFixed(6)}`,
+  );
 }
 
-export function rankCandidates(
-  unit: BloodUnit,
-  candidates: Candidate[],
-  now?: Date,
-): RankedCandidate[] {
-  if (!candidates || candidates.length === 0) {
-    return [];
+// ---------------------------------------------------------------------------
+// Factor sub-score helpers
+// ---------------------------------------------------------------------------
+
+function compatibilitySubScore(level: string): number {
+  switch (level) {
+    case "IDENTICAL":
+      return 1.0;
+    case "COMPATIBLE":
+      return 0.7;
+    case "ACCEPTABLE":
+      return 0.3;
+    default:
+      return 0; // should never reach here — throw below guards this
   }
+}
 
-  const config = getConfig();
-  const weights = config.scoreWeights;
-  const currentHoursRemaining = hoursRemaining(unit.expiresAt, now ?? new Date());
+export function distanceSubScore(distanceKm: number): number {
+  const ringOuterKm = getConfig().rings[1].maxKm; // 30 km — Ring 2 outer limit
+  const raw = 1 - distanceKm / ringOuterKm;
+  return Math.min(1, Math.max(0, raw));
+}
 
-  // 1. Filter out incompatible candidates
-  const compatibleCandidates: Array<{
-    candidate: Candidate;
-    compatLevel: CompatibilityLevel;
-  }> = [];
 
-  for (const c of candidates) {
-    const targetGroup = c.requisition?.bloodGroup ?? c.demand?.bloodGroup ?? unit.bloodGroup;
-    const level = compatibilityLevel(unit.component, unit.bloodGroup, targetGroup);
-    if (isUsable(level)) {
-      compatibleCandidates.push({ candidate: c, compatLevel: level });
-    }
+function openRequisitionSubScore(has: boolean): number {
+  return has ? 1.0 : 0.0;
+}
+
+function standingDemandSubScore(level: DemandLevel): number {
+  switch (level) {
+    case "LOW":
+      return 0.2;
+    case "MEDIUM":
+      return 0.6;
+    case "HIGH":
+      return 1.0;
   }
+}
 
-  if (compatibleCandidates.length === 0) {
-    return [];
+function statedUrgencyScore(urgency: Urgency): number {
+  switch (urgency) {
+    case "NORMAL":
+      return 0.2;
+    case "HIGH":
+      return 0.6;
+    case "CRITICAL":
+      return 1.0;
   }
+}
 
-  // 2. Find max distance and max weekly units for normalization
-  const maxDistance = Math.max(...compatibleCandidates.map((c) => c.candidate.distanceKm), 1);
-  const maxWeeklyUnits = Math.max(
-    ...compatibleCandidates.map((c) => c.candidate.demand?.weeklyUnits ?? 0),
-    1
+function urgencySubScore(
+  urgency: Urgency,
+  hoursRemaining: number,
+  component: Component,
+): number {
+  const thresholdHours = getConfig().thresholdHours[component];
+  const clockUrgency = Math.min(
+    1,
+    Math.max(0, 1 - hoursRemaining / thresholdHours),
   );
+  const stated = statedUrgencyScore(urgency);
+  // Use max: either reason alone justifies urgency.
+  return Math.max(stated, clockUrgency);
+}
 
-  // 3. Compute factor scores
-  const scored = compatibleCandidates.map(({ candidate, compatLevel }) => {
-    const compatScore = COMPAT_SCORES[compatLevel] ?? 0;
-    
-    // Distance score: closer is higher (1.0 at 0km, down towards 0 at max observed distance or 50km baseline)
-    const distFactor = Math.max(0, 1 - candidate.distanceKm / Math.max(maxDistance, 50));
-    
-    // Open requisition score
-    const hasOpenReq = candidate.requisition && candidate.requisition.status === "OPEN" ? 1.0 : 0.0;
-    
-    // Standing demand score
-    const demandUnits = candidate.demand?.weeklyUnits ?? 0;
-    const demandScore = maxWeeklyUnits > 0 ? demandUnits / maxWeeklyUnits : 0;
-    
-    // Urgency score
-    const urgency = candidate.requisition?.urgency ?? (candidate.demand ? "NORMAL" : "NORMAL");
-    const urgencyScore = candidate.requisition ? (URGENCY_SCORES[urgency] ?? 0.2) : (candidate.demand ? 0.2 : 0);
+// ---------------------------------------------------------------------------
+// Reason string builder
+// ---------------------------------------------------------------------------
 
-    const totalScore =
-      compatScore * weights.compatibility +
-      distFactor * weights.distance +
-      hasOpenReq * weights.openRequisition +
-      demandScore * weights.standingDemand +
-      urgencyScore * weights.urgency;
+function buildReason(input: ScoreInput, scores: Record<string, number>): string {
+  const { compatibility, distanceKm, hasOpenRequisition, standingDemand, hoursRemaining, component } = input;
+  const parts: string[] = [];
 
-    const breakdown: MatchBreakdown = {
-      compatibility: compatScore,
-      distanceKm: candidate.distanceKm,
-      openRequisition: hasOpenReq,
-      standingDemand: demandScore,
-      urgency: urgencyScore,
-      hoursRemaining: currentHoursRemaining,
-    };
-
-    const reason = generateReason(breakdown, compatLevel, candidate.requisition);
-
-    return {
-      ...candidate,
-      score: Number(totalScore.toFixed(4)),
-      breakdown,
-      reason,
-    };
-  });
-
-  // 4. Sort: score descending, tie-breaker: distance ascending, then facilityId ascending
-  scored.sort((a, b) => {
-    if (b.score !== a.score) {
-      return b.score - a.score;
+  // Compatibility
+  if (compatibility.level === "IDENTICAL") {
+    parts.push("IDENTICAL match");
+  } else if (compatibility.level === "COMPATIBLE") {
+    if (compatibility.rhdMismatch) {
+      parts.push("Compatible (RhD- unit into RhD+)");
+    } else {
+      parts.push("Compatible match");
     }
-    if (a.distanceKm !== b.distanceKm) {
-      return a.distanceKm - b.distanceKm;
-    }
-    return a.facility.facilityId.localeCompare(b.facility.facilityId);
-  });
+  } else if (compatibility.level === "ACCEPTABLE") {
+    // RhD caveat MUST appear in the reason for ACCEPTABLE — prompt requirement
+    parts.push("ABO-compatible; RhD+ unit into RhD- recipient");
+  }
 
-  // 5. Assign 1-indexed ranks
-  return scored.map((item, idx) => ({
-    ...item,
-    rank: idx + 1,
-  }));
+  // Distance
+  parts.push(`${distanceKm.toFixed(1)} km away`);
+
+  // Open requisition
+  if (hasOpenRequisition) {
+    parts.push("open requisition for this component");
+  } else {
+    parts.push("no open requisition");
+  }
+
+  // Standing demand (only if HIGH — avoid noise for LOW/MEDIUM)
+  if (standingDemand === "HIGH") {
+    parts.push("high standing demand");
+  } else if (standingDemand === "MEDIUM") {
+    parts.push("medium standing demand");
+  }
+
+  // Expiry urgency — highlight only when unit is close to threshold
+  const thresholdHours = getConfig().thresholdHours[component];
+  if (hoursRemaining <= thresholdHours * 0.25) {
+    parts.push(`${Math.round(hoursRemaining)} hours to expiry`);
+  }
+
+  return parts.join(", ").slice(0, 140);
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Score a potential blood unit offer.
+ *
+ * Throws if the compatibility level is INCOMPATIBLE — filtering must exclude
+ * those candidates upstream.
+ */
+export function scoreOffer(input: ScoreInput): ScoreResult {
+  if (input.compatibility.level === "INCOMPATIBLE") {
+    throw new Error(
+      `[scoring] scoreOffer called with INCOMPATIBLE compatibility for component ` +
+        `${input.component}. Filter out incompatible candidates before scoring.`,
+    );
+  }
+
+  const cfg = getConfig();
+  const w = cfg.scoreWeights;
+
+  const compatScore = compatibilitySubScore(input.compatibility.level);
+  const distScore = distanceSubScore(input.distanceKm);
+  const openReqScore = openRequisitionSubScore(input.hasOpenRequisition);
+  const demandScore = standingDemandSubScore(input.standingDemand);
+  const urgScore = urgencySubScore(input.urgency, input.hoursRemaining, input.component);
+
+  const weightedSum =
+    w.compatibility * compatScore +
+    w.distance * distScore +
+    w.openRequisition * openReqScore +
+    w.standingDemand * demandScore +
+    w.urgency * urgScore;
+
+  const score = Math.round(weightedSum * 1000) / 1000;
+
+  const breakdown = {
+    compatibility: compatScore,
+    distanceKm: input.distanceKm,        // raw km — stored in Offer.breakdown for the UI
+    distanceScore: distScore,
+    openRequisition: openReqScore,
+    standingDemand: demandScore,
+    urgency: urgScore,
+    hoursRemaining: input.hoursRemaining, // raw hours — stored in Offer.breakdown for the UI
+  };
+
+  const reason = buildReason(input, { compatScore, distScore, openReqScore, demandScore, urgScore });
+
+  return { score, breakdown, reason };
 }

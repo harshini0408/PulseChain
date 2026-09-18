@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshFacilities = async () => {
     try {
-      const list = await api.getFacilities();
+      const list = await api.fetchFacilities();
       setFacilities(list);
     } catch (err) {
       console.warn("Could not load facilities list, using fallbacks:", err);

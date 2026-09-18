@@ -13,7 +13,7 @@ import {
 } from "@pulsechain/shared";
 import { getItem, putItem } from "../lib/db.js";
 import { badRequest, notFound, ok, forbidden, withErrors } from "../lib/http.js";
-import { getAuthContext, isScopedTo } from "../lib/auth.js";
+import { getCallerContext } from "../lib/auth.js";
 
 function generateDonorId(): string {
   const ts = Date.now().toString(36).toUpperCase();
@@ -26,7 +26,7 @@ export const handler = withErrors(
     const method = event.requestContext.http.method;
     const path = event.rawPath || event.requestContext.http.path;
     const pathParams = event.pathParameters || {};
-    const auth = getAuthContext(event);
+    const auth = getCallerContext(event);
 
     // -------------------------------------------------------------------------
     // POST /donors/register — Rapid donor registration (<30s on mobile)
@@ -155,7 +155,7 @@ export const handler = withErrors(
     // GET /donors/:id — Donor profile & live eligibility
     // -------------------------------------------------------------------------
     if (method === "GET" && (path.startsWith("/donors/") || path === "/donors/me")) {
-      const donorId = path === "/donors/me" ? auth.userId || auth.scopeId : pathParams.id || path.split("/")[2];
+      const donorId = path === "/donors/me" ? auth.userId || auth.facilityId : pathParams.id || path.split("/")[2];
       if (!donorId) {
         return badRequest("Missing donor ID");
       }
@@ -180,7 +180,7 @@ export const handler = withErrors(
       if (
         auth.role === "COMMUNITY_COORDINATOR" &&
         donor.communityId &&
-        !isScopedTo(auth, donor.communityId)
+        auth.facilityId !== donor.communityId
       ) {
         return forbidden("Cannot access donors outside your assigned community");
       }

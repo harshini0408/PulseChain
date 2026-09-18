@@ -1,65 +1,56 @@
+/**
+ * backend/src/api/dashboard.ts
+ *
+ * Impact Dashboard API:
+ * - GET /dashboard: historical stats between two dates + today's live counters
+ */
+
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import { todayKey, type DailyStats } from "@pulsechain/shared";
-import { getItem, queryAll } from "../lib/db.js";
+import { isoNow, dayKey, statsDayKey } from "@pulsechain/shared";
 import { ok, withErrors } from "../lib/http.js";
+import { getStatsRange, type DailyStatsRecord } from "../lib/stats.js";
+import { getItem } from "../lib/db.js";
 
 export const handler = withErrors(
-  async (_event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
-    // 1. Fetch past 30 days daily stats
-    const today = new Date();
-    const trend: Array<{ date: string } & DailyStats> = [];
+  async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+    const now = isoNow();
+    const today = dayKey(now);
 
-    let totalSaved = 0;
-    let totalLost = 0;
-    let totalValueSaved = 0;
-    let totalValueLost = 0;
+    // Default range: last 30 days
+    const fromParam =
+      event.queryStringParameters?.from ??
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const toParam = event.queryStringParameters?.to ?? today;
 
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const dateStr = d.toISOString().slice(0, 10);
+    const history = await getStatsRange(fromParam, toParam);
 
-      const statItem = await getItem<DailyStats>("STATS", `DAY#${dateStr}`);
-      const saved = statItem?.unitsSaved ?? 0;
-      const lost = statItem?.unitsLost ?? 0;
-      const valSaved = statItem?.valueSavedInr ?? saved * 1500;
-      const valLost = statItem?.valueLostInr ?? lost * 1500;
+    // Get today's live counters
+    const todayKey = statsDayKey(today);
+    const todayRecord = await getItem<DailyStatsRecord>(todayKey.PK, todayKey.SK);
 
-      totalSaved += saved;
-      totalLost += lost;
-      totalValueSaved += valSaved;
-      totalValueLost += valLost;
-
-      trend.push({
-        date: dateStr,
-        unitsSaved: saved,
-        unitsLost: lost,
-        valueSavedInr: valSaved,
-        valueLostInr: valLost,
-      });
-    }
-
-    // 2. Fetch active escalations count
-    const activeEscs = await queryAll({
-      indexName: "GSI1",
-      keyCondition: "GSI1PK = :pk",
-      values: {
-        ":pk": "ESC#ACTIVE",
-      },
-    });
-
-    // 3. Compute rescue success rate
-    const totalHandled = totalSaved + totalLost;
-    const successRate = totalHandled > 0 ? (totalSaved / totalHandled) * 100 : 100.0;
+    // Aggregate totals across history
+    const totals = history.reduce(
+      (acc, day) => ({
+        unitsSaved: acc.unitsSaved + (day.unitsSaved || 0),
+        unitsLost: acc.unitsLost + (day.unitsLost || 0),
+        valueSavedInr: acc.valueSavedInr + (day.valueSavedInr || 0),
+        valueLostInr: acc.valueLostInr + (day.valueLostInr || 0),
+      }),
+      { unitsSaved: 0, unitsLost: 0, valueSavedInr: 0, valueLostInr: 0 },
+    );
 
     return ok({
-      unitsSaved: totalSaved,
-      unitsLost: totalLost,
-      valueSavedInr: totalValueSaved,
-      valueLostInr: totalValueLost,
-      activeEscalations: activeEscs.length,
-      successRate: Number(successRate.toFixed(1)),
-      trend,
+      from: fromParam,
+      to: toParam,
+      today: todayRecord ?? {
+        date: today,
+        unitsSaved: 0,
+        unitsLost: 0,
+        valueSavedInr: 0,
+        valueLostInr: 0,
+      },
+      totals,
+      history,
     });
-  }
+  },
 );

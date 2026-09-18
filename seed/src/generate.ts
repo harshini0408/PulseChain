@@ -1,457 +1,575 @@
+/**
+ * seed/src/generate.ts
+ *
+ * Generates all DynamoDB items for the PulseChain demo:
+ *   - Facility profiles (from facilities.json)
+ *   - Donor pool profiles (from donor-pools.json)
+ *   - ~150 blood units with realistic expiry spread
+ *   - Standing demand (sparse, opinionated)
+ *   - 8–12 open requisitions
+ *   - 60 days of backdated daily stats
+ *
+ * Every key is built via @pulsechain/shared keys.ts — no string concatenation here.
+ */
+
+import { randomUUID } from "crypto";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
 import {
   facilityKey,
   facilityGsi1,
-  demandKey,
   unitKey,
   unitQueueGsi1,
   unitStockGsi2,
+  demandKey,
   requisitionKey,
   openReqGsi1,
   hospitalReqsGsi2,
   statsDayKey,
-  communityKey,
-  communityGsi1,
-  donorKey,
-  donorGsi1,
-  donorGsi2,
-  computeNextEligibleDate,
-  type Community,
-  type Donor,
-  todayKey,
-  type Facility,
-  type BloodUnit,
-  type StandingDemand,
-  type Requisition,
+  poolKey,
+  poolsGsi1,
 } from "@pulsechain/shared";
-import { generateDistanceItems } from "./distances.js";
+import { addHours, isoNow } from "@pulsechain/shared";
+import { getConfig } from "@pulsechain/shared";
+import type { BloodGroup, Component, DemandLevel, Urgency } from "@pulsechain/shared";
+import type { Facility, DonorPool } from "@pulsechain/shared";
 
-export const SEEDED_COMMUNITIES: Community[] = [
-  {
-    communityId: "COMM-PSG-ITECH",
-    name: "PSG iTech Volunteer Community",
-    type: "COLLEGE",
-    lat: 11.058,
-    lng: 77.078,
-    city: "Coimbatore",
-    memberCount: 35,
-    groupCounts: {},
-    coordinatorName: "Dr. K. Senthil Nathan (NSS Officer)",
-    coordinatorContact: "+91 94432 10982",
-    joinCode: "PSG-7X",
-    verified: false,
-  },
-  {
-    communityId: "COMM-KCT",
-    name: "Kumaraguru College of Technology YRC",
-    type: "COLLEGE",
-    lat: 11.0775,
-    lng: 76.989,
-    city: "Coimbatore",
-    memberCount: 30,
-    groupCounts: {},
-    coordinatorName: "Prof. Priya Ramasamy",
-    coordinatorContact: "+91 98422 33441",
-    joinCode: "KCT-2B",
-    verified: false,
-  },
-  {
-    communityId: "COMM-AMRITA",
-    name: "Amrita Vishwa Vidyapeetham Pool",
-    type: "COLLEGE",
-    lat: 10.9027,
-    lng: 76.9006,
-    city: "Coimbatore",
-    memberCount: 25,
-    groupCounts: {},
-    coordinatorName: "Dr. Anand Kumar",
-    coordinatorContact: "+91 97890 11223",
-    joinCode: "AMR-9Q",
-    verified: false,
-  },
-  {
-    communityId: "COMM-RAHEJA",
-    name: "Raheja Vivarea Apartment Association",
-    type: "RESIDENTIAL",
-    lat: 11.0022,
-    lng: 76.9734,
-    city: "Coimbatore",
-    memberCount: 22,
-    groupCounts: {},
-    coordinatorName: "R. Muralidharan (Secretary)",
-    coordinatorContact: "+91 98940 55667",
-    joinCode: "RAH-4M",
-    verified: false,
-  },
-  {
-    communityId: "COMM-MAYFLOWER",
-    name: "Mayflower Gardens RWA",
-    type: "RESIDENTIAL",
-    lat: 11.0285,
-    lng: 77.0021,
-    city: "Coimbatore",
-    memberCount: 24,
-    groupCounts: {},
-    coordinatorName: "S. Venkatesh (Wellness Lead)",
-    coordinatorContact: "+91 98430 77889",
-    joinCode: "MAY-1K",
-    verified: false,
-  },
-  {
-    communityId: "COMM-BOSCH",
-    name: "Bosch Global Software Campus CSR",
-    type: "CORPORATE",
-    lat: 11.112,
-    lng: 76.998,
-    city: "Coimbatore",
-    memberCount: 24,
-    groupCounts: {},
-    coordinatorName: "Anitha Chandran",
-    coordinatorContact: "+91 99520 88990",
-    joinCode: "BOS-8P",
-    verified: false,
-  },
-  {
-    communityId: "COMM-TEA-TUP",
-    name: "Tiruppur Exporters Chamber Network",
-    type: "NGO",
-    lat: 11.107,
-    lng: 77.345,
-    city: "Tiruppur",
-    memberCount: 20,
-    groupCounts: {},
-    coordinatorName: "M. Palanisamy",
-    coordinatorContact: "+91 98421 66778",
-    joinCode: "TEA-5Z",
-    verified: false,
-  },
+import facilitiesJson from "../data/facilities.json";
+import donorPoolsJson from "../data/donor-pools.json";
+
+const cfg = getConfig();
+
+export const FACILITIES: Facility[] = (facilitiesJson as any).facilities;
+export const DONOR_POOLS: DonorPool[] = (donorPoolsJson as any).pools;
+
+// ---------------------------------------------------------------------------
+// Blood group distribution (realistic Indian population, per published studies)
+// O+: 37%, B+: 32%, A+: 21%, AB+: 6%, O-: 2.0%, B-: 1.2%, A-: 0.6%, AB-: 0.2%
+// ---------------------------------------------------------------------------
+
+const BG_WEIGHTS: [BloodGroup, number][] = [
+  ["O+",  37],
+  ["B+",  32],
+  ["A+",  21],
+  ["AB+",  6],
+  ["O-",   2.0],
+  ["B-",   1.2],
+  ["A-",   0.6],
+  ["AB-",  0.2],
 ];
 
-export const SEEDED_FACILITIES: Facility[] = [
-  {
-    facilityId: "CBE-BC-01",
-    name: "Coimbatore Central Blood Centre",
-    type: "BLOOD_CENTRE",
-    city: "Coimbatore",
-    lat: 11.0168,
-    lng: 76.9558,
-    components: ["PLATELETS", "RBC", "PLASMA"],
-    contactEmail: "centre-demo@pulsechain.org",
-  },
-  {
-    facilityId: "CBE-HOSP-04",
-    name: "Coimbatore East Hospital",
-    type: "HOSPITAL",
-    city: "Coimbatore",
-    lat: 11.051,
-    lng: 77.024,
-    components: ["PLATELETS", "RBC", "PLASMA"],
-    contactEmail: "hospital-demo@pulsechain.org",
-  },
-  {
-    facilityId: "TUP-HOSP-01",
-    name: "Tiruppur General Hospital",
-    type: "HOSPITAL",
-    city: "Tiruppur",
-    lat: 11.1085,
-    lng: 77.3411,
-    components: ["PLATELETS", "RBC"],
-    contactEmail: "tiruppur-demo@pulsechain.org",
-  },
-  {
-    facilityId: "ERD-HOSP-02",
-    name: "Erode Medical Trust",
-    type: "HOSPITAL",
-    city: "Erode",
-    lat: 11.341,
-    lng: 77.7172,
-    components: ["PLATELETS", "RBC", "PLASMA"],
-    contactEmail: "erode-demo@pulsechain.org",
-  },
-  {
-    facilityId: "SLM-HOSP-03",
-    name: "Salem Super Specialty Hospital",
-    type: "HOSPITAL",
-    city: "Salem",
-    lat: 11.6643,
-    lng: 78.146,
-    components: ["PLATELETS", "RBC", "PLASMA"],
-    contactEmail: "salem-demo@pulsechain.org",
-  },
-];
-
-export function generateAllSeedItems() {
-  const items: any[] = [];
-  const now = new Date();
-  const nowIso = isoNow(now);
-
-  // 1. Facilities
-  for (const fac of SEEDED_FACILITIES) {
-    const keys = facilityKey(fac.facilityId);
-    const gsi1 = facilityGsi1(fac.type, fac.facilityId);
-    items.push({
-      ...keys,
-      ...gsi1,
-      entityType: "FACILITY",
-      ...fac,
-    });
+function weightedBloodGroup(seed: number): BloodGroup {
+  const total = BG_WEIGHTS.reduce((s, [, w]) => s + w, 0);
+  let r = (seed % 1000) / 1000 * total;
+  for (const [g, w] of BG_WEIGHTS) {
+    r -= w;
+    if (r <= 0) return g;
   }
+  return "O+";
+}
 
-  // 2. Distances
-  const distItems = generateDistanceItems(SEEDED_FACILITIES);
-  items.push(...distItems);
+// A deterministic-ish pseudo-random (not crypto — just reproducibility)
+let _seed = 42;
+function rng(): number {
+  _seed = (_seed * 1664525 + 1013904223) & 0x7fffffff;
+  return _seed / 0x7fffffff;
+}
 
-  // 3. Standing Demands
-  const demands: StandingDemand[] = [
-    {
-      facilityId: "CBE-HOSP-04",
-      component: "PLATELETS",
-      bloodGroup: "O-",
-      weeklyUnits: 8,
-      level: "HIGH",
-    },
-    {
-      facilityId: "CBE-HOSP-04",
-      component: "RBC",
-      bloodGroup: "A+",
-      weeklyUnits: 12,
-      level: "HIGH",
-    },
-    {
-      facilityId: "TUP-HOSP-01",
-      component: "PLATELETS",
-      bloodGroup: "O-",
-      weeklyUnits: 4,
-      level: "MEDIUM",
-    },
-    {
-      facilityId: "ERD-HOSP-02",
-      component: "PLATELETS",
-      bloodGroup: "O-",
-      weeklyUnits: 6,
-      level: "HIGH",
-    },
-  ];
-
-  for (const dem of demands) {
-    const keys = demandKey(dem.facilityId, dem.component, dem.bloodGroup);
-    items.push({
-      ...keys,
-      entityType: "DEMAND",
-      ...dem,
-    });
+function pickBloodGroup(): BloodGroup {
+  const rVal = rng();
+  const total = BG_WEIGHTS.reduce((s, [, w]) => s + w, 0);
+  let r = rVal * total;
+  for (const [g, w] of BG_WEIGHTS) {
+    r -= w;
+    if (r <= 0) return g;
   }
+  return "O+";
+}
 
-  // 4. Units (Live dynamic expiry times)
-  // Hero Platelet Unit: 36 hours remaining (within 48h threshold)
-  const heroPlateletExpiry = new Date(now.getTime() + 36 * 3600 * 1000).toISOString();
-  const heroPlateletCollected = new Date(now.getTime() - 84 * 3600 * 1000).toISOString();
+function pickBetween(min: number, max: number): number {
+  return min + rng() * (max - min);
+}
 
-  const units: BloodUnit[] = [
-    {
-      unitId: "PLT-102",
-      facilityId: "CBE-BC-01",
-      component: "PLATELETS",
-      bloodGroup: "O-",
-      volumeMl: 250,
-      valueInr: 1500,
-      collectedAt: heroPlateletCollected,
-      expiresAt: heroPlateletExpiry,
-      status: "AVAILABLE",
-      version: 1,
-    },
-    {
-      unitId: "RBC-441",
-      facilityId: "CBE-BC-01",
-      component: "RBC",
-      bloodGroup: "B+",
-      volumeMl: 300,
-      valueInr: 1500,
-      collectedAt: new Date(now.getTime() - 10 * 86400 * 1000).toISOString(),
-      expiresAt: new Date(now.getTime() + 25 * 86400 * 1000).toISOString(),
-      status: "AVAILABLE",
-      version: 1,
-    },
-    {
-      unitId: "PLT-108",
-      facilityId: "CBE-BC-01",
-      component: "PLATELETS",
-      bloodGroup: "A+",
-      volumeMl: 300,
-      valueInr: 1500,
-      collectedAt: new Date(now.getTime() - 48 * 3600 * 1000).toISOString(),
-      expiresAt: new Date(now.getTime() + 72 * 3600 * 1000).toISOString(),
-      status: "AVAILABLE",
-      version: 1,
-    },
-  ];
+function pickInt(min: number, max: number): number {
+  return Math.floor(pickBetween(min, max + 1));
+}
 
-  for (const u of units) {
-    const keys = unitKey(u.unitId);
-    const gsi1 = unitQueueGsi1(u.status, u.component, u.expiresAt, u.unitId);
-    const gsi2 = unitStockGsi2(u.facilityId, u.expiresAt, u.unitId);
-    items.push({
-      ...keys,
-      ...gsi1,
-      ...gsi2,
-      entityType: "UNIT",
-      ...u,
-    });
+// ---------------------------------------------------------------------------
+// Volume ranges per component
+// ---------------------------------------------------------------------------
+
+function volumeForComponent(component: Component): number {
+  switch (component) {
+    case "PLATELETS": return pickInt(200, 300);
+    case "RBC":       return pickInt(250, 350);
+    case "PLASMA":    return pickInt(200, 250);
   }
+}
 
-  // 5. Open Requisition matching hero unit
-  const reqNeededBy = new Date(now.getTime() + 18 * 3600 * 1000).toISOString();
-  const req: Requisition = {
-    reqId: "REQ-2001",
-    hospitalId: "CBE-HOSP-04",
-    component: "PLATELETS",
-    bloodGroup: "O-",
-    unitsRequested: 2,
-    unitsFilled: 0,
-    urgency: "HIGH",
-    neededBy: reqNeededBy,
-    status: "OPEN",
-    source: "MANUAL",
-    createdAt: nowIso,
-  };
+// ---------------------------------------------------------------------------
+// Facility helpers
+// ---------------------------------------------------------------------------
 
-  const reqKeys = requisitionKey(req.reqId);
-  const reqGsi1 = openReqGsi1(req.component, req.bloodGroup, req.neededBy);
-  const reqGsi2 = hospitalReqsGsi2(req.hospitalId, req.neededBy);
+const BLOOD_CENTRES = FACILITIES.filter((f) => f.type === "BLOOD_CENTRE");
+const HOSPITALS     = FACILITIES.filter((f) => f.type === "HOSPITAL");
 
-  items.push({
-    ...reqKeys,
-    ...reqGsi1,
-    ...reqGsi2,
-    entityType: "Requisition",
-    ...req,
-  });
+// The main Coimbatore blood centres — these will hold the lion's share of stock
+const PRIMARY_CENTRES = ["FAC_CBE_SNBC", "FAC_CBE_RBANKS"];
 
-  // 6. Seed Communities & 180 Donors (Prompt 17)
-  const donorNames = [
-    "Karthik Raja", "Praveen Kumar", "Aravind Swamy", "Suresh Menon", "Dinesh Babu",
-    "Ganesh Moorthy", "Vigneshwaran M", "Vijay Anand", "Saravanan K", "Muthuvel P",
-    "Deepak Raman", "Ashwin Sundaram", "Hariharan V", "Manoj Kumar", "Naveen Raj",
-    "Balamurugan S", "Chandrasekar T", "Elango R", "Gopalakrishnan N", "Jayakumar V",
-    "Kavitha Sundaram", "Divya Bharathi", "Pooja Hegde", "Sneha R", "Ananya Krishnan",
-    "Meenakshi Sundaram", "Keerthi Suresh", "Revathi M", "Lakshmi Narayanan", "Sandhya R",
-    "Aishwarya Mohan", "Bhavani Shankar", "Gayathri Devi", "Harini Venkat", "Indira Priyadarshini",
-    "Janani R", "Lavanya K", "Malathi N", "Nandhini S", "Pavithra M",
-    "Rajeswari C", "Sangeetha R", "Thenmozhi P", "Uma Maheshwari", "Vasanthi K",
-    "Yamuna Devi", "Abinaya S", "Bhuvaneshwari M", "Chitra Devi", "Dhanalakshmi R"
-  ];
+function facilityHandles(facId: string, component: Component): boolean {
+  return FACILITIES.find((f) => f.facilityId === facId)?.components.includes(component) ?? false;
+}
 
-  // Distribution: B+ 35.7% (64), O+ 34.3% (62), A+ 20.0% (36), Negatives 10% (8 O-, 4 A-, 4 B-, 2 AB-) -> 180
-  const bloodGroupList: BloodGroup[] = [
-    ...Array(64).fill("B+"),
-    ...Array(62).fill("O+"),
-    ...Array(36).fill("A+"),
-    ...Array(8).fill("O-"),
-    ...Array(4).fill("A-"),
-    ...Array(4).fill("B-"),
-    ...Array(2).fill("AB-"),
-  ];
+// ---------------------------------------------------------------------------
+// Item type tags (stored on each DynamoDB item for count verification)
+// ---------------------------------------------------------------------------
 
-  const communityCounts: Record<string, Partial<Record<BloodGroup, number>>> = {};
-  SEEDED_COMMUNITIES.forEach((c) => {
-    communityCounts[c.communityId] = {};
-  });
+export type ItemTag =
+  | "FACILITY"
+  | "POOL"
+  | "UNIT"
+  | "DEMAND"
+  | "REQUISITION"
+  | "STATS";
 
-  for (let i = 0; i < 180; i++) {
-    const commIndex = i % SEEDED_COMMUNITIES.length;
-    const comm = SEEDED_COMMUNITIES[commIndex];
-    const donorId = `D-${1000 + i}`;
-    const name = `${donorNames[i % donorNames.length]} ${String.fromCharCode(65 + (i % 26))}`;
-    const bloodGroup = bloodGroupList[i];
+export interface TaggedItem {
+  _tag: ItemTag;
+  [key: string]: unknown;
+}
 
-    communityCounts[comm.communityId][bloodGroup] =
-      (communityCounts[comm.communityId][bloodGroup] || 0) + 1;
+// ---------------------------------------------------------------------------
+// Generate facility items
+// ---------------------------------------------------------------------------
 
-    let lastDonationAt: string | undefined = undefined;
-    let nextEligibleAt: string = new Date(0).toISOString();
-    let selfDeferredUntil: string | undefined = undefined;
+export function generateFacilityItems(): TaggedItem[] {
+  return FACILITIES.map((f) => ({
+    _tag: "FACILITY" as ItemTag,
+    ...facilityKey(f.facilityId),
+    ...facilityGsi1(f.type, f.facilityId),
+    entityType: "FACILITY",
+    facilityId: f.facilityId,
+    name: f.name,
+    type: f.type,
+    city: f.city,
+    lat: f.lat,
+    lng: f.lng,
+    components: f.components,
+    contactEmail: f.contactEmail,
+  }));
+}
 
-    if (i < 80) {
-      if (i % 2 === 0) {
-        const daysAgo = 100 + (i % 50);
-        lastDonationAt = new Date(now.getTime() - daysAgo * 24 * 3600 * 1000).toISOString();
-        nextEligibleAt = computeNextEligibleDate(lastDonationAt);
-      } else {
-        lastDonationAt = undefined;
-        nextEligibleAt = new Date(0).toISOString();
-      }
-    } else if (i < 140) {
-      const daysAgo = 30 + (i % 31);
-      lastDonationAt = new Date(now.getTime() - daysAgo * 24 * 3600 * 1000).toISOString();
-      nextEligibleAt = computeNextEligibleDate(lastDonationAt);
-    } else if (i < 170) {
-      const daysAgo = 5 + (i % 16);
-      lastDonationAt = new Date(now.getTime() - daysAgo * 24 * 3600 * 1000).toISOString();
-      nextEligibleAt = computeNextEligibleDate(lastDonationAt);
-    } else {
-      const deferDays = 7 + (i % 15);
-      selfDeferredUntil = new Date(now.getTime() + deferDays * 24 * 3600 * 1000).toISOString();
-      lastDonationAt = new Date(now.getTime() - 110 * 24 * 3600 * 1000).toISOString();
-      nextEligibleAt = computeNextEligibleDate(lastDonationAt);
+// ---------------------------------------------------------------------------
+// Generate donor pool items
+// ---------------------------------------------------------------------------
+
+export function generatePoolItems(): TaggedItem[] {
+  return DONOR_POOLS.map((p) => ({
+    _tag: "POOL" as ItemTag,
+    ...poolKey(p.poolId),
+    ...poolsGsi1(p.poolId),
+    entityType: "POOL",
+    poolId: p.poolId,
+    name: p.name,
+    poolType: p.poolType,
+    lat: p.lat,
+    lng: p.lng,
+    registered: p.registered,
+    groupCounts: p.groupCounts,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Generate unit items
+// ---------------------------------------------------------------------------
+
+/**
+ * Each unit has a _slot that tells the generator how to position its expiry:
+ *   "normal"   - comfortably far from expiry (background stock)
+ *   "cluster"  - the near-expiry platelet cluster (30–55 h)
+ *   "critical" - within 0–1 h of expiry or already expired (for the lost-check worker)
+ *   "rbc_near" - near the 168 h RBC threshold
+ *   "plasma_near" - near the 720 h plasma threshold
+ */
+type ExpirySlot =
+  | "normal"
+  | "cluster"
+  | "critical"
+  | "rbc_near"
+  | "plasma_near";
+
+interface UnitSpec {
+  facilityId: string;
+  component: Component;
+  bloodGroup?: BloodGroup; // if omitted, weighted random
+  expirySlot: ExpirySlot;
+}
+
+function expiryForSlot(
+  component: Component,
+  slot: ExpirySlot,
+  now: string,
+): { collectedAt: string; expiresAt: string } {
+  const shelfHours = cfg.shelfLifeDays[component] * 24;
+
+  switch (slot) {
+    case "normal": {
+      // Collected 1–3 days ago; plenty of shelf life remaining
+      const hoursUsed = pickBetween(24, 72);
+      const collectedAt = addHours(now, -hoursUsed);
+      const expiresAt   = addHours(collectedAt, shelfHours);
+      return { collectedAt, expiresAt };
     }
+    case "cluster": {
+      // platelet cluster: 30–55 hours remaining → expires that far from now
+      const hoursLeft = pickBetween(30, 55);
+      const expiresAt = addHours(now, hoursLeft);
+      const collectedAt = addHours(expiresAt, -shelfHours);
+      return { collectedAt, expiresAt };
+    }
+    case "critical": {
+      // 0 to -1 h from now (either just expired or within an hour)
+      const hoursLeft = pickBetween(-1, 1);
+      const expiresAt = addHours(now, hoursLeft);
+      const collectedAt = addHours(expiresAt, -shelfHours);
+      return { collectedAt, expiresAt };
+    }
+    case "rbc_near": {
+      // 140–180 h remaining on a 168 h threshold
+      const hoursLeft = pickBetween(140, 180);
+      const expiresAt = addHours(now, hoursLeft);
+      const collectedAt = addHours(expiresAt, -shelfHours);
+      return { collectedAt, expiresAt };
+    }
+    case "plasma_near": {
+      // 680–750 h remaining on a 720 h threshold
+      const hoursLeft = pickBetween(680, 750);
+      const expiresAt = addHours(now, hoursLeft);
+      const collectedAt = addHours(expiresAt, -shelfHours);
+      return { collectedAt, expiresAt };
+    }
+  }
+}
 
-    const donor: Donor = {
-      donorId,
-      name,
+export function generateUnitItems(now: string): { items: TaggedItem[]; unitCount: number } {
+  const specs: UnitSpec[] = [];
+
+  // ---- PRIMARY CENTRE: FAC_CBE_SNBC (large share of stock) ----
+  // 30 normal platelets
+  for (let i = 0; i < 30; i++) {
+    specs.push({ facilityId: "FAC_CBE_SNBC", component: "PLATELETS", expirySlot: "normal" });
+  }
+  // 8 cluster platelets (the near-expiry cluster that triggers the sweep)
+  const clusterGroups: BloodGroup[] = ["O+", "B+", "A+", "O+", "B+", "O+", "A+", "O-"];
+  for (const bg of clusterGroups) {
+    specs.push({ facilityId: "FAC_CBE_SNBC", component: "PLATELETS", bloodGroup: bg, expirySlot: "cluster" });
+  }
+  // 2 critical (already expired / nearly expired)
+  specs.push({ facilityId: "FAC_CBE_SNBC", component: "PLATELETS", bloodGroup: "A+", expirySlot: "critical" });
+  specs.push({ facilityId: "FAC_CBE_SNBC", component: "PLATELETS", bloodGroup: "B+", expirySlot: "critical" });
+
+  // 45 RBC (normal + some near threshold)
+  for (let i = 0; i < 38; i++) {
+    specs.push({ facilityId: "FAC_CBE_SNBC", component: "RBC", expirySlot: "normal" });
+  }
+  for (let i = 0; i < 4; i++) {
+    specs.push({ facilityId: "FAC_CBE_SNBC", component: "RBC", expirySlot: "rbc_near" });
+  }
+  specs.push({ facilityId: "FAC_CBE_SNBC", component: "RBC", expirySlot: "critical" });
+
+  // 12 PLASMA
+  for (let i = 0; i < 9; i++) {
+    specs.push({ facilityId: "FAC_CBE_SNBC", component: "PLASMA", expirySlot: "normal" });
+  }
+  for (let i = 0; i < 2; i++) {
+    specs.push({ facilityId: "FAC_CBE_SNBC", component: "PLASMA", expirySlot: "plasma_near" });
+  }
+  specs.push({ facilityId: "FAC_CBE_SNBC", component: "PLASMA", expirySlot: "critical" });
+
+  // ---- SECONDARY CENTRE: FAC_CBE_RBANKS ----
+  for (let i = 0; i < 6; i++) {
+    specs.push({ facilityId: "FAC_CBE_RBANKS", component: "PLATELETS", expirySlot: "normal" });
+  }
+  // 1 cluster platelet — this creates a second potential escalation
+  specs.push({ facilityId: "FAC_CBE_RBANKS", component: "PLATELETS", bloodGroup: "AB-", expirySlot: "cluster" });
+  for (let i = 0; i < 10; i++) {
+    specs.push({ facilityId: "FAC_CBE_RBANKS", component: "RBC", expirySlot: "normal" });
+  }
+  for (let i = 0; i < 3; i++) {
+    specs.push({ facilityId: "FAC_CBE_RBANKS", component: "PLASMA", expirySlot: "normal" });
+  }
+
+  // ---- Regional centres (Tiruppur, Erode) — smaller stock ----
+  for (let i = 0; i < 4; i++) {
+    specs.push({ facilityId: "FAC_TRP_BC", component: "PLATELETS", expirySlot: "normal" });
+  }
+  for (let i = 0; i < 6; i++) {
+    specs.push({ facilityId: "FAC_TRP_BC", component: "RBC", expirySlot: "normal" });
+  }
+  for (let i = 0; i < 2; i++) {
+    specs.push({ facilityId: "FAC_TRP_BC", component: "PLASMA", expirySlot: "normal" });
+  }
+
+  for (let i = 0; i < 3; i++) {
+    specs.push({ facilityId: "FAC_ERD_BC", component: "PLATELETS", expirySlot: "normal" });
+  }
+  for (let i = 0; i < 5; i++) {
+    specs.push({ facilityId: "FAC_ERD_BC", component: "RBC", expirySlot: "normal" });
+  }
+  specs.push({ facilityId: "FAC_ERD_BC", component: "PLASMA", expirySlot: "normal" });
+  specs.push({ facilityId: "FAC_ERD_BC", component: "RBC", expirySlot: "rbc_near" });
+
+  for (let i = 0; i < 2; i++) {
+    specs.push({ facilityId: "FAC_PLM_BC", component: "RBC", expirySlot: "normal" });
+  }
+  specs.push({ facilityId: "FAC_PLM_BC", component: "PLASMA", expirySlot: "normal" });
+
+  // Build actual DynamoDB items
+  const items: TaggedItem[] = [];
+  for (const spec of specs) {
+    const bloodGroup = spec.bloodGroup ?? pickBloodGroup();
+    const { collectedAt, expiresAt } = expiryForSlot(spec.component, spec.expirySlot, now);
+    const unitId = `U${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
+    const volume = volumeForComponent(spec.component);
+
+    items.push({
+      _tag: "UNIT" as ItemTag,
+      ...unitKey(unitId),
+      ...unitQueueGsi1("AVAILABLE", spec.component, expiresAt, unitId),
+      ...unitStockGsi2(spec.facilityId, expiresAt, unitId),
+      entityType: "UNIT",
+      unitId,
+      facilityId: spec.facilityId,
+      component: spec.component,
       bloodGroup,
-      lat: Math.round((comm.lat + (Math.sin(i) * 0.005)) * 10000) / 10000,
-      lng: Math.round((comm.lng + (Math.cos(i) * 0.005)) * 10000) / 10000,
-      city: comm.city,
-      communityId: comm.communityId,
-      lastDonationAt,
-      nextEligibleAt,
-      selfDeferredUntil,
-      contactVia: i % 10 === 0 ? "DIRECT" : "COORDINATOR",
-      phone: `+91 9${String(100000000 + i * 373).slice(0, 9)}`,
-      email: `donor.${donorId.toLowerCase()}@pulsechain.org`,
-      registeredAt: new Date(now.getTime() - 180 * 24 * 3600 * 1000).toISOString(),
-      verifiedDonations: lastDonationAt ? (1 + (i % 4)) : 0,
-    };
-
-    const dKeys = donorKey(donorId);
-    const dGsi1 = donorGsi1(donor.bloodGroup, donor.nextEligibleAt, donorId);
-    const dGsi2 = donorGsi2(comm.communityId, donor.name);
-
-    items.push({
-      ...dKeys,
-      ...dGsi1,
-      ...dGsi2,
-      entityType: "DONOR",
-      ...donor,
+      volumeMl: volume,
+      valueInr: cfg.valuePerUnitInr,
+      collectedAt,
+      expiresAt,
+      status: "AVAILABLE",
+      version: 1,
     });
   }
 
-  // Push community items with actual group counts
-  for (const comm of SEEDED_COMMUNITIES) {
-    const cKeys = communityKey(comm.communityId);
-    const cGsi1 = communityGsi1(comm.type, comm.communityId);
-    const groupCounts = communityCounts[comm.communityId] || {};
-    const memberCount = Object.values(groupCounts).reduce((a, b) => a + (b || 0), 0);
+  return { items, unitCount: items.length };
+}
 
+// ---------------------------------------------------------------------------
+// Generate standing demand items
+// ---------------------------------------------------------------------------
+
+export function generateDemandItems(): TaggedItem[] {
+  const items: TaggedItem[] = [];
+
+  // Opinionated, sparse demand — not the full cross product.
+  const demands: Array<{
+    facId: string;
+    component: Component;
+    group: BloodGroup;
+    weeklyUnits: number;
+    level: DemandLevel;
+  }> = [
+    // Large tertiary hospitals: HIGH demand for common groups
+    { facId: "FAC_CBE_KMCH",   component: "PLATELETS", group: "O+",  weeklyUnits: 18, level: "HIGH" },
+    { facId: "FAC_CBE_KMCH",   component: "PLATELETS", group: "B+",  weeklyUnits: 14, level: "HIGH" },
+    { facId: "FAC_CBE_KMCH",   component: "PLATELETS", group: "A+",  weeklyUnits: 10, level: "MEDIUM" },
+    { facId: "FAC_CBE_KMCH",   component: "RBC",       group: "O+",  weeklyUnits: 22, level: "HIGH" },
+    { facId: "FAC_CBE_KMCH",   component: "RBC",       group: "B+",  weeklyUnits: 16, level: "HIGH" },
+    { facId: "FAC_CBE_KMCH",   component: "RBC",       group: "A+",  weeklyUnits: 12, level: "MEDIUM" },
+
+    { facId: "FAC_CBE_GH",     component: "PLATELETS", group: "O+",  weeklyUnits: 14, level: "HIGH" },
+    { facId: "FAC_CBE_GH",     component: "PLATELETS", group: "B+",  weeklyUnits: 11, level: "HIGH" },
+    { facId: "FAC_CBE_GH",     component: "RBC",       group: "O+",  weeklyUnits: 18, level: "HIGH" },
+    { facId: "FAC_CBE_GH",     component: "RBC",       group: "B+",  weeklyUnits: 14, level: "HIGH" },
+    { facId: "FAC_CBE_GH",     component: "PLASMA",    group: "AB+", weeklyUnits: 5,  level: "MEDIUM" },
+
+    { facId: "FAC_CBE_PSGIMS", component: "PLATELETS", group: "A+",  weeklyUnits: 9,  level: "MEDIUM" },
+    { facId: "FAC_CBE_PSGIMS", component: "RBC",       group: "O+",  weeklyUnits: 13, level: "MEDIUM" },
+    { facId: "FAC_CBE_PSGIMS", component: "RBC",       group: "O-",  weeklyUnits: 4,  level: "MEDIUM" },
+
+    { facId: "FAC_CBE_SRMC",   component: "PLATELETS", group: "O+",  weeklyUnits: 6,  level: "MEDIUM" },
+    { facId: "FAC_CBE_SRMC",   component: "RBC",       group: "B+",  weeklyUnits: 8,  level: "MEDIUM" },
+
+    // Smaller facilities: mostly LOW
+    { facId: "FAC_TRP_GH",     component: "PLATELETS", group: "B+",  weeklyUnits: 7,  level: "MEDIUM" },
+    { facId: "FAC_TRP_GH",     component: "RBC",       group: "O+",  weeklyUnits: 9,  level: "MEDIUM" },
+    { facId: "FAC_TRP_KMCH",   component: "PLATELETS", group: "O+",  weeklyUnits: 4,  level: "LOW" },
+    { facId: "FAC_TRP_KMCH",   component: "RBC",       group: "A+",  weeklyUnits: 5,  level: "LOW" },
+    { facId: "FAC_ERD_GH",     component: "RBC",       group: "O+",  weeklyUnits: 8,  level: "MEDIUM" },
+    { facId: "FAC_ERD_GH",     component: "PLATELETS", group: "B+",  weeklyUnits: 5,  level: "LOW" },
+    { facId: "FAC_PLM_GH",     component: "RBC",       group: "B+",  weeklyUnits: 4,  level: "LOW" },
+    { facId: "FAC_MTR_GH",     component: "RBC",       group: "O+",  weeklyUnits: 3,  level: "LOW" },
+  ];
+
+  for (const d of demands) {
     items.push({
-      ...cKeys,
-      ...cGsi1,
-      entityType: "COMMUNITY",
-      ...comm,
-      memberCount,
-      groupCounts,
+      _tag: "DEMAND" as ItemTag,
+      ...demandKey(d.facId, d.component, d.group),
+      entityType: "DEMAND",
+      facilityId: d.facId,
+      component: d.component,
+      bloodGroup: d.group,
+      weeklyUnits: d.weeklyUnits,
+      level: d.level,
     });
   }
-
-  // 7. Initial Daily Stats
-  const statKeys = statsDayKey(todayKey(now));
-  items.push({
-    ...statKeys,
-    entityType: "DailyStats",
-    unitsSaved: 5,
-    unitsLost: 1,
-    valueSavedInr: 7500,
-    valueLostInr: 1500,
-  });
 
   return items;
+}
+
+// ---------------------------------------------------------------------------
+// Generate open requisition items
+// ---------------------------------------------------------------------------
+
+export function generateRequisitionItems(now: string): TaggedItem[] {
+  const items: TaggedItem[] = [];
+
+  const reqs: Array<{
+    hospitalId: string;
+    component: Component;
+    group: BloodGroup;
+    urgency: Urgency;
+    hoursUntilNeeded: number;
+    unitsRequested: number;
+  }> = [
+    // Matching the near-expiry cluster: O+ platelets, KMCH needs them urgently
+    { hospitalId: "FAC_CBE_KMCH",   component: "PLATELETS", group: "O+",  urgency: "HIGH",     hoursUntilNeeded: 6,   unitsRequested: 2 },
+    { hospitalId: "FAC_CBE_GH",     component: "PLATELETS", group: "B+",  urgency: "NORMAL",   hoursUntilNeeded: 18,  unitsRequested: 1 },
+    { hospitalId: "FAC_CBE_SRMC",   component: "PLATELETS", group: "A+",  urgency: "NORMAL",   hoursUntilNeeded: 24,  unitsRequested: 1 },
+    // CRITICAL — platelet need
+    { hospitalId: "FAC_CBE_PSGIMS", component: "PLATELETS", group: "O+",  urgency: "CRITICAL", hoursUntilNeeded: 3,   unitsRequested: 1 },
+    // RBC requisitions
+    { hospitalId: "FAC_CBE_KMCH",   component: "RBC",       group: "O+",  urgency: "NORMAL",   hoursUntilNeeded: 48,  unitsRequested: 3 },
+    { hospitalId: "FAC_CBE_GH",     component: "RBC",       group: "B+",  urgency: "HIGH",     hoursUntilNeeded: 12,  unitsRequested: 2 },
+    { hospitalId: "FAC_CBE_PSGIMS", component: "RBC",       group: "A+",  urgency: "NORMAL",   hoursUntilNeeded: 72,  unitsRequested: 2 },
+    { hospitalId: "FAC_TRP_GH",     component: "RBC",       group: "O+",  urgency: "NORMAL",   hoursUntilNeeded: 36,  unitsRequested: 1 },
+    { hospitalId: "FAC_ERD_GH",     component: "RBC",       group: "B+",  urgency: "NORMAL",   hoursUntilNeeded: 96,  unitsRequested: 2 },
+    // Plasma requisitions
+    { hospitalId: "FAC_CBE_KMCH",   component: "PLASMA",    group: "AB+", urgency: "NORMAL",   hoursUntilNeeded: 120, unitsRequested: 1 },
+    { hospitalId: "FAC_CBE_GH",     component: "PLASMA",    group: "O+",  urgency: "NORMAL",   hoursUntilNeeded: 48,  unitsRequested: 1 },
+  ];
+
+  for (const r of reqs) {
+    const reqId = `RQ${randomUUID().replace(/-/g, "").slice(0, 14).toUpperCase()}`;
+    const neededBy = addHours(now, r.hoursUntilNeeded);
+    const createdAt = now;
+
+    items.push({
+      _tag: "REQUISITION" as ItemTag,
+      ...requisitionKey(reqId),
+      ...openReqGsi1(r.component, r.group, neededBy),
+      ...hospitalReqsGsi2(r.hospitalId, neededBy),
+      entityType: "REQUISITION",
+      reqId,
+      hospitalId: r.hospitalId,
+      component: r.component,
+      bloodGroup: r.group,
+      unitsRequested: r.unitsRequested,
+      unitsFilled: 0,
+      urgency: r.urgency,
+      neededBy,
+      status: "OPEN",
+      source: "MANUAL",
+      createdAt,
+    });
+  }
+
+  return items;
+}
+
+// ---------------------------------------------------------------------------
+// Generate 60-day backdated stats
+// ---------------------------------------------------------------------------
+
+export function generateStatsItems(now: string): TaggedItem[] {
+  const items: TaggedItem[] = [];
+  const MS_PER_DAY = 86400_000;
+  const nowMs = new Date(now).getTime();
+
+  // Start 60 days ago
+  for (let d = 59; d >= 0; d--) {
+    const dayMs = nowMs - d * MS_PER_DAY;
+    const dayIso = new Date(dayMs).toISOString().slice(0, 10); // yyyy-mm-dd
+
+    // Base: ~12 units processed/day, mild upward trend as system warms up
+    const trendMultiplier = 1 + (59 - d) * 0.003; // ~18% growth over 60 days
+    // Weekly seasonality: Mon–Wed higher, Thu–Fri moderate, Sat–Sun lower
+    const dow = new Date(dayMs).getUTCDay(); // 0=Sun, 6=Sat
+    const seasonality = [0.75, 1.1, 1.15, 1.1, 0.95, 0.8, 0.7][dow];
+    // Noise: ±20%
+    const noise = 0.8 + rng() * 0.4;
+
+    const base = Math.round(12 * trendMultiplier * seasonality * noise);
+    const totalUnits = Math.max(1, base);
+
+    // Loss rate: platelets ~25% of volume, overall ~12% loss rate, improving slowly
+    const lossRateBase = 0.14 - (59 - d) * 0.0008; // trends from ~14% to ~9%
+    const lossRate = Math.max(0.06, lossRateBase + (rng() - 0.5) * 0.04);
+    const unitsLost = Math.max(0, Math.round(totalUnits * lossRate));
+    const unitsSaved = totalUnits - unitsLost;
+
+    items.push({
+      _tag: "STATS" as ItemTag,
+      ...statsDayKey(dayIso),
+      entityType: "STATS",
+      date: dayIso,
+      unitsSaved,
+      unitsLost,
+      valueSavedInr: unitsSaved * cfg.valuePerUnitInr,
+      valueLostInr: unitsLost * cfg.valuePerUnitInr,
+    });
+  }
+
+  return items;
+}
+
+// ---------------------------------------------------------------------------
+// Master generator — returns all items in one flat array
+// ---------------------------------------------------------------------------
+
+export function generateAll(now?: string): {
+  items: TaggedItem[];
+  counts: Record<ItemTag, number>;
+  total: number;
+} {
+  const ts = now ?? isoNow();
+
+  const facilityItems     = generateFacilityItems();
+  const poolItems         = generatePoolItems();
+  const { items: unitItems } = generateUnitItems(ts);
+  const demandItems       = generateDemandItems();
+  const requisitionItems  = generateRequisitionItems(ts);
+  const statsItems        = generateStatsItems(ts);
+
+  const all: TaggedItem[] = [
+    ...facilityItems,
+    ...poolItems,
+    ...unitItems,
+    ...demandItems,
+    ...requisitionItems,
+    ...statsItems,
+  ];
+
+  const counts: Record<ItemTag, number> = {
+    FACILITY: 0,
+    POOL: 0,
+    UNIT: 0,
+    DEMAND: 0,
+    REQUISITION: 0,
+    STATS: 0,
+  };
+  for (const item of all) counts[item._tag]++;
+
+  return { items: all, counts, total: all.length };
+}
+
+if (process.argv[1] && (process.argv[1].endsWith("generate.ts") || process.argv[1].endsWith("generate.js"))) {
+  const now = isoNow();
+  const { counts, total } = generateAll(now);
+  console.log("\n=== Generated item counts ===");
+  for (const [tag, n] of Object.entries(counts)) {
+    console.log(`  ${tag.padEnd(14)} ${n}`);
+  }
+  console.log(`  ${"TOTAL".padEnd(14)} ${total}`);
 }

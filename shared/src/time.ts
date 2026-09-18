@@ -19,6 +19,14 @@ export function hoursRemaining(expiresAt: string, now: Date = new Date()): numbe
 }
 
 /**
+ * Hours between two ISO UTC strings (toIso - fromIso).
+ * Positive if toIso is after fromIso.
+ */
+export function hoursBetween(fromIso: string, toIso: string): number {
+  return (new Date(toIso).getTime() - new Date(fromIso).getTime()) / (1000 * 60 * 60);
+}
+
+/**
  * Returns true if more than `thresholdHours` remain until expiry.
  */
 export function isPastThreshold(

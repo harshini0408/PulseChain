@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 import {
   BLOOD_GROUPS,
-  compatibilityLevel,
   isUsable,
+  getCompatibility,
   communityKey,
   communityAlertKey,
   communityAlertGsi1,
@@ -92,7 +92,7 @@ export async function handler(event: DonorTierInput): Promise<DonorTierOutput> {
 
   // 2. Determine compatible blood groups using shared compatibility engine
   const compatibleGroups = BLOOD_GROUPS.filter((g) =>
-    isUsable(compatibilityLevel(req.component, g, req.bloodGroup))
+    isUsable(getCompatibility(req.component, g, req.bloodGroup).level)
   );
 
   // 3. Query eligible donors across compatible groups via GSI1
@@ -105,7 +105,7 @@ export async function handler(event: DonorTierInput): Promise<DonorTierOutput> {
   > = {};
 
   for (const group of compatibleGroups) {
-    const level = compatibilityLevel(req.component, group, req.bloodGroup);
+    const level = getCompatibility(req.component, group, req.bloodGroup).level;
     const donors = await queryAll<Donor & WithKeys<Donor>>({
       indexName: "GSI1",
       keyCondition: "GSI1PK = :pk",

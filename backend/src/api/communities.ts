@@ -22,7 +22,7 @@ import {
 } from "@pulsechain/shared";
 import { getItem, putItem, queryAll } from "../lib/db.js";
 import { badRequest, notFound, ok, forbidden, withErrors } from "../lib/http.js";
-import { getAuthContext, isScopedTo } from "../lib/auth.js";
+import { getCallerContext } from "../lib/auth.js";
 import { writeAuditEvent } from "../lib/audit.js";
 
 function generateCommunityId(): string {
@@ -42,7 +42,7 @@ export const handler = withErrors(
     const method = event.requestContext.http.method;
     const path = event.rawPath || event.requestContext.http.path;
     const pathParams = event.pathParameters || {};
-    const auth = getAuthContext(event);
+    const auth = getCallerContext(event);
 
     // -------------------------------------------------------------------------
     // POST /communities/register — Register new community
@@ -112,7 +112,7 @@ export const handler = withErrors(
         return badRequest("Missing communityId or alertId");
       }
 
-      if (auth.role === "COMMUNITY_COORDINATOR" && !isScopedTo(auth, communityId)) {
+      if (auth.role === "COMMUNITY_COORDINATOR" && auth.facilityId !== communityId) {
         return forbidden("Cannot respond for a community outside your scope");
       }
 
@@ -267,7 +267,7 @@ export const handler = withErrors(
       }
 
       // Strict isolation: COMMUNITY_COORDINATOR can only access their own community
-      if (auth.role === "COMMUNITY_COORDINATOR" && !isScopedTo(auth, communityId)) {
+      if (auth.role === "COMMUNITY_COORDINATOR" && auth.facilityId !== communityId) {
         return forbidden("Access denied: You are not authorized to view this community roster");
       }
 

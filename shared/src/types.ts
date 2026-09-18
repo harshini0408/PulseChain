@@ -109,6 +109,9 @@ export interface Offer {
   breakdown: MatchBreakdown;
   reason: string;
   requisitionId?: string;
+  component?: Component;
+  bloodGroup?: BloodGroup;
+  volumeMl?: number;
 }
 
 export interface Escalation {

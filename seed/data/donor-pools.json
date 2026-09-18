@@ -1,1 +1,59 @@
-[]
+{
+  "_comment": "Donor pool identities are representative examples. All registration counts and group distributions are synthetic.",
+  "pools": [
+    {
+      "poolId": "POOL_CBE_PSGCOLLEGE",
+      "name": "PSG College of Technology NSS Unit",
+      "poolType": "COLLEGE",
+      "lat": 11.0241,
+      "lng": 77.0021,
+      "registered": 340,
+      "groupCounts": {
+        "O+":  95,
+        "O-":  18,
+        "A+":  72,
+        "A-":  12,
+        "B+":  88,
+        "B-":  14,
+        "AB+": 32,
+        "AB-": 9
+      }
+    },
+    {
+      "poolId": "POOL_CBE_KGISL",
+      "name": "KGISL Corporate Campus Donor Registry",
+      "poolType": "CORPORATE",
+      "lat": 11.0192,
+      "lng": 77.0082,
+      "registered": 215,
+      "groupCounts": {
+        "O+":  61,
+        "O-":  9,
+        "A+":  48,
+        "A-":  7,
+        "B+":  54,
+        "B-":  8,
+        "AB+": 21,
+        "AB-": 7
+      }
+    },
+    {
+      "poolId": "POOL_CBE_ROTARY",
+      "name": "Rotary Club of Coimbatore Donor Network",
+      "poolType": "RWA",
+      "lat": 11.0047,
+      "lng": 76.9742,
+      "registered": 178,
+      "groupCounts": {
+        "O+":  52,
+        "O-":  8,
+        "A+":  38,
+        "A-":  5,
+        "B+":  44,
+        "B-":  7,
+        "AB+": 17,
+        "AB-": 7
+      }
+    }
+  ]
+}

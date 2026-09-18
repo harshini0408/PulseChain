@@ -1,71 +1,48 @@
+/**
+ * backend/src/lib/auth.ts
+ *
+ * Auth helper extracting facilityId and user role from Cognito JWT claims.
+ * Never trusts facilityId provided in the request body.
+ */
+
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
-import type { Role } from "@pulsechain/shared";
 
-export interface AuthContext {
-  facilityId: string; // Generic scope ID: facilityId or communityId
-  scopeId: string;
-  role: Role;
-  userId?: string;
-  email?: string;
+export interface CallerContext {
+  facilityId: string | null;
+  role: string | null;
+  userId: string | null;
 }
 
-export function getAuthContext(event: APIGatewayProxyEventV2): AuthContext {
-  const headers = event.headers || {};
-  
-  // 1. Check custom demo headers (case-insensitive fallback)
-  const headerFacId =
-    headers["x-facility-id"] ||
-    headers["X-Facility-Id"] ||
-    headers["x-facilityid"] ||
-    headers["x-community-id"] ||
-    headers["x-communityid"];
-  const headerRole = (
-    headers["x-role"] ||
-    headers["X-Role"] ||
-    "HOSPITAL"
-  ).toUpperCase() as Role;
+export function getCallerContext(event: APIGatewayProxyEventV2): CallerContext {
+  const claims = (event.requestContext as any)?.authorizer?.jwt?.claims as
+    | Record<string, any>
+    | undefined;
 
-  // 2. Check Cognito JWT claims if available
-  const jwtClaims = (event.requestContext as any)?.authorizer?.jwt?.claims;
-  if (jwtClaims) {
-    const scopeId =
-      jwtClaims["custom:facilityId"] ||
-      jwtClaims["facilityId"] ||
-      headerFacId ||
-      "FAC_DEFAULT";
-    const role = (
-      jwtClaims["custom:role"] ||
-      jwtClaims["role"] ||
-      headerRole ||
-      "HOSPITAL"
-    ) as Role;
+  const facilityId =
+    claims?.["custom:facilityId"] ??
+    claims?.["facilityId"] ??
+    null;
 
-    return {
-      facilityId: scopeId,
-      scopeId,
-      role,
-      userId: jwtClaims.sub,
-      email: jwtClaims.email,
-    };
+  const role =
+    claims?.["custom:role"] ??
+    claims?.["role"] ??
+    (Array.isArray(claims?.["cognito:groups"])
+      ? claims?.["cognito:groups"][0]
+      : claims?.["cognito:groups"]) ??
+    null;
+
+  const userId =
+    claims?.["sub"] ??
+    claims?.["username"] ??
+    null;
+
+  return { facilityId, role, userId };
+}
+
+export function requireCallerFacility(event: APIGatewayProxyEventV2): string {
+  const ctx = getCallerContext(event);
+  if (!ctx.facilityId) {
+    throw new Error("Unauthorized: caller facilityId could not be determined from claims");
   }
-
-  // 3. Demo fallback defaults
-  const fallbackScopeId = headerFacId || "FAC_DEFAULT";
-  return {
-    facilityId: fallbackScopeId,
-    scopeId: fallbackScopeId,
-    role: headerRole,
-    userId: "demo-user",
-    email: "demo@pulsechain.org",
-  };
+  return ctx.facilityId;
 }
-
-export function isAuthorizedRole(auth: AuthContext, allowed: Role[]): boolean {
-  return allowed.includes(auth.role);
-}
-
-export function isScopedTo(auth: AuthContext, requiredScopeId: string): boolean {
-  if (auth.role === "COORDINATOR") return true; // Regional coordinator can view across network
-  return auth.scopeId === requiredScopeId || auth.facilityId === requiredScopeId;
-}
-

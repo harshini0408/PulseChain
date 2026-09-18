@@ -72,7 +72,7 @@ GSI attributes are **removed** when an item leaves a queue (sparse index).
 
 **ESCALATION** — escalationId, subjectType (`UNIT` \| `REQUISITION`), subjectId, currentRing, status, startedAt, endedAt?, executionArn
 
-**REQUISITION** — reqId, hospitalId, component, bloodGroup, unitsRequested, unitsFilled, urgency (`NORMAL` \| `HIGH` \| `CRITICAL`), neededBy, status, source (`MANUAL` \| `AI_PARSED`), rawText?, createdAt
+**REQUISITION** — reqId, hospitalId, component, bloodGroup, unitsRequested, unitsFilled, urgency (`NORMAL` \| `HIGH` \| `CRITICAL`), neededBy, status, source (`MANUAL` \| `PARSED`), rawText?, createdAt
 
 **AUDIT** — eventId, eventType, subjectType, subjectId, actorFacilityId? (null = system), timestamp, details (map)
 

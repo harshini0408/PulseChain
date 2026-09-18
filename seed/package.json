@@ -3,18 +3,26 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "generate": "tsx src/generate.ts",
-    "load": "tsx src/load.ts",
-    "reset": "tsx src/reset.ts"
+    "generate": "tsx --env-file=../.env src/generate.ts",
+    "distances": "tsx --env-file=../.env src/distances.ts",
+    "seed": "tsx --env-file=../.env src/load.ts",
+    "load": "tsx --env-file=../.env src/load.ts",
+    "reset": "tsx --env-file=../.env src/reset.ts",
+    "seed:reset": "tsx --env-file=../.env src/reset.ts",
+    "stage": "tsx --env-file=../.env src/stage-demo.ts",
+    "seed:stage": "tsx --env-file=../.env src/stage-demo.ts",
+    "test:acceptance": "tsx --env-file=../.env src/acceptance-checks.ts"
   },
   "dependencies": {
-    "@pulsechain/shared": "*",
+    "@aws-sdk/client-cloudformation": "^3.1135.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1135.0",
     "@aws-sdk/client-dynamodb": "^3.645.0",
-    "@aws-sdk/lib-dynamodb": "^3.645.0"
+    "@aws-sdk/lib-dynamodb": "^3.645.0",
+    "@pulsechain/shared": "*"
   },
   "devDependencies": {
-    "typescript": "^5.5.4",
+    "@types/node": "^22.5.5",
     "tsx": "^4.19.1",
-    "@types/node": "^22.5.5"
+    "typescript": "^5.5.4"
   }
 }

@@ -1,245 +1,228 @@
+/**
+ * Tests for shared/src/scoring.ts
+ *
+ * Hand-computed expected scores use config.ts weights:
+ *   compatibility .25 | distance .25 | openRequisition .25 | standingDemand .15 | urgency .10
+ *
+ * If weights change in config.ts, these assertions will break loudly — that is intentional.
+ */
+
 import { describe, it, expect } from "vitest";
-import { rankCandidates, type Candidate } from "../src/scoring.js";
-import type { BloodUnit, Facility, StandingDemand, Requisition } from "../src/types.js";
+import { scoreOffer, distanceSubScore } from "../src/scoring.js";
+import type { ScoreInput } from "../src/scoring.js";
+import { getCompatibility } from "../src/compatibility.js";
 
-const sampleUnit: BloodUnit = {
-  unitId: "U101",
-  facilityId: "FAC_SRC",
-  component: "PLATELETS",
-  bloodGroup: "O-",
-  volumeMl: 300,
-  valueInr: 1500,
-  collectedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-  expiresAt: new Date(Date.now() + 3600000 * 36).toISOString(),
-  status: "AVAILABLE",
-  version: 1,
-};
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
 
-const createFacility = (id: string, name: string): Facility => ({
-  facilityId: id,
-  name,
-  type: "HOSPITAL",
-  city: "Coimbatore",
-  lat: 11.0168,
-  lng: 76.9558,
-  components: ["PLATELETS", "RBC"],
-  contactEmail: `${id.toLowerCase()}@hospital.org`,
+function makeInput(overrides: Partial<ScoreInput> = {}): ScoreInput {
+  return {
+    compatibility: getCompatibility("PLATELETS", "O-", "O-"), // IDENTICAL
+    distanceKm: 5,
+    hasOpenRequisition: true,
+    standingDemand: "HIGH",
+    urgency: "NORMAL",
+    hoursRemaining: 36,
+    component: "PLATELETS",
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Distance sub-score boundary tests
+// Ring outer = 30 km.  distanceScore = clamp(1 - distanceKm / 30, 0, 1)
+// ---------------------------------------------------------------------------
+
+describe("Distance sub-score boundaries", () => {
+  const isolatedCases: [number, number][] = [
+    [0, 1.000],
+    [7.5, 0.750],
+    [10.0, 0.667],
+    [15.0, 0.500],
+    [29.9, 0.003],
+    [30.0, 0.000],
+    [45.0, 0.000],
+  ];
+
+  it.each(isolatedCases)(
+    "isolated distanceSubScore at %s km equals %s",
+    (km, expectedScore) => {
+      expect(distanceSubScore(km)).toBeCloseTo(expectedScore, 3);
+    },
+  );
+
+  it("result.breakdown.distanceScore matches isolated distanceSubScore", () => {
+    for (const [km, expectedScore] of isolatedCases) {
+      const result = scoreOffer(makeInput({ distanceKm: km }));
+      expect(result.breakdown.distanceScore).toBeCloseTo(expectedScore, 3);
+    }
+  });
+
+  it("10.0 km produces distanceScore ≈ 0.667 (Ring 1 boundary)", () => {
+    const score = distanceSubScore(10.0);
+    expect(score).toBeCloseTo(1 - 10 / 30, 3);
+  });
 });
 
-describe("rankCandidates", () => {
-  it("excludes INCOMPATIBLE candidates", () => {
-    const candidateA: Candidate = {
-      facility: createFacility("FAC_A", "Hospital A"),
+// ---------------------------------------------------------------------------
+// INCOMPATIBLE throws
+// ---------------------------------------------------------------------------
+
+describe("Incompatible input", () => {
+  it("throws a descriptive error for INCOMPATIBLE compatibility", () => {
+    const incompatible = getCompatibility("RBC", "AB+", "O-"); // definitely INCOMPATIBLE
+    expect(incompatible.level).toBe("INCOMPATIBLE");
+
+    expect(() =>
+      scoreOffer(makeInput({ compatibility: incompatible, component: "RBC" })),
+    ).toThrowError(/INCOMPATIBLE/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Full end-to-end cases (hand-computed)
+// Weights: compat=.25, dist=.25, openReq=.25, demand=.15, urgency=.10
+// ---------------------------------------------------------------------------
+
+describe("Full end-to-end scoring — PLATELETS", () => {
+  /**
+   * compatibility = IDENTICAL → 1.0
+   * distanceKm   = 5         → 1 - 5/30 ≈ 0.83333
+   * openReq      = true      → 1.0
+   * demand       = HIGH      → 1.0
+   * urgency: NORMAL, 36 h, threshold 48 h
+   *   statedUrgency=0.2, clockUrgency=1-36/48=0.25 → max=0.25
+   *
+   * score = .25*1.0 + .25*0.83333 + .25*1.0 + .15*1.0 + .10*0.25
+   *       = 0.25 + 0.20833 + 0.25 + 0.15 + 0.025 = 0.88333 → 0.883
+   */
+  it("IDENTICAL, 5 km, open req, HIGH demand, NORMAL+36h → score ≈ 0.883", () => {
+    const result = scoreOffer(makeInput({
       distanceKm: 5,
-      demand: {
-        facilityId: "FAC_A",
-        component: "PLATELETS",
-        bloodGroup: "B+",
-        weeklyUnits: 10,
-        level: "HIGH",
-      },
-    };
-
-    const unitA: BloodUnit = {
-      ...sampleUnit,
-      bloodGroup: "A+",
-    };
-
-    const ranked = rankCandidates(unitA, [candidateA]);
-    expect(ranked).toHaveLength(0);
+      hasOpenRequisition: true,
+      standingDemand: "HIGH",
+      urgency: "NORMAL",
+      hoursRemaining: 36,
+      component: "PLATELETS",
+    }));
+    expect(result.score).toBeCloseTo(0.883, 2);
   });
+});
 
-  it("ranks IDENTICAL compatibility above COMPATIBLE", () => {
-    const identicalCandidate: Candidate = {
-      facility: createFacility("FAC_ID", "Hospital Identical"),
-      distanceKm: 10,
-      demand: {
-        facilityId: "FAC_ID",
-        component: "PLATELETS",
-        bloodGroup: "O-",
-        weeklyUnits: 5,
-        level: "MEDIUM",
-      },
-    };
-
-    const compatibleCandidate: Candidate = {
-      facility: createFacility("FAC_COMP", "Hospital Compatible"),
-      distanceKm: 10,
-      demand: {
-        facilityId: "FAC_COMP",
-        component: "PLATELETS",
-        bloodGroup: "A+",
-        weeklyUnits: 5,
-        level: "MEDIUM",
-      },
-    };
-
-    const ranked = rankCandidates(sampleUnit, [compatibleCandidate, identicalCandidate]);
-    expect(ranked).toHaveLength(2);
-    expect(ranked[0].facility.facilityId).toBe("FAC_ID");
-    expect(ranked[0].breakdown.compatibility).toBe(1.0);
-    expect(ranked[1].breakdown.compatibility).toBe(0.75);
-  });
-
-  it("closer distance ranks higher among equal compatibility", () => {
-    const closeCandidate: Candidate = {
-      facility: createFacility("FAC_CLOSE", "Close Hospital"),
-      distanceKm: 3,
-    };
-
-    const farCandidate: Candidate = {
-      facility: createFacility("FAC_FAR", "Far Hospital"),
-      distanceKm: 25,
-    };
-
-    const ranked = rankCandidates(sampleUnit, [farCandidate, closeCandidate]);
-    expect(ranked).toHaveLength(2);
-    expect(ranked[0].facility.facilityId).toBe("FAC_CLOSE");
-    expect(ranked[1].facility.facilityId).toBe("FAC_FAR");
-  });
-
-  it("candidate with open matching requisition ranks higher", () => {
-    const candidateWithReq: Candidate = {
-      facility: createFacility("FAC_REQ", "Hospital with Req"),
-      distanceKm: 10,
-      requisition: {
-        reqId: "REQ_1",
-        hospitalId: "FAC_REQ",
-        component: "PLATELETS",
-        bloodGroup: "O-",
-        unitsRequested: 2,
-        unitsFilled: 0,
-        urgency: "HIGH",
-        neededBy: new Date(Date.now() + 3600000 * 6).toISOString(),
-        status: "OPEN",
-        source: "MANUAL",
-        createdAt: new Date().toISOString(),
-      },
-    };
-
-    const candidateWithoutReq: Candidate = {
-      facility: createFacility("FAC_NOREQ", "Hospital without Req"),
-      distanceKm: 10,
-    };
-
-    const ranked = rankCandidates(sampleUnit, [candidateWithoutReq, candidateWithReq]);
-    expect(ranked).toHaveLength(2);
-    expect(ranked[0].facility.facilityId).toBe("FAC_REQ");
-    expect(ranked[0].breakdown.openRequisition).toBe(1.0);
-  });
-
-  it("CRITICAL urgency boosts score", () => {
-    const criticalCandidate: Candidate = {
-      facility: createFacility("FAC_CRIT", "Critical Hospital"),
-      distanceKm: 10,
-      requisition: {
-        reqId: "REQ_CRIT",
-        hospitalId: "FAC_CRIT",
-        component: "PLATELETS",
-        bloodGroup: "O-",
-        unitsRequested: 1,
-        unitsFilled: 0,
-        urgency: "CRITICAL",
-        neededBy: new Date().toISOString(),
-        status: "OPEN",
-        source: "MANUAL",
-        createdAt: new Date().toISOString(),
-      },
-    };
-
-    const normalCandidate: Candidate = {
-      facility: createFacility("FAC_NORM", "Normal Hospital"),
-      distanceKm: 10,
-      requisition: {
-        reqId: "REQ_NORM",
-        hospitalId: "FAC_NORM",
-        component: "PLATELETS",
-        bloodGroup: "O-",
-        unitsRequested: 1,
-        unitsFilled: 0,
-        urgency: "NORMAL",
-        neededBy: new Date().toISOString(),
-        status: "OPEN",
-        source: "MANUAL",
-        createdAt: new Date().toISOString(),
-      },
-    };
-
-    const ranked = rankCandidates(sampleUnit, [normalCandidate, criticalCandidate]);
-    expect(ranked[0].facility.facilityId).toBe("FAC_CRIT");
-    expect(ranked[0].breakdown.urgency).toBe(1.0);
-    expect(ranked[1].breakdown.urgency).toBe(0.2);
-  });
-
-  it("ties broken by lower distanceKm then lexicographic facilityId", () => {
-    const c1: Candidate = {
-      facility: createFacility("FAC_B", "Hospital B"),
-      distanceKm: 5,
-    };
-    const c2: Candidate = {
-      facility: createFacility("FAC_A", "Hospital A"),
-      distanceKm: 5,
-    };
-
-    const ranked = rankCandidates(sampleUnit, [c1, c2]);
-    expect(ranked[0].facility.facilityId).toBe("FAC_A");
-    expect(ranked[1].facility.facilityId).toBe("FAC_B");
-  });
-
-  it("returns correct per-factor breakdown scores", () => {
-    const c: Candidate = {
-      facility: createFacility("FAC_1", "Hospital 1"),
-      distanceKm: 8,
-      demand: {
-        facilityId: "FAC_1",
-        component: "PLATELETS",
-        bloodGroup: "O-",
-        weeklyUnits: 20,
-        level: "HIGH",
-      },
-    };
-
-    const ranked = rankCandidates(sampleUnit, [c]);
-    expect(ranked[0].breakdown).toHaveProperty("compatibility");
-    expect(ranked[0].breakdown).toHaveProperty("distanceKm", 8);
-    expect(ranked[0].breakdown).toHaveProperty("standingDemand");
-    expect(ranked[0].breakdown).toHaveProperty("hoursRemaining");
-  });
-
-  it("reason text is a non-empty human-readable sentence", () => {
-    const c: Candidate = {
-      facility: createFacility("FAC_1", "Hospital 1"),
-      distanceKm: 4,
-    };
-
-    const ranked = rankCandidates(sampleUnit, [c]);
-    expect(typeof ranked[0].reason).toBe("string");
-    expect(ranked[0].reason.length).toBeGreaterThan(10);
-  });
-
-  it("empty candidates list returns empty array", () => {
-    expect(rankCandidates(sampleUnit, [])).toEqual([]);
-  });
-
-  it("all INCOMPATIBLE candidates returns empty array", () => {
-    const rbcUnit: BloodUnit = {
-      ...sampleUnit,
+describe("Full end-to-end scoring — RBC", () => {
+  /**
+   * compatibility = COMPATIBLE → 0.7
+   * distanceKm   = 20         → 1 - 20/30 ≈ 0.33333
+   * openReq      = false      → 0.0
+   * demand       = MEDIUM     → 0.6
+   * urgency: HIGH, 100 h, threshold 168 h
+   *   statedUrgency=0.6, clockUrgency=1-100/168≈0.4048 → max=0.6
+   *
+   * score = .25*0.7 + .25*0.33333 + .25*0.0 + .15*0.6 + .10*0.6
+   *       = 0.175 + 0.08333 + 0.0 + 0.09 + 0.06 = 0.40833 → 0.408
+   */
+  it("COMPATIBLE, 20 km, no req, MEDIUM demand, HIGH+100h RBC → score ≈ 0.408", () => {
+    const result = scoreOffer({
+      compatibility: getCompatibility("RBC", "O-", "A+"),   // COMPATIBLE
+      distanceKm: 20,
+      hasOpenRequisition: false,
+      standingDemand: "MEDIUM",
+      urgency: "HIGH",
+      hoursRemaining: 100,
       component: "RBC",
-      bloodGroup: "A+",
-    };
+    });
+    expect(result.score).toBeCloseTo(0.408, 2);
+  });
+});
 
-    const c: Candidate = {
-      facility: createFacility("FAC_B", "Hospital B"),
-      distanceKm: 5,
-      demand: {
-        facilityId: "FAC_B",
-        component: "RBC",
-        bloodGroup: "B-",
-        weeklyUnits: 10,
-        level: "HIGH",
-      },
-    };
+describe("Full end-to-end scoring — PLASMA", () => {
+  /**
+   * compatibility = COMPATIBLE (AB- plasma → O-) → 0.7
+   * distanceKm   = 0   → 1.0
+   * openReq      = true → 1.0
+   * demand       = LOW  → 0.2
+   * urgency: CRITICAL, 500 h, threshold 720 h
+   *   statedUrgency=1.0, clockUrgency=1-500/720≈0.3056 → max=1.0
+   *
+   * score = .25*0.7 + .25*1.0 + .25*1.0 + .15*0.2 + .10*1.0
+   *       = 0.175 + 0.25 + 0.25 + 0.03 + 0.10 = 0.805
+   */
+  it("COMPATIBLE, 0 km, open req, LOW demand, CRITICAL+500h PLASMA → score ≈ 0.805", () => {
+    const result = scoreOffer({
+      compatibility: getCompatibility("PLASMA", "AB-", "O-"),  // COMPATIBLE
+      distanceKm: 0,
+      hasOpenRequisition: true,
+      standingDemand: "LOW",
+      urgency: "CRITICAL",
+      hoursRemaining: 500,
+      component: "PLASMA",
+    });
+    expect(result.score).toBeCloseTo(0.805, 2);
+  });
+});
 
-    expect(rankCandidates(rbcUnit, [c])).toEqual([]);
+// ---------------------------------------------------------------------------
+// Urgency max() behaviour
+// ---------------------------------------------------------------------------
+
+describe("urgencyScore uses max(), not average", () => {
+  it("NORMAL req with 2 h on platelets scores higher urgency than HIGH req with 40 h", () => {
+    // 2 h remaining: clockUrgency=1-2/48≈0.958; statedUrgency=0.2; max=0.958
+    const tightClock = scoreOffer(
+      makeInput({ urgency: "NORMAL", hoursRemaining: 2, component: "PLATELETS" }),
+    );
+    // 40 h remaining: clockUrgency=1-40/48≈0.167; statedUrgency=0.6; max=0.6
+    const highStated = scoreOffer(
+      makeInput({ urgency: "HIGH", hoursRemaining: 40, component: "PLATELETS" }),
+    );
+    expect(tightClock.breakdown.urgency).toBeGreaterThan(highStated.breakdown.urgency);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Weights-sum assertion (fires at module load)
+// ---------------------------------------------------------------------------
+
+describe("weights-sum assertion", () => {
+  it("module loads without throwing (weights sum to 1.0)", () => {
+    // If weights don't sum to 1.0, the module-level assertion in scoring.ts
+    // would have thrown at import time above. Getting here proves it doesn't.
+    expect(() => scoreOffer(makeInput())).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// reason string invariants
+// ---------------------------------------------------------------------------
+
+describe("reason string", () => {
+  it("contains RhD caveat for ACCEPTABLE results", () => {
+    const result = scoreOffer({
+      compatibility: getCompatibility("PLATELETS", "O+", "O-"), // ACCEPTABLE
+      distanceKm: 10,
+      hasOpenRequisition: false,
+      standingDemand: "LOW",
+      urgency: "NORMAL",
+      hoursRemaining: 40,
+      component: "PLATELETS",
+    });
+    expect(result.reason.toLowerCase()).toMatch(/rhd/i);
+  });
+
+  it("is at most 140 characters", () => {
+    const result = scoreOffer(makeInput());
+    expect(result.reason.length).toBeLessThanOrEqual(140);
+  });
+
+  it("mentions IDENTICAL for exact match", () => {
+    const result = scoreOffer(makeInput());
+    expect(result.reason).toMatch(/IDENTICAL/);
+  });
+
+  it("breakdown stores raw distanceKm and hoursRemaining (not sub-scores)", () => {
+    const result = scoreOffer(makeInput({ distanceKm: 17.3, hoursRemaining: 29 }));
+    expect(result.breakdown.distanceKm).toBe(17.3);
+    expect(result.breakdown.hoursRemaining).toBe(29);
   });
 });

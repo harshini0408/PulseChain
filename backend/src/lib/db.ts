@@ -5,6 +5,7 @@ import {
   PutCommand,
   QueryCommand,
   TransactWriteCommand,
+  type TransactWriteCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 
 const ddbClient = new DynamoDBClient({});
@@ -97,53 +98,45 @@ export async function putItem<T extends Record<string, any>>(
   );
 }
 
-export interface TransactItem {
-  Put?: {
-    TableName?: string;
-    Item: Record<string, any>;
-    ConditionExpression?: string;
-    ExpressionAttributeNames?: Record<string, string>;
-    ExpressionAttributeValues?: Record<string, any>;
-  };
-  Update?: {
-    TableName?: string;
-    Key: Record<string, any>;
-    UpdateExpression: string;
-    ConditionExpression?: string;
-    ExpressionAttributeNames?: Record<string, string>;
-    ExpressionAttributeValues?: Record<string, any>;
-  };
-  Delete?: {
-    TableName?: string;
-    Key: Record<string, any>;
-    ConditionExpression?: string;
-    ExpressionAttributeNames?: Record<string, string>;
-    ExpressionAttributeValues?: Record<string, any>;
-  };
-  ConditionCheck?: {
-    TableName?: string;
-    Key: Record<string, any>;
-    ConditionExpression: string;
-    ExpressionAttributeNames?: Record<string, string>;
-    ExpressionAttributeValues?: Record<string, any>;
-  };
-}
+export type TransactItem = {
+  Put?: Omit<NonNullable<NonNullable<TransactWriteCommandInput["TransactItems"]>[number]["Put"]>, "TableName"> & { TableName?: string };
+  Update?: Omit<NonNullable<NonNullable<TransactWriteCommandInput["TransactItems"]>[number]["Update"]>, "TableName"> & { TableName?: string };
+  Delete?: Omit<NonNullable<NonNullable<TransactWriteCommandInput["TransactItems"]>[number]["Delete"]>, "TableName"> & { TableName?: string };
+  ConditionCheck?: Omit<NonNullable<NonNullable<TransactWriteCommandInput["TransactItems"]>[number]["ConditionCheck"]>, "TableName"> & { TableName?: string };
+};
 
 export async function transact(items: TransactItem[]): Promise<void> {
   if (!items || items.length === 0) return;
   const tableName = requireTableName();
   const normalizedItems = items.map((item) => {
-    const normalized: any = {};
-    if (item.Put) normalized.Put = { TableName: tableName, ...item.Put };
-    if (item.Update) normalized.Update = { TableName: tableName, ...item.Update };
-    if (item.Delete) normalized.Delete = { TableName: tableName, ...item.Delete };
-    if (item.ConditionCheck) normalized.ConditionCheck = { TableName: tableName, ...item.ConditionCheck };
-    return normalized;
+    const copy: any = { ...item };
+    if (copy.Put && !copy.Put.TableName) copy.Put = { ...copy.Put, TableName: tableName };
+    if (copy.Update && !copy.Update.TableName) copy.Update = { ...copy.Update, TableName: tableName };
+    if (copy.Delete && !copy.Delete.TableName) copy.Delete = { ...copy.Delete, TableName: tableName };
+    if (copy.ConditionCheck && !copy.ConditionCheck.TableName) copy.ConditionCheck = { ...copy.ConditionCheck, TableName: tableName };
+    return copy;
   });
 
-  await docClient.send(
-    new TransactWriteCommand({
-      TransactItems: normalizedItems,
-    })
-  );
+  const maxRetries = 5;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await docClient.send(
+        new TransactWriteCommand({
+          TransactItems: normalizedItems as any,
+        })
+      );
+      return;
+    } catch (err: any) {
+      const isConflict =
+        err.name === "TransactionCanceledException" &&
+        err.CancellationReasons?.some((r: any) => r.Code === "TransactionConflict");
+      if (isConflict && attempt < maxRetries) {
+        const delayMs = Math.floor(Math.random() * 80) + attempt * 60;
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
 }
+

@@ -1,2 +1,2 @@
-// RequisitionForm — manual blood component request form
+// stub
 export {};

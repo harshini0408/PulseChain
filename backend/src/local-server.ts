@@ -3,7 +3,7 @@ import { URL } from "node:url";
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { handler as unitsHandler } from "./api/units.js";
 import { handler as requisitionsHandler } from "./api/requisitions.js";
-import { handler as parseHandler } from "./api/parse.js";
+
 import { handler as offersHandler } from "./api/offers.js";
 import { handler as transfersHandler } from "./api/transfers.js";
 import { handler as escalationsHandler } from "./api/escalations.js";
@@ -157,8 +157,6 @@ const server = http.createServer(async (req, res) => {
           body: JSON.stringify(fallbackFacilities),
         };
       }
-    } else if (pathname === "/requisitions/parse" && method === "POST") {
-      result = await parseHandler(event);
     } else if (pathname.startsWith("/requisitions")) {
       result = await requisitionsHandler(event);
     } else if (pathname.startsWith("/inbox") || pathname.startsWith("/offers")) {
