@@ -1,208 +1,277 @@
-import React, { useState } from "react";
+/**
+ * One brokered offer.
+ *
+ * Two clocks live on this card and they are not the same clock:
+ *   - the ring counts down `claimBy`, this hospital's window to respond;
+ *   - the secondary line counts down the unit's own expiry.
+ * Both are shown because a long claim window on a nearly-dead unit is a
+ * different decision from a short window on a fresh one.
+ *
+ * On a lost claim race the card flips to a failure state carrying the
+ * backend's exact message — "Already claimed by <facility>" — holds it for
+ * four seconds, and only then drops out. It is never removed silently.
+ */
+
+import { forwardRef, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { AlertTriangle, ChevronDown, MapPin } from "lucide-react";
 import type { Offer } from "@pulsechain/shared";
+import { getConfig } from "@pulsechain/shared";
 import { useClaimMutation, useDeclineMutation } from "../../api/hooks";
-import { useCountdown } from "../../lib/countdown";
+import { useCountdown } from "../../lib/useCountdown";
+import { usePrefersReducedMotion } from "../../lib/motion";
+import { ringToken } from "../../lib/status";
+import { formatDistanceKm } from "../../lib/format";
+import { BloodGroupToken } from "../ui/BloodGroupToken";
+import { StatusPill } from "../ui/StatusPill";
+import { useToast } from "../ui/Toast";
+import { Button } from "../ui/Button";
+import { ClaimButton } from "./ClaimButton";
 import { CountdownRing } from "./CountdownRing";
 import { MatchBreakdown } from "./MatchBreakdown";
-import { ClaimButton } from "./ClaimButton";
-import {
-  Sparkles,
-  MapPin,
-  Building2,
-  AlertTriangle,
-  XCircle,
-  Clock,
-  CheckCircle,
-} from "lucide-react";
 
 interface OfferCardProps {
   offer: Offer;
-  facilityNames?: Record<string, string>;
+  originName: string;
 }
 
-const KNOWN_FACILITIES: Record<string, string> = {
-  FAC_CBE_SNBC: "Coimbatore SNS Blood Centre",
-  FAC_CBE_KMCH: "Kovai Medical Centre and Hospital",
-  FAC_CBE_GKNM: "G. Kuppuswamy Naidu Memorial Hospital",
-  FAC_CBE_PSG: "PSG Hospitals, Peelamedu",
-  FAC_CBE_RAMA: "Sri Ramakrishna Hospital",
-  FAC_CBE_ROYAL: "Royal Care Super Speciality Hospital",
-};
+/** How long a failed claim holds on screen before the card drops out. */
+const FAILURE_HOLD_MS = 4000;
 
-export const OfferCard: React.FC<OfferCardProps> = ({ offer, facilityNames }) => {
-  const claimMutation = useClaimMutation();
-  const declineMutation = useDeclineMutation();
+const DECLINE_REASONS = [
+  { value: "NO_MATCHING_PATIENT", label: "No matching patient" },
+  { value: "STOCK_SUFFICIENT", label: "Stock sufficient" },
+  { value: "CANNOT_COLLECT_IN_TIME", label: "Cannot collect in time" },
+] as const;
 
-  const [conflictError, setConflictError] = useState<string | null>(null);
-  const [declinedLocally, setDeclinedLocally] = useState(false);
+export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferCard(
+  { offer, originName },
+  ref,
+) {
+  const claim = useClaimMutation();
+  const decline = useDeclineMutation();
+  const { push } = useToast();
+  const reducedMotion = usePrefersReducedMotion();
 
-  const countdown = useCountdown(offer.claimBy);
-  const isExpired = countdown.isExpired;
+  const [expanded, setExpanded] = useState(false);
+  const [decliningOpen, setDecliningOpen] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const [claimed, setClaimed] = useState(false);
 
-  const originName =
-    facilityNames?.[offer.originFacilityId] ??
-    KNOWN_FACILITIES[offer.originFacilityId] ??
-    offer.originFacilityId;
+  // The Offer record carries no expiresAt, only `breakdown.hoursRemaining` as
+  // measured when the offer was scored. Reconstructing the unit's expiry from
+  // createdAt plus that figure is exact at creation and drifts by nothing
+  // afterwards, since both ends are fixed timestamps.
+  const unitExpiresAt = new Date(
+    new Date(offer.createdAt).getTime() + offer.breakdown.hoursRemaining * 3600 * 1000,
+  ).toISOString();
+  const unitCountdown = useCountdown(unitExpiresAt);
 
-  // RhD caveat if compatibility is ACCEPTABLE (< 1.0) or noted in reason
-  const isEmergencyCompatible =
-    (offer.breakdown?.compatibility > 0 && offer.breakdown?.compatibility < 1.0) ||
-    offer.reason.toLowerCase().includes("acceptable") ||
-    offer.reason.toLowerCase().includes("rhd");
+  const claimWindow = useCountdown(offer.claimBy);
+  const ring = ringToken(offer.ring);
+  const isOpen = offer.status === "OPEN";
+  const windowClosed = claimWindow.isExpired;
+
+  // Hold the failure on screen, then drop the card out.
+  useEffect(() => {
+    if (!failure) return;
+    const timer = window.setTimeout(() => setDismissed(true), FAILURE_HOLD_MS);
+    return () => window.clearTimeout(timer);
+  }, [failure]);
+
+  if (dismissed) return null;
 
   const handleClaim = async () => {
-    setConflictError(null);
+    setFailure(null);
     try {
-      await claimMutation.mutateAsync(offer.offerId);
-    } catch (err: any) {
-      // 409 Double-claim collision or other rejection
-      const msg = err.message || "Already claimed by another facility";
-      setConflictError(msg);
+      const res = await claim.mutateAsync(offer.offerId);
+      setClaimed(true);
+      push({
+        tone: "success",
+        title: "Unit claimed",
+        message: res.message || `${offer.unitId} is yours. Track it under Transfers.`,
+      });
+    } catch (err) {
+      // Render the backend's message verbatim. A 409 naming the winning
+      // facility is the most useful sentence this screen can show.
+      const message =
+        err instanceof Error ? err.message : "The claim was rejected and gave no reason.";
+      setFailure(message);
+      push({ tone: "error", title: "Claim rejected", message });
     }
   };
 
-  const handleDecline = async () => {
+  const handleDecline = async (reason: string) => {
     try {
-      await declineMutation.mutateAsync({ offerId: offer.offerId });
-      setDeclinedLocally(true);
-    } catch (err: any) {
-      console.error("Decline error:", err);
+      await decline.mutateAsync({ offerId: offer.offerId, reason });
+      setDecliningOpen(false);
+      setDismissed(true);
+      push({ tone: "info", title: "Offer declined", message: `${offer.unitId} released.` });
+    } catch (err) {
+      push({
+        tone: "error",
+        title: "Could not decline",
+        message: err instanceof Error ? err.message : "The decline was rejected.",
+      });
     }
   };
 
-  const isClaimed = offer.status === "CLAIMED";
-  const isDeclined = offer.status === "DECLINED" || declinedLocally;
-  const isSuperseded = offer.status === "SUPERSEDED";
-
-  // Dimming conditions
-  const isDimmed = isExpired || isDeclined || isSuperseded;
+  // Motion place two of three: an offer arriving in the inbox.
+  const entry = reducedMotion
+    ? { initial: false as const }
+    : {
+        initial: { opacity: 0, y: 12 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, scale: 0.98 },
+        transition: { duration: 0.28, ease: "easeOut" as const },
+      };
 
   return (
-    <div
-      className={`rounded-xl border transition-all shadow-sm ${
-        conflictError
-          ? "border-amber-400 bg-amber-50/40 dark:bg-amber-950/20"
-          : isClaimed
-          ? "border-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20"
-          : isDimmed
-          ? "opacity-60 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50"
-          : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
-      } p-5`}
+    <motion.article
+      ref={ref}
+      layout={!reducedMotion}
+      {...entry}
+      className={[
+        "overflow-hidden rounded-xl border bg-surface-raised shadow-card",
+        failure ? "border-status-lost/40" : claimed ? "border-status-received/40" : "border-border",
+      ].join(" ")}
     >
-      {/* Top Header: Badge, Origin, and Countdown */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="px-2.5 py-1 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-xs">
-            {offer.bloodGroup ?? "O+"}
-          </span>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>{offer.component ?? "PLATELETS"}</span>
-              <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
-                ({offer.volumeMl ?? 250} ml)
-              </span>
-            </h3>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              <Building2 className="w-3.5 h-3.5 text-slate-400" />
-              <span className="font-medium">{originName}</span>
-              <span className="text-slate-300 dark:text-slate-600">•</span>
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              <span>{offer.breakdown?.distanceKm?.toFixed(1) ?? "1.0"} km away</span>
-            </div>
+      {/* ── Failure banner — the 409 shot ───────────────────────────────── */}
+      {failure && (
+        <div className="flex items-start gap-2.5 bg-status-lost-bg px-4 py-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-lost" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-text">Claim rejected</p>
+            <p className="mt-0.5 break-words text-sm text-text">{failure}</p>
           </div>
         </div>
+      )}
 
-        {/* Claim Window Timer */}
-        <div className="flex items-center gap-2">
-          {offer.status === "OPEN" && !conflictError && (
-            <CountdownRing claimBy={offer.claimBy} />
-          )}
-          {isClaimed && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              <CheckCircle className="w-3.5 h-3.5" />
-              CLAIMED
-            </span>
-          )}
-          {isDeclined && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-              DECLINED
-            </span>
-          )}
-          {isSuperseded && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-              SUPERSEDED
-            </span>
-          )}
-        </div>
-      </div>
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start gap-4">
+          <BloodGroupToken
+            bloodGroup={offer.bloodGroup ?? "—"}
+            component={offer.component}
+            size="md"
+          />
 
-      {/* The Why: Prominent Justification Reason */}
-      <div className="mt-3.5 p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50">
-        <div className="flex items-start gap-2">
-          <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-              Rescue Match Reason
-            </span>
-            <p className="text-xs text-slate-700 dark:text-slate-200 mt-0.5 leading-relaxed font-medium">
-              {offer.reason}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={["inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-2xs font-semibold", ring.pill].join(" ")}
+              >
+                <span className={["h-1.5 w-1.5 rounded-full", ring.dot].join(" ")} />
+                {ring.label}
+              </span>
+              {!isOpen && <StatusPill kind="offer" value={offer.status} size="sm" />}
+              {offer.volumeMl !== undefined && (
+                <span className="text-2xs text-text-subtle">{offer.volumeMl} ml</span>
+              )}
+            </div>
+
+            <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-text">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-text-subtle" />
+              <span className="truncate">{originName}</span>
+              <span className="flex-shrink-0 font-normal text-text-muted">
+                · {formatDistanceKm(offer.breakdown.distanceKm)}
+              </span>
+            </p>
+
+            <p className="mt-1.5 text-sm leading-relaxed text-text-muted">{offer.reason}</p>
+
+            <p className="mt-2 text-2xs text-text-subtle">
+              Unit expires in{" "}
+              <span className="font-semibold tabular-nums text-text-muted" data-numeric="true">
+                {unitCountdown.label}
+              </span>{" "}
+              · unit <span className="font-mono">{offer.unitId}</span>
             </p>
           </div>
+
+          <CountdownRing createdAt={offer.createdAt} claimBy={offer.claimBy} />
         </div>
-      </div>
 
-      {/* Emergency RhD Protocol Warning if applicable */}
-      {isEmergencyCompatible && (
-        <div className="mt-2.5 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200">
-          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-          <span className="font-medium">
-            Compatible under emergency protocol (RhD mismatch — requires clinician signoff)
-          </span>
-        </div>
-      )}
+        {/* ── Breakdown ───────────────────────────────────────────────────── */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-3 inline-flex items-center gap-1 text-2xs font-semibold text-text-muted transition-colors hover:text-accent"
+        >
+          <ChevronDown
+            className={["h-3.5 w-3.5 transition-transform", expanded ? "rotate-180" : ""].join(" ")}
+          />
+          {expanded ? "Hide" : "Why this offer"}
+        </button>
 
-      {/* Verified Stored Factor Breakdown */}
-      {offer.breakdown && (
-        <MatchBreakdown score={offer.score} breakdown={offer.breakdown} />
-      )}
-
-      {/* Action Footer: Claim / Decline or 409 Double-Claim Presentation */}
-      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-[11px] font-mono text-slate-400">
-          Unit #{offer.unitId} • Ring {offer.ring}
-        </span>
-
-        {/* 409 Conflict State Presentation */}
-        {conflictError ? (
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-100/70 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <div>
-              <span className="font-bold">Offer Invalidated: </span>
-              <span>{conflictError}</span>
-            </div>
+        {expanded && (
+          <div className="mt-3">
+            <MatchBreakdown breakdown={offer.breakdown} score={offer.score} />
           </div>
-        ) : offer.status === "OPEN" && !isDimmed ? (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDecline}
-              disabled={declineMutation.isPending || claimMutation.isPending}
-              className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              Decline
-            </button>
-            <ClaimButton
-              onClick={handleClaim}
-              isLoading={claimMutation.isPending}
-              disabled={isExpired}
-            />
+        )}
+
+        {/* ── Actions ─────────────────────────────────────────────────────── */}
+        {isOpen && !failure && (
+          <div className="mt-4 border-t border-border pt-4">
+            {decliningOpen ? (
+              <div>
+                <p className="mb-2 text-xs font-semibold text-text">Why are you declining?</p>
+                <div className="flex flex-wrap gap-2">
+                  {DECLINE_REASONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={decline.isPending}
+                      onClick={() => void handleDecline(value)}
+                      className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-text transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent disabled:opacity-50"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setDecliningOpen(false)}
+                    className="rounded-full px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : claimed ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <ClaimButton claimed onClick={() => {}} />
+                <Link
+                  to="/hospital/transfers"
+                  className="text-xs font-semibold text-accent underline-offset-2 hover:underline"
+                >
+                  Track it under Transfers →
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <ClaimButton
+                  onClick={() => void handleClaim()}
+                  loading={claim.isPending}
+                  disabled={windowClosed}
+                />
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={() => setDecliningOpen(true)}
+                  disabled={claim.isPending || windowClosed}
+                >
+                  Decline
+                </Button>
+                {windowClosed && (
+                  <span className="text-xs text-text-subtle">Claim window closed</span>
+                )}
+              </div>
+            )}
           </div>
-        ) : isExpired && offer.status === "OPEN" ? (
-          <span className="text-xs font-medium text-slate-400 dark:text-slate-500 italic">
-            Claim window closed — unit escalated to next ring
-          </span>
-        ) : null}
+        )}
       </div>
-    </div>
+    </motion.article>
   );
-};
+});

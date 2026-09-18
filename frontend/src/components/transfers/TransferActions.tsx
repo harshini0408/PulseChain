@@ -1,89 +1,89 @@
-import React, { useState } from "react";
+/**
+ * The two custody handovers. Marking a unit received is irreversible and closes
+ * the chain, so it goes through a confirmation; dispatching does not.
+ */
+
+import { useState } from "react";
+import { PackageCheck, Truck } from "lucide-react";
+import type { UnitStatus } from "@pulsechain/shared";
 import { useInTransitMutation, useReceivedMutation } from "../../api/hooks";
-import { Truck, PackageCheck, Loader2 } from "lucide-react";
+import { Button } from "../ui/Button";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { useToast } from "../ui/Toast";
 
 interface TransferActionsProps {
   unitId: string;
-  status: string;
-  onSuccess?: () => void;
+  status: UnitStatus;
 }
 
-export const TransferActions: React.FC<TransferActionsProps> = ({
-  unitId,
-  status,
-  onSuccess,
-}) => {
-  const inTransitMutation = useInTransitMutation();
-  const receivedMutation = useReceivedMutation();
+export function TransferActions({ unitId, status }: TransferActionsProps) {
+  const inTransit = useInTransitMutation();
+  const received = useReceivedMutation();
+  const { push } = useToast();
+  const [confirming, setConfirming] = useState(false);
 
-  const [courier, setCourier] = useState("PulseChain Express Dispatch");
-
-  const handleDispatch = async () => {
+  const dispatch = async () => {
     try {
-      await inTransitMutation.mutateAsync(unitId);
-      onSuccess?.();
-    } catch (err: any) {
-      console.error("Failed to mark in-transit:", err);
+      await inTransit.mutateAsync({ unitId });
+      push({ tone: "success", title: "Marked in transit", message: `${unitId} is on its way.` });
+    } catch (err) {
+      push({
+        tone: "error",
+        title: "Could not mark in transit",
+        message: err instanceof Error ? err.message : "The transfer endpoint rejected the change.",
+      });
     }
   };
 
-  const handleReceived = async () => {
+  const confirmReceived = async () => {
     try {
-      await receivedMutation.mutateAsync(unitId);
-      onSuccess?.();
-    } catch (err: any) {
-      console.error("Failed to mark received:", err);
+      await received.mutateAsync({ unitId });
+      setConfirming(false);
+      push({ tone: "success", title: "Receipt confirmed", message: `${unitId} is now yours.` });
+    } catch (err) {
+      setConfirming(false);
+      push({
+        tone: "error",
+        title: "Could not confirm receipt",
+        message: err instanceof Error ? err.message : "The transfer endpoint rejected the change.",
+      });
     }
   };
 
   if (status === "CLAIMED") {
     return (
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleDispatch}
-          disabled={inTransitMutation.isPending}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-semibold rounded-lg text-xs transition-colors shadow-sm cursor-pointer"
-        >
-          {inTransitMutation.isPending ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Truck className="w-3.5 h-3.5" />
-          )}
-          <span>Dispatch (Mark In-Transit)</span>
-        </button>
-      </div>
+      <Button size="sm" loading={inTransit.isPending} onClick={() => void dispatch()}>
+        {!inTransit.isPending && <Truck className="h-3.5 w-3.5" />}
+        Mark in transit
+      </Button>
     );
   }
 
   if (status === "IN_TRANSIT") {
     return (
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleReceived}
-          disabled={receivedMutation.isPending}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-semibold rounded-lg text-xs transition-colors shadow-sm cursor-pointer"
-        >
-          {receivedMutation.isPending ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <PackageCheck className="w-3.5 h-3.5" />
-          )}
-          <span>Confirm Receipt (Mark Received)</span>
-        </button>
-      </div>
-    );
-  }
+      <>
+        <Button size="sm" loading={received.isPending} onClick={() => setConfirming(true)}>
+          {!received.isPending && <PackageCheck className="h-3.5 w-3.5" />}
+          Confirm received
+        </Button>
 
-  if (status === "RECEIVED") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-        <PackageCheck className="w-3.5 h-3.5 text-emerald-500" />
-        <span>Unit Received & Stocked</span>
-      </span>
+        <ConfirmDialog
+          open={confirming}
+          title="Confirm this unit arrived?"
+          description={
+            <>
+              This closes the chain of custody for <span className="font-mono">{unitId}</span> and
+              records it as received at your facility. It cannot be undone from this interface.
+            </>
+          }
+          confirmLabel="Confirm receipt"
+          loading={received.isPending}
+          onConfirm={() => void confirmReceived()}
+          onCancel={() => setConfirming(false)}
+        />
+      </>
     );
   }
 
   return null;
-};
+}

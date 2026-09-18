@@ -1,35 +1,32 @@
-import React from "react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+/**
+ * Claim is a per-card action, so it disables itself with an inline spinner
+ * rather than blocking the page. Two hospitals pressing this at the same
+ * moment is the point of the demo, and neither window should freeze.
+ */
+
+import { Check } from "lucide-react";
+import { Button } from "../ui/Button";
 
 interface ClaimButtonProps {
   onClick: () => void;
-  isLoading: boolean;
+  loading?: boolean;
   disabled?: boolean;
+  claimed?: boolean;
 }
 
-export const ClaimButton: React.FC<ClaimButtonProps> = ({
-  onClick,
-  isLoading,
-  disabled = false,
-}) => {
+export function ClaimButton({ onClick, loading = false, disabled = false, claimed = false }: ClaimButtonProps) {
+  if (claimed) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-xl bg-status-received-bg px-4 py-2 text-sm font-semibold text-status-received">
+        <Check className="h-4 w-4" />
+        Claimed
+      </span>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled || isLoading}
-      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white disabled:text-slate-500 font-semibold text-xs transition-all shadow-sm active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed"
-    >
-      {isLoading ? (
-        <>
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          <span>Claiming Unit...</span>
-        </>
-      ) : (
-        <>
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>Claim Unit</span>
-        </>
-      )}
-    </button>
+    <Button onClick={onClick} loading={loading} disabled={disabled} size="md">
+      {loading ? "Claiming…" : "Claim"}
+    </Button>
   );
-};
+}

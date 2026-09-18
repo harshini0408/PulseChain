@@ -1,36 +1,77 @@
-import React from "react";
-import { useCountdown } from "../../lib/countdown";
-import { Timer, AlertOctagon } from "lucide-react";
+/**
+ * The claim-window ring. This counts down `claimBy` — the window this hospital
+ * has to respond — which is a different clock from the unit's own expiry. Both
+ * appear on an offer card, and conflating them would be the single most
+ * dangerous thing this interface could do.
+ */
+
+import { useCountdown } from "../../lib/useCountdown";
+import { remainingFraction } from "../../lib/countdown";
+import { usePrefersReducedMotion } from "../../lib/motion";
 
 interface CountdownRingProps {
+  /** When the offer was created — the start of the window. */
+  createdAt: string;
+  /** When the window closes. */
   claimBy: string;
+  size?: number;
 }
 
-export const CountdownRing: React.FC<CountdownRingProps> = ({ claimBy }) => {
+/** Below this fraction remaining the ring turns crimson. Presentation only. */
+const URGENT_BELOW = 0.34;
+
+export function CountdownRing({ createdAt, claimBy, size = 56 }: CountdownRingProps) {
   const countdown = useCountdown(claimBy);
+  const reducedMotion = usePrefersReducedMotion();
 
-  if (countdown.isExpired) {
-    return (
-      <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-        <AlertOctagon className="w-3.5 h-3.5" />
-        <span>Window closed</span>
-      </div>
-    );
-  }
-
-  // Under 60 seconds is critical
-  const isUrgent = countdown.totalSeconds < 120;
+  const fraction = remainingFraction(createdAt, claimBy);
+  const radius = (size - 6) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const urgent = fraction <= URGENT_BELOW || countdown.isExpired;
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-bold tracking-tight border ${
-        isUrgent
-          ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-900 animate-pulse"
-          : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-900"
-      }`}
+      className="relative flex-shrink-0"
+      style={{ width: size, height: size }}
+      title={countdown.isExpired ? "Claim window closed" : `${countdown.label} left to claim`}
     >
-      <Timer className={`w-3.5 h-3.5 ${isUrgent ? "text-rose-500" : "text-blue-500"}`} />
-      <span>Window: {countdown.formatted}</span>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={3}
+          className="stroke-border"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - fraction)}
+          className={urgent ? "stroke-accent" : "stroke-status-open"}
+          style={reducedMotion ? undefined : { transition: "stroke-dashoffset 1s linear" }}
+        />
+      </svg>
+
+      <span className="absolute inset-0 flex flex-col items-center justify-center">
+        <span
+          className={[
+            "text-[11px] font-bold leading-none tabular-nums",
+            countdown.isExpired ? "text-text-subtle" : urgent ? "text-accent" : "text-text",
+          ].join(" ")}
+          data-numeric="true"
+        >
+          {countdown.isExpired ? "—" : countdown.clock}
+        </span>
+        <span className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-text-subtle">
+          {countdown.isExpired ? "closed" : "to claim"}
+        </span>
+      </span>
     </div>
   );
-};
+}

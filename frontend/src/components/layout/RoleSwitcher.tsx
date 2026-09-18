@@ -1,38 +1,40 @@
-import { useAuth, type Role } from "../../auth/AuthProvider";
+/**
+ * Demo-only persona switch. Changing role means signing in as a different
+ * account, so this goes through the same login path as the login page rather
+ * than mutating role in place — otherwise the token and the role disagree.
+ *
+ * Hidden outside demo mode.
+ */
 
-const ROLES: { value: Role; label: string }[] = [
-  { value: "BLOOD_CENTRE", label: "Blood Centre" },
-  { value: "HOSPITAL", label: "Hospital" },
-  { value: "COORDINATOR", label: "Coordinator" },
-  { value: "COMMUNITY_COORDINATOR", label: "Community" },
-  { value: "DONOR", label: "Donor" },
-];
+import { useNavigate } from "react-router-dom";
+import { LANDING_PATHS, useAuth, type Role } from "../../auth/AuthProvider";
+import { ROLE_LABEL } from "./nav";
 
-interface RoleSwitcherProps {
-  compact?: boolean;
-}
+const ROLES: Role[] = ["BLOOD_CENTRE", "HOSPITAL", "COORDINATOR", "COMMUNITY_COORDINATOR", "DONOR"];
 
-export function RoleSwitcher({ compact = false }: RoleSwitcherProps) {
+export function RoleSwitcher() {
   const { role, loginAs } = useAuth();
+  const navigate = useNavigate();
+
+  if (import.meta.env.VITE_DEMO_MODE !== "true" || !role) return null;
+
+  const onChange = async (next: Role) => {
+    await loginAs(next);
+    navigate(LANDING_PATHS[next], { replace: true });
+  };
 
   return (
-    <div className="flex items-center gap-2">
-      {!compact && (
-        <span className="text-xs text-text-muted font-medium">Demo role:</span>
-      )}
-      <select
-        id="role-switcher"
-        value={role ?? "BLOOD_CENTRE"}
-        onChange={(e) => loginAs(e.target.value as Role)}
-        className="rounded-lg border border-border bg-surface-raised px-2.5 py-1.5 text-xs font-medium text-text focus:outline-none focus:ring-2 focus:ring-accent/40 transition-colors cursor-pointer hover:border-text-muted"
-        aria-label="Switch demo role"
-      >
-        {ROLES.map(({ value, label }) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <select
+      value={role}
+      onChange={(e) => void onChange(e.target.value as Role)}
+      aria-label="Switch demo persona"
+      className="hidden rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs font-medium text-text transition-colors hover:border-border-strong sm:block"
+    >
+      {ROLES.map((r) => (
+        <option key={r} value={r}>
+          {ROLE_LABEL[r]}
+        </option>
+      ))}
+    </select>
   );
 }

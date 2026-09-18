@@ -1,152 +1,214 @@
-import React from "react";
-import type { StockUnit } from "../../api/client";
-import { getConfig } from "@pulsechain/shared";
+/**
+ * One unit, as a table row on desktop and a card below `md`.
+ *
+ * The AVAILABLE -> RESCUE_PENDING transition is one of exactly three places
+ * this application spends motion: the row flashes its component colour once
+ * and keeps an animated left edge for as long as the rescue is live. This is
+ * the row the camera is on during the demo, and it has to be impossible to
+ * miss on a poll cycle.
+ */
+
+import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
+import type { StockUnit, ActiveEscalation } from "../../api/client";
+import { StatusPill } from "../ui/StatusPill";
+import { ComponentClockBadge } from "./ComponentClockBadge";
 import { ExpiryCountdown } from "./ExpiryCountdown";
-import { formatDate } from "../../lib/countdown";
-import { Activity, Check, AlertCircle, Truck, PackageCheck, Ban } from "lucide-react";
+import { useCountdown } from "../../lib/useCountdown";
+import { usePrefersReducedMotion } from "../../lib/motion";
+import { ringAdvanceAt } from "../../lib/escalation";
+import { ringToken } from "../../lib/status";
+import { formatNumber } from "../../lib/format";
 
-export const UnitRow: React.FC<{ unit: StockUnit; isMobileCard?: boolean }> = ({
-  unit,
-  isMobileCard,
-}) => {
-  const cfg = getConfig();
-  const thresholdHours = cfg.thresholdHours[unit.component] ?? cfg.thresholdHours.PLATELETS;
-  const isInsideThreshold = unit.hoursRemaining <= thresholdHours && unit.hoursRemaining > 0;
+import { CRITICAL_DISPLAY_HOURS } from "../../lib/status";
 
-  let rowStyle = "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors";
-  let statusBadge = null;
+interface UnitRowProps {
+  unit: StockUnit;
+  escalation?: ActiveEscalation;
+  variant?: "row" | "card";
+}
 
-  switch (unit.status) {
-    case "RESCUE_PENDING":
-      rowStyle =
-        "bg-amber-500/10 dark:bg-amber-500/15 border-l-4 border-amber-500 shadow-sm";
-      statusBadge = (
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-bold bg-amber-500 text-white rounded-md shadow-sm">
-          <Activity className="w-3 h-3 animate-spin" />
-          RESCUE PENDING
-        </span>
-      );
-      break;
+/** How long the arrival flash stays up. Purely presentational. */
+const FLASH_MS = 2600;
 
-    case "CLAIMED":
-      rowStyle = "bg-emerald-50/50 dark:bg-emerald-950/20 border-l-4 border-emerald-500";
-      statusBadge = (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 rounded">
-          <Check className="w-3 h-3" />
-          CLAIMED
-        </span>
-      );
-      break;
+/** True once the unit has entered a live rescue. */
+function isRescuing(status: string): boolean {
+  return status === "RESCUE_PENDING";
+}
 
-    case "IN_TRANSIT":
-      rowStyle = "bg-blue-50/50 dark:bg-blue-950/20 border-l-4 border-blue-500";
-      statusBadge = (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 rounded">
-          <Truck className="w-3 h-3" />
-          IN TRANSIT
-        </span>
-      );
-      break;
+function RescueCell({ escalation }: { escalation?: ActiveEscalation }) {
+  const advanceAt = escalation
+    ? ringAdvanceAt(escalation.startedAt, escalation.currentRing)
+    : undefined;
+  const countdown = useCountdown(advanceAt);
 
-    case "RECEIVED":
-      rowStyle = "bg-slate-100/50 dark:bg-slate-800/30 text-slate-500";
-      statusBadge = (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 rounded">
-          <PackageCheck className="w-3 h-3" />
-          RECEIVED
-        </span>
-      );
-      break;
+  if (!escalation) return <span className="text-xs text-text-subtle">—</span>;
 
-    case "LOST":
-      rowStyle = "opacity-50 line-through bg-rose-50/30 dark:bg-rose-950/10 text-rose-900 dark:text-rose-300";
-      statusBadge = (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 rounded line-through">
-          <Ban className="w-3 h-3" />
-          LOST
-        </span>
-      );
-      break;
+  const ring = ringToken(escalation.currentRing);
 
-    case "AVAILABLE":
-    default:
-      if (isInsideThreshold) {
-        rowStyle = "bg-amber-50/30 dark:bg-amber-950/10 border-l-2 border-amber-400";
-        statusBadge = (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 rounded">
-            <AlertCircle className="w-3 h-3 text-amber-600" />
-            NEAR EXPIRY
-          </span>
-        );
-      } else {
-        statusBadge = (
-          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded">
-            AVAILABLE
-          </span>
-        );
-      }
-      break;
-  }
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span
+        className={["inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-2xs font-semibold", ring.pill].join(" ")}
+      >
+        <span className={["h-1.5 w-1.5 rounded-full", ring.dot].join(" ")} />
+        {ring.label}
+      </span>
+      <span className="text-2xs tabular-nums text-text-muted" data-numeric="true">
+        {countdown.isExpired ? "advancing" : `${countdown.label} to next ring`}
+      </span>
+    </span>
+  );
+}
 
-  const componentColors: Record<string, string> = {
-    PLATELETS: "text-amber-700 dark:text-amber-300 font-bold",
-    RBC: "text-red-700 dark:text-red-400 font-bold",
-    PLASMA: "text-teal-700 dark:text-teal-300 font-bold",
-  };
+export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
+  const navigate = useNavigate();
+  const reducedMotion = usePrefersReducedMotion();
 
-  // Mobile Card View (Zero horizontal scroll on 390px)
-  if (isMobileCard) {
+  const [flash, setFlash] = useState(false);
+  const previousStatus = useRef(unit.status);
+
+  // Fire only on the transition into RESCUE_PENDING, never on first paint —
+  // otherwise every row flashes when the page loads.
+  useEffect(() => {
+    const wasRescuing = isRescuing(previousStatus.current);
+    const nowRescuing = isRescuing(unit.status);
+    previousStatus.current = unit.status;
+
+    if (!wasRescuing && nowRescuing) {
+      setFlash(true);
+      const timer = window.setTimeout(() => setFlash(false), FLASH_MS);
+      return () => window.clearTimeout(timer);
+    }
+  }, [unit.status]);
+
+  const rescuing = isRescuing(unit.status);
+  const isCritical = rescuing || unit.hoursRemaining <= CRITICAL_DISPLAY_HOURS;
+  const open = () => navigate(`/centre/units/${unit.unitId}`);
+
+  // Under reduced motion the state change swaps instantly instead of animating.
+  const flashAnimation =
+    flash && !reducedMotion
+      ? { backgroundColor: ["hsl(var(--platelet-bg))", "hsl(var(--surface-raised))"] }
+      : {};
+
+  if (variant === "card") {
     return (
-      <div className={`p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ${rowStyle}`}>
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <span className="inline-block px-2 py-0.5 text-xs font-extrabold rounded bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-mono tabular-nums">
-              {unit.bloodGroup}
-            </span>
-            <span className={`text-xs uppercase tracking-wider ${componentColors[unit.component] ?? ""}`}>
-              {unit.component}
-            </span>
+      <motion.button
+        type="button"
+        onClick={open}
+        animate={flashAnimation}
+        transition={{ duration: FLASH_MS / 1000, ease: "easeOut" }}
+        className={[
+          "relative w-full overflow-hidden rounded-xl border text-left shadow-card transition-colors",
+          isCritical ? "border-accent/40 bg-accent-soft/20 p-4" : "border-border bg-surface-raised p-4",
+        ].join(" ")}
+      >
+        {isCritical && (
+          <span
+            className={[
+              "absolute inset-y-0 left-0 w-1.5 bg-accent",
+              rescuing && !reducedMotion ? "animate-rescue-edge" : "",
+            ].join(" ")}
+            aria-hidden="true"
+          />
+        )}
+
+        <div className="flex items-start justify-between gap-3 pl-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              {isCritical && <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />}
+              <p className="truncate font-mono text-xs font-semibold text-text">{unit.unitId}</p>
+            </div>
+            <p className="mt-1 font-display text-lg font-bold text-text">{unit.bloodGroup}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <ComponentClockBadge component={unit.component} />
+              <StatusPill kind="unit" value={unit.status} size="sm" withDot />
+            </div>
           </div>
-          {statusBadge}
+          <div className="flex-shrink-0 text-right">
+            <p className="text-2xs uppercase tracking-widest text-text-subtle">Expires in</p>
+            <ExpiryCountdown
+              expiresAt={unit.expiresAt}
+              component={unit.component}
+              size="md"
+              className="mt-0.5 block"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs py-1 text-slate-600 dark:text-slate-300 border-t border-slate-100 dark:border-slate-800/80 mt-2 pt-2">
-          <span className="font-mono text-slate-500 font-semibold">{unit.unitId}</span>
-          <span className="font-mono tabular-nums">{unit.volumeMl} ml</span>
-        </div>
-
-        <div className="flex items-center justify-between text-xs pt-1.5">
-          <span className="text-slate-400">{formatDate(unit.collectedAt)}</span>
-          <ExpiryCountdown expiresAt={unit.expiresAt} isPastThreshold={isInsideThreshold} />
-        </div>
-      </div>
+        {rescuing && (
+          <div className="mt-3 border-t border-border pt-3 pl-2">
+            <RescueCell escalation={escalation} />
+          </div>
+        )}
+      </motion.button>
     );
   }
 
-  // Desktop Clinical Dense Table Row
   return (
-    <tr className={`border-b border-slate-200/80 dark:border-slate-800/80 ${rowStyle}`}>
-      <td className="py-2.5 px-3.5 font-mono text-xs font-semibold text-slate-900 dark:text-slate-100">
-        {unit.unitId}
-      </td>
-      <td className={`py-2.5 px-3.5 text-xs uppercase tracking-wider ${componentColors[unit.component] ?? ""}`}>
-        {unit.component}
-      </td>
-      <td className="py-2.5 px-3.5">
-        <span className="inline-block px-2 py-0.5 text-xs font-extrabold rounded bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-mono tabular-nums">
-          {unit.bloodGroup}
+    <motion.tr
+      onClick={open}
+      animate={flashAnimation}
+      transition={{ duration: FLASH_MS / 1000, ease: "easeOut" }}
+      tabIndex={0}
+      role="link"
+      aria-label={`Unit ${unit.unitId}, ${unit.bloodGroup} ${unit.component}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open();
+        }
+      }}
+      className={[
+        "group cursor-pointer border-b border-border transition-colors last:border-0",
+        isCritical
+          ? "bg-accent-soft/20 hover:bg-accent-soft/40"
+          : "hover:bg-surface-sunken",
+      ].join(" ")}
+    >
+      <td className="relative py-3 pl-4 pr-3">
+        {isCritical && (
+          <span
+            className={[
+              "absolute inset-y-0 left-0 w-1 bg-accent",
+              rescuing && !reducedMotion ? "animate-rescue-edge" : "",
+            ].join(" ")}
+            aria-hidden="true"
+          />
+        )}
+        <div className="flex items-center gap-1.5">
+          {isCritical && <span className="h-1.5 w-1.5 rounded-full bg-accent flex-shrink-0 animate-pulse" />}
+          <span className="font-mono text-xs font-semibold text-text">{unit.unitId}</span>
+        </div>
+        <span className="mt-0.5 block text-2xs text-text-subtle">
+          {formatNumber(unit.volumeMl)} ml
         </span>
       </td>
-      <td className="py-2.5 px-3.5 text-xs text-slate-600 dark:text-slate-300 font-mono tabular-nums">
-        {unit.volumeMl} ml
+
+      <td className="px-3 py-3">
+        <ComponentClockBadge component={unit.component} />
       </td>
-      <td className="py-2.5 px-3.5 text-xs text-slate-500 dark:text-slate-400">
-        {formatDate(unit.collectedAt)}
+
+      <td className="px-3 py-3">
+        <span className="font-display text-base font-bold text-text">{unit.bloodGroup}</span>
       </td>
-      <td className="py-2.5 px-3.5">
-        <ExpiryCountdown expiresAt={unit.expiresAt} isPastThreshold={isInsideThreshold} />
+
+      <td className="px-3 py-3">
+        <ExpiryCountdown expiresAt={unit.expiresAt} component={unit.component} />
       </td>
-      <td className="py-2.5 px-3.5 text-right">{statusBadge}</td>
-    </tr>
+
+      <td className="px-3 py-3">
+        <StatusPill kind="unit" value={unit.status} size="sm" withDot />
+      </td>
+
+      <td className="px-3 py-3">{rescuing ? <RescueCell escalation={escalation} /> : <span className="text-xs text-text-subtle">—</span>}</td>
+
+      <td className="py-3 pl-3 pr-4 text-right">
+        <ChevronRight className="inline-block h-4 w-4 text-text-subtle transition-colors group-hover:text-accent" />
+      </td>
+    </motion.tr>
   );
-};
+}

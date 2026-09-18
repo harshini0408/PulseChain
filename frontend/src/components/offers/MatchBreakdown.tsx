@@ -1,83 +1,99 @@
-import React, { useState } from "react";
-import type { MatchBreakdown as MatchBreakdownType } from "@pulsechain/shared";
-import { ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
+/**
+ * Why this offer reached this hospital.
+ *
+ * Four of the five inputs are 0–1 sub-scores and are drawn as weighted bars.
+ * `distanceKm` is NOT one of them — it is a distance in kilometres, and drawing
+ * it as a bar would imply "4.2 out of 1". It gets its own row showing the real
+ * distance, the sub-score the scorer derives from it, and the same weight.
+ *
+ * Every weight comes from shared/src/config.ts. None are written here.
+ */
+
+import { distanceSubScore, getConfig, type MatchBreakdown as Breakdown } from "@pulsechain/shared";
+import { formatDistanceKm, formatHoursMinutes } from "../../lib/format";
 
 interface MatchBreakdownProps {
+  breakdown: Breakdown;
   score: number;
-  breakdown: MatchBreakdownType;
 }
 
-export const MatchBreakdown: React.FC<MatchBreakdownProps> = ({ score, breakdown }) => {
-  const [expanded, setExpanded] = useState(false);
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
 
-  // Normalize score display to 0-100 scale
-  const displayScore = score <= 1 ? Math.round(score * 100) : Math.round(score);
-
-  const factors = [
-    {
-      name: "Compatibility",
-      val: breakdown.compatibility,
-      detail: `Score: ${(breakdown.compatibility * 100).toFixed(0)}%`,
-    },
-    {
-      name: "Urgency",
-      val: breakdown.urgency,
-      detail: `${breakdown.hoursRemaining?.toFixed(1) ?? "?"}h remaining`,
-    },
-    {
-      name: "Proximity",
-      val: 1 - Math.min(1, (breakdown.distanceKm ?? 0) / 50),
-      detail: `${breakdown.distanceKm?.toFixed(1) ?? "?"} km transit`,
-    },
-    {
-      name: "Requisition Match",
-      val: breakdown.openRequisition,
-      detail: breakdown.openRequisition > 0 ? "Active matched req" : "General demand",
-    },
-    {
-      name: "Standing Demand",
-      val: breakdown.standingDemand,
-      detail: `Score: ${(breakdown.standingDemand * 100).toFixed(0)}%`,
-    },
-  ];
-
+function Bar({ value, weight }: { value: number; weight: number }) {
   return (
-    <div className="mt-3 border-t border-slate-100 dark:border-slate-800 pt-3">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-between w-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
-      >
-        <span className="flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
-          <span>Match Score Breakdown</span>
-          <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 font-mono font-bold text-[11px]">
-            {displayScore}/100
-          </span>
-        </span>
-        <span className="flex items-center gap-1 text-[11px] text-slate-400">
-          <span>{expanded ? "Hide factors" : "View 5 factors"}</span>
-          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </span>
-      </button>
-
-      {expanded && (
-        <div className="mt-3 space-y-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
-          <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 mb-2">
-            Engine Factor Weights & Stored Values (Verified)
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {factors.map((f) => (
-              <div key={f.name} className="flex items-center justify-between bg-white dark:bg-slate-900 px-2.5 py-1.5 rounded border border-slate-200/60 dark:border-slate-800">
-                <span className="text-slate-600 dark:text-slate-300 font-medium">{f.name}</span>
-                <span className="font-mono text-[11px] font-semibold text-slate-900 dark:text-slate-100">
-                  {f.detail}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-overlay">
+        <div
+          className="h-full rounded-full bg-accent"
+          // The bar shows the sub-score; the weight is stated in the label beside it.
+          style={{ width: `${Math.min(100, Math.max(0, value * 100))}%` }}
+        />
+      </div>
+      <span className="w-8 flex-shrink-0 text-right text-2xs tabular-nums text-text-muted" data-numeric="true">
+        {pct(value)}
+      </span>
+      <span className="w-10 flex-shrink-0 text-right text-2xs tabular-nums text-text-subtle" data-numeric="true">
+        ×{pct(weight)}
+      </span>
     </div>
   );
-};
+}
+
+export function MatchBreakdown({ breakdown, score }: MatchBreakdownProps) {
+  const { scoreWeights } = getConfig();
+
+  const rows: Array<{ label: string; value: number; weight: number }> = [
+    { label: "Compatibility", value: breakdown.compatibility, weight: scoreWeights.compatibility },
+    { label: "Open requisition", value: breakdown.openRequisition, weight: scoreWeights.openRequisition },
+    { label: "Standing demand", value: breakdown.standingDemand, weight: scoreWeights.standingDemand },
+    { label: "Urgency", value: breakdown.urgency, weight: scoreWeights.urgency },
+  ];
+
+  const derivedDistanceScore = distanceSubScore(breakdown.distanceKm);
+
+  return (
+    <div className="rounded-xl bg-surface-sunken p-3.5">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-2xs font-semibold uppercase tracking-widest text-text-muted">
+          Match breakdown
+        </p>
+        <p className="text-2xs tabular-nums text-text-muted" data-numeric="true">
+          total <span className="font-bold text-text">{score.toFixed(2)}</span>
+        </p>
+      </div>
+
+      <dl className="space-y-2.5">
+        {rows.map(({ label, value, weight }) => (
+          <div key={label} className="grid grid-cols-[7.5rem_1fr] items-center gap-3">
+            <dt className="text-xs text-text-muted">{label}</dt>
+            <dd>
+              <Bar value={value} weight={weight} />
+            </dd>
+          </div>
+        ))}
+
+        {/* Distance is a measurement, not a sub-score. It reads as one. */}
+        <div className="grid grid-cols-[7.5rem_1fr] items-center gap-3 border-t border-border pt-2.5">
+          <dt className="text-xs text-text-muted">Distance</dt>
+          <dd className="flex items-baseline gap-2">
+            <span className="text-sm font-bold tabular-nums text-text" data-numeric="true">
+              {formatDistanceKm(breakdown.distanceKm)}
+            </span>
+            <span className="text-2xs text-text-subtle">
+              scores {pct(derivedDistanceScore)} · ×{pct(scoreWeights.distance)}
+            </span>
+          </dd>
+        </div>
+
+        <div className="grid grid-cols-[7.5rem_1fr] items-center gap-3">
+          <dt className="text-xs text-text-muted">Time left on unit</dt>
+          <dd className="text-sm font-bold tabular-nums text-text" data-numeric="true">
+            {formatHoursMinutes(breakdown.hoursRemaining)}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}

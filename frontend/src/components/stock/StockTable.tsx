@@ -1,47 +1,65 @@
-import React from "react";
-import type { StockUnit } from "../../api/client";
+/**
+ * The stock table. Sorted by `expiresAt` ascending by default, so the unit
+ * closest to expiry is always the first thing on screen — the console's whole
+ * job is to put the next thing to lose at the top.
+ */
+
+import type { ActiveEscalation, StockUnit } from "../../api/client";
 import { UnitRow } from "./UnitRow";
+import { escalationForUnit } from "../../lib/escalation";
 
 interface StockTableProps {
   units: StockUnit[];
+  escalations?: ActiveEscalation[];
 }
 
-export const StockTable: React.FC<StockTableProps> = ({ units }) => {
-  // Sort soonest-expiring first
-  const sorted = [...units].sort((a, b) => {
-    return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
-  });
+const COLUMNS = ["Unit", "Component", "Group", "Expires in", "Status", "Rescue", ""];
+
+export function StockTable({ units, escalations }: StockTableProps) {
+  const sorted = [...units].sort(
+    (a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime(),
+  );
+
+  const escalationFor = (unit: StockUnit) =>
+    escalationForUnit(escalations, unit.unitId, unit.activeEscalationId);
 
   return (
-    <div>
-      {/* Desktop & Tablet: Dense Clinical Data Table */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <table className="w-full text-left border-collapse">
+    <>
+      {/* Desktop */}
+      <div className="hidden overflow-hidden rounded-xl border border-border bg-surface-raised shadow-card md:block">
+        <table className="w-full border-collapse text-left">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              <th className="py-2.5 px-3.5">Unit ID</th>
-              <th className="py-2.5 px-3.5">Component</th>
-              <th className="py-2.5 px-3.5">Group</th>
-              <th className="py-2.5 px-3.5">Volume</th>
-              <th className="py-2.5 px-3.5">Collected</th>
-              <th className="py-2.5 px-3.5">Time to Expiry</th>
-              <th className="py-2.5 px-3.5 text-right">Status</th>
+            <tr className="border-b border-border bg-surface-sunken">
+              {COLUMNS.map((label, i) => (
+                <th
+                  key={label || `col-${i}`}
+                  scope="col"
+                  className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted first:pl-4 last:pr-4"
+                >
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+          <tbody>
             {sorted.map((unit) => (
-              <UnitRow key={unit.unitId} unit={unit} />
+              <UnitRow key={unit.unitId} unit={unit} escalation={escalationFor(unit)} />
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Mobile: Responsive Card Stack (usable at 390px with zero horizontal scroll) */}
-      <div className="md:hidden space-y-3">
+      {/* Mobile */}
+      <div className="space-y-3 md:hidden">
         {sorted.map((unit) => (
-          <UnitRow key={unit.unitId} unit={unit} isMobileCard />
+          <UnitRow
+            key={unit.unitId}
+            unit={unit}
+            escalation={escalationFor(unit)}
+            variant="card"
+          />
         ))}
       </div>
-    </div>
+    </>
   );
-};
+}

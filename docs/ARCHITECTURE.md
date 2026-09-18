@@ -151,3 +151,127 @@ The single DynamoDB table `PulseChain` uses overloaded partition and sort keys t
 2. **Clinical Boundary Statement**:
    - PulseChain is an **administrative coordination and rescue brokering system**, not a diagnostic or clinical release device.
    - Pre-transfusion testing, blood grouping, cross-matching, donor screening, blood component storage, and clinical transport validation remain the sole legal and medical responsibility of the licensed blood centre and receiving transfusion facility.
+
+---
+
+## 7. Frontend Architecture
+
+React 18 + Vite + TypeScript, Tailwind v3, TanStack Query v5, React Router v6.
+Named exports throughout, relative imports, no path alias other than
+`@pulsechain/shared` (aliased in both `vite.config.ts` and `tsconfig.json`).
+
+### 7.1 Structure
+
+```
+frontend/src/
+├── main.tsx                     QueryClient → Router → Auth → Toast → App
+├── App.tsx                      route table; RequireAuth wraps everything but /login
+├── styles/index.css             EVERY colour token in the application
+├── auth/
+│   ├── AuthProvider.tsx         sole writer of the sessionStorage session
+│   ├── RequireAuth.tsx          redirects to /login?next=<path>
+│   ├── RequireRole.tsx          role gate, nested inside RequireAuth
+│   └── amplify.ts               Amplify.configure from VITE_USER_POOL_*
+├── api/
+│   ├── client.ts                only endpoints that exist in template.yaml
+│   ├── hooks.ts                 every read and write; POLL_INTERVAL_MS = 3500
+│   └── requisitionsAdapter.ts   session-local stand-in; the API is not deployed
+├── lib/
+│   ├── status.ts                sole enum → label + token-class mapping
+│   ├── countdown.ts             pure remaining-time calculation
+│   ├── useCountdown.ts          1s tick, independent of the query poll
+│   ├── format.ts                dates, distances, en-IN currency
+│   ├── geo.ts                   haversine + locally-flat projection
+│   ├── escalation.ts            ring timing derived from config + startedAt
+│   └── motion.ts                prefers-reduced-motion for framer-motion
+├── components/
+│   ├── layout/    AppShell · Sidebar · BottomTabBar · TopBar · ConnectionDot
+│   │              RoleSwitcher · Logo · nav.ts
+│   ├── ui/        Button · Card · Badge · StatusPill · BloodGroupToken
+│   │              EmptyState · ErrorState · LoadingState · Spinner · PageHeader
+│   │              Toast · ConfirmDialog · StatCard · DemoToolbar · index.ts
+│   ├── stock/     StockTable · UnitRow · ExpiryCountdown · ComponentClockBadge
+│   ├── offers/    OfferCard · ClaimButton · CountdownRing · MatchBreakdown
+│   ├── transfers/ TransferTimeline · TransferActions
+│   ├── requisitions/ RequisitionForm · RequisitionList · ParsePanel
+│   ├── escalation/ CorridorMap · EscalationList · FacilityDot · RingPulse
+│   └── dashboard/ StatTile · TrendChart · SavedLostBar
+└── pages/
+    ├── LoginPage · ImpactPage · NotFoundPage
+    ├── centre/    StockConsolePage · UnitDetailPage
+    ├── hospital/  OfferInboxPage · RequisitionsPage · TransfersPage
+    └── coordinator/ EscalationMapPage · ParseRequestPage
+```
+
+### 7.2 Routes
+
+| Route | Guard | Data source |
+|---|---|---|
+| `/` | authed | redirect to the role's landing page |
+| `/login` | public | Cognito, or demo personas as a marked fallback |
+| `/centre/stock` | `BLOOD_CENTRE` | `useStockQuery` + `useEscalationsQuery` |
+| `/centre/units/:unitId` | `BLOOD_CENTRE` | `useUnitQuery` + `useEscalationsQuery` |
+| `/hospital/inbox` | `HOSPITAL` | `useInboxQuery` |
+| `/hospital/requisitions` | `HOSPITAL` | `requisitionsAdapter` (session-local) |
+| `/hospital/transfers` | `HOSPITAL` | `useInboxQuery` + `useUnitsQuery` + `useStockQuery` |
+| `/coordinator/escalations` | `COORDINATOR` | `useEscalationsQuery` + `useFacilitiesQuery` |
+| `/coordinator/parse` | `COORDINATOR` | `shared/parsing`, client-side |
+| `/impact` | any authed | `useDashboardQuery` + `useEscalationsQuery` |
+| `*` | authed | `NotFoundPage` |
+
+### 7.3 Four invariants
+
+These are what make forty files look like one author wrote them. Each is
+checkable with a single command.
+
+1. **No colour outside `styles/index.css`.**
+   `grep -rnE "(slate|zinc|gray|...)-[0-9]{2,3}" src/` returns nothing, as does
+   a search for hex literals outside that file.
+2. **No status label or colour outside `lib/status.ts`.** Every pill, badge,
+   ring and clock resolves through it.
+3. **No threshold, radius, window or weight outside `shared/src/config.ts`.**
+   The two display-only constants that are not policy —
+   `CRITICAL_DISPLAY_HOURS` and `DAYS_ABOVE_HOURS` — are named and commented as
+   presentation.
+4. **No `fetch` in a component.** Everything goes through `api/hooks.ts`.
+
+### 7.4 Session identity
+
+`sessionStorage` under `pulsechain_session_user`, deliberately **not**
+`localStorage`: storage is per window, so two windows hold two different
+facilities at once. That is what makes the double-claim race filmable.
+
+`AuthProvider` is the only writer. `api/client.ts` reads the same key directly
+because it has to work outside React, but never writes — one writer, one shape.
+When the session came from the persona fallback rather than Cognito, the top
+bar shows a **Demo auth** chip, so nobody is misled about what is real.
+
+### 7.5 Polling
+
+Consoles poll at `POLL_INTERVAL_MS = 3500`, which puts each demo state change
+inside one visible beat. The connection dot polls `GET /health` at 15s and
+reports three states: connected, degraded (reachable but over 1.5s round trip,
+or `ok:false`), and unreachable. Sweep and reset invalidate **every** query key,
+so all open windows refresh together.
+
+### 7.6 Motion
+
+framer-motion is spent in exactly three places and nowhere else:
+
+1. A unit row transitioning `AVAILABLE → RESCUE_PENDING`.
+2. An offer card arriving in the inbox.
+3. The escalation ring expanding on the corridor map.
+
+There is no scroll reveal and no hover lift. `prefers-reduced-motion` is
+honoured in CSS globally and in JavaScript via `lib/motion.ts`, because
+framer-motion never sees the media query.
+
+### 7.7 Where the frontend works around the API
+
+Three places, all documented in-file and on screen:
+
+| Gap | Workaround |
+|---|---|
+| No requisitions API | `api/requisitionsAdapter.ts`, session-local, with a permanent on-screen notice |
+| No `GET /units/{id}/audit` | Unit detail derives its timeline from the unit record and says so |
+| A hospital's `CLAIMED`/`IN_TRANSIT` units are not in its own stock query — `facilityId` only moves to the recipient on `RECEIVED` | Transfers composes `GET /facilities/{id}/inbox` with per-unit `GET /units/{id}` |

@@ -1,47 +1,48 @@
 /**
- * frontend/src/components/ui/ErrorState.tsx
- *
- * User-facing error message with retry action.
+ * The backend's message is the message. A 409 "Already claimed by Kovai
+ * Medical Centre" or a 403 naming the wrong facility tells an operator exactly
+ * what happened; "Something went wrong" tells them nothing.
  */
 
-import React from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "./Button";
 
 interface ErrorStateProps {
   title?: string;
   message: string;
   onRetry?: () => void;
+  className?: string;
 }
 
-export const ErrorState: React.FC<ErrorStateProps> = ({
-  title = "Something went wrong",
+export function ErrorState({
+  title = "This did not load",
   message,
   onRetry,
-}) => {
+  className = "",
+}: ErrorStateProps) {
   return (
-    <div className="p-6 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 my-6">
+    <div
+      role="alert"
+      className={[
+        "rounded-xl border border-status-lost/25 bg-status-lost-bg p-5 sm:p-6",
+        className,
+      ].join(" ")}
+    >
       <div className="flex items-start gap-4">
-        <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-lg text-red-600 dark:text-red-400">
-          <AlertCircle className="w-6 h-6" />
-        </div>
-        <div className="flex-1">
-          <h4 className="text-base font-semibold text-red-900 dark:text-red-200">
-            {title}
-          </h4>
-          <p className="text-sm text-red-700 dark:text-red-300 mt-1 leading-relaxed">
-            {message}
-          </p>
+        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-surface-raised text-status-lost">
+          <AlertCircle className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-base font-bold text-text">{title}</h4>
+          <p className="mt-1 break-words text-sm leading-relaxed text-text-muted">{message}</p>
           {onRetry && (
-            <button
-              onClick={onRetry}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-200 bg-white dark:bg-gray-800 border border-red-300 dark:border-red-700 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Try Again
-            </button>
+            <Button variant="secondary" size="sm" className="mt-4" onClick={onRetry}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Try again
+            </Button>
           )}
         </div>
       </div>
     </div>
   );
-};
+}
