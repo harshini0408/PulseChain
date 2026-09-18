@@ -11,6 +11,7 @@
   "dependencies": {
     "@pulsechain/shared": "*",
     "@tanstack/react-query": "^5.56.2",
+    "aws-amplify": "^6.20.0",
     "date-fns": "^3.6.0",
     "framer-motion": "^11.5.4",
     "lucide-react": "^0.446.0",

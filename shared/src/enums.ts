@@ -72,7 +72,10 @@ export const AUDIT_EVENT_TYPES = [
   "OFFER_CLAIMED",
   "OFFER_DECLINED",
   "OFFER_EXPIRED",
+  "OFFER_SUPERSEDED",
+  "OFFER_NOTIFICATION_FAILED",
   "RING_ESCALATED",
+  "ESCALATION_EXHAUSTED",
   "CLAIM_REJECTED",
   "TRANSFER_IN_TRANSIT",
   "TRANSFER_RECEIVED",
@@ -83,5 +86,6 @@ export const AUDIT_EVENT_TYPES = [
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 
-export const REQUISITION_SOURCES = ["MANUAL", "AI_PARSED"] as const;
+export const REQUISITION_SOURCES = ["MANUAL", "PARSED"] as const;
 export type RequisitionSource = (typeof REQUISITION_SOURCES)[number];
+

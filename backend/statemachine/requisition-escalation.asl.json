@@ -1,1 +1,63 @@
-{ "Comment": "TODO", "StartAt": "Todo", "States": { "Todo": { "Type": "Succeed" } } }
+{
+  "Comment": "PulseChain Hospital Requisition Escalation to Donor Tier Workflow",
+  "StartAt": "NetworkInventorySearch",
+  "States": {
+    "NetworkInventorySearch": {
+      "Type": "Task",
+      "Resource": "${RequisitionSearchWorkerFunctionArn}",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "ActivateDonorPoolTier"
+        }
+      ],
+      "Next": "EvaluateInventory"
+    },
+    "EvaluateInventory": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.filled",
+          "BooleanEquals": true,
+          "Next": "RequisitionMatched"
+        }
+      ],
+      "Default": "ActivateDonorPoolTier"
+    },
+    "ActivateDonorPoolTier": {
+      "Type": "Task",
+      "Resource": "${DonorTierWorkerFunctionArn}",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Next": "DonorTierActivated"
+    },
+    "RequisitionMatched": {
+      "Type": "Succeed"
+    },
+    "DonorTierActivated": {
+      "Type": "Succeed"
+    }
+  }
+}

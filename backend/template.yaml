@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: PulseChain backend skeleton
+Description: PulseChain backend skeleton and core API
 
 Parameters:
   DemoMode:
@@ -12,9 +12,15 @@ Parameters:
     Type: String
     Default: ""
     Description: Name of existing DynamoDB table (leave empty to create table)
+  EnableSchedules:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Enable recurring EventBridge schedules (disabled for quiet recording)
 
 Conditions:
   CreateTable: !Equals [!Ref ExistingTableName, ""]
+  ShouldEnableSchedules: !Equals [!Ref EnableSchedules, "true"]
 
 Globals:
   Function:
@@ -22,7 +28,7 @@ Globals:
     Architectures:
       - arm64
     MemorySize: 256
-    Timeout: 10
+    Timeout: 30
     Environment:
       Variables:
         TABLE_NAME: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
@@ -76,6 +82,46 @@ Resources:
         - Key: event
           Value: bharat-builds-first-commit
 
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: PulseChainUserPool
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      Schema:
+        - Name: facilityId
+          AttributeDataType: String
+          Mutable: true
+          Required: false
+        - Name: role
+          AttributeDataType: String
+          Mutable: true
+          Required: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: PulseChainUserPoolClient
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -89,6 +135,17 @@ Resources:
         AllowHeaders:
           - Content-Type
           - Authorization
+          - X-Facility-Id
+          - X-User-Role
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience:
+                - !Ref UserPoolClient
 
   FacilitiesFunction:
     Type: AWS::Serverless::Function
@@ -132,13 +189,262 @@ Resources:
         EntryPoints:
           - src/api/facilities.ts
 
-  HealthFunction:
+  UnitsFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
-      Handler: src/api/demo.health
+      Handler: src/api/units.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
       Events:
-        GetHealth:
+        GetStock:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /facilities/{id}/stock
+            Method: GET
+        GetUnitById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /units/{id}
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/units.ts
+
+  OffersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/offers.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StopExecution
+              Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:PulseChain-UnitEscalation:*"
+      Events:
+        GetInbox:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /facilities/{id}/inbox
+            Method: GET
+        ClaimOffer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /offers/{id}/claim
+            Method: POST
+        DeclineOffer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /offers/{id}/decline
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/offers.ts
+
+  TransfersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/transfers.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+      Events:
+        InTransit:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /transfers/{unitId}/in-transit
+            Method: POST
+        Received:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /transfers/{unitId}/received
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/transfers.ts
+
+  DashboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/dashboard.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+      Events:
+        GetDashboard:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /dashboard
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/dashboard.ts
+
+  EscalationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/escalations.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+      Events:
+        GetActiveEscalations:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /escalations/active
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/escalations.ts
+
+  DemoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/demo.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:PulseChain-UnitEscalation"
+      Environment:
+        Variables:
+          UNIT_ESCALATION_STATE_MACHINE_ARN: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:PulseChain-UnitEscalation"
+      Events:
+        SweepNow:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /demo/sweep-now
+            Method: POST
+        Reset:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /demo/reset
+            Method: POST
+        Health:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
@@ -153,6 +459,358 @@ Resources:
         EntryPoints:
           - src/api/demo.ts
 
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/demo.health
+      Events:
+        GetHealth:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /health-check
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/demo.ts
+
+  MatchRingWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/workers/match-ring.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:BatchGetItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/workers/match-ring.ts
+
+  CreateOffersWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/workers/create-offers.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/workers/create-offers.ts
+
+  CheckOffersWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/workers/check-offers.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/workers/check-offers.ts
+
+  FinishEscalationWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/workers/finish-escalation.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/workers/finish-escalation.ts
+
+  SweepWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/workers/sweep.handler
+      Environment:
+        Variables:
+          UNIT_ESCALATION_STATE_MACHINE_ARN: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:PulseChain-UnitEscalation"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:PulseChain-UnitEscalation"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/workers/sweep.ts
+
+  LostCheckWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/workers/lost-check.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/workers/lost-check.ts
+
+  RequisitionSearchWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/workers/requisition-search.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/workers/requisition-search.ts
+
+  DonorTierWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/workers/donor-tier.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:PutItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/workers/donor-tier.ts
+
+  UnitEscalationStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: PulseChain-UnitEscalation
+      Type: STANDARD
+      DefinitionUri: statemachine/unit-escalation.asl.json
+      DefinitionSubstitutions:
+        MatchRingWorkerFunctionArn: !GetAtt MatchRingWorkerFunction.Arn
+        CreateOffersWorkerFunctionArn: !GetAtt CreateOffersWorkerFunction.Arn
+        CheckOffersWorkerFunctionArn: !GetAtt CheckOffersWorkerFunction.Arn
+        FinishEscalationWorkerFunctionArn: !GetAtt FinishEscalationWorkerFunction.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref MatchRingWorkerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CreateOffersWorkerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CheckOffersWorkerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FinishEscalationWorkerFunction
+
+  RequisitionEscalationStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: PulseChain-RequisitionEscalation
+      Type: STANDARD
+      DefinitionUri: statemachine/requisition-escalation.asl.json
+      DefinitionSubstitutions:
+        RequisitionSearchWorkerFunctionArn: !GetAtt RequisitionSearchWorkerFunction.Arn
+        DonorTierWorkerFunctionArn: !GetAtt DonorTierWorkerFunction.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref RequisitionSearchWorkerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref DonorTierWorkerFunction
+
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeLambdaPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt SweepWorkerFunction.Arn
+                  - !GetAtt LostCheckWorkerFunction.Arn
+
+  SweepSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: PulseChain-Sweep-Schedule
+      Description: Recurring 5-minute expiry sweep
+      ScheduleExpression: rate(5 minutes)
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt SweepWorkerFunction.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+      State: !If [ShouldEnableSchedules, "ENABLED", "DISABLED"]
+
+  LostCheckSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: PulseChain-LostCheck-Schedule
+      Description: Recurring 15-minute lost unit check
+      ScheduleExpression: rate(15 minutes)
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt LostCheckWorkerFunction.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+      State: !If [ShouldEnableSchedules, "ENABLED", "DISABLED"]
+
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: PulseChainMonthlyBudget
+        BudgetLimit:
+          Amount: 5
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: harshiniyogaraj04@gmail.com
+
 Outputs:
   ApiUrl:
     Description: HTTP API URL
@@ -160,4 +818,15 @@ Outputs:
   TableName:
     Description: DynamoDB Table Name
     Value: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
-
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Cognito App Client ID
+    Value: !Ref UserPoolClient
+  UnitEscalationStateMachineArn:
+    Description: Unit Escalation State Machine ARN
+    Value: !Ref UnitEscalationStateMachine
+  RequisitionEscalationStateMachineArn:
+    Description: Requisition Escalation State Machine ARN
+    Value: !Ref RequisitionEscalationStateMachine

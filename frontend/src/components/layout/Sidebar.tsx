@@ -9,13 +9,13 @@ import {
   BarChart2,
   X,
 } from "lucide-react";
-import { useRole } from "../../context/RoleContext";
+import { useAuth, type Role } from "../../auth/AuthProvider";
 
 interface SidebarProps {
   onClose?: () => void;
 }
 
-const NAV_GROUPS = {
+const NAV_GROUPS: Record<Role, { label: string; items: { to: string; icon: any; label: string }[] }> = {
   BLOOD_CENTRE: {
     label: "Blood Centre",
     items: [{ to: "/centre/stock", icon: Droplets, label: "Stock Console" }],
@@ -38,8 +38,9 @@ const NAV_GROUPS = {
 };
 
 export function Sidebar({ onClose }: SidebarProps) {
-  const { role } = useRole();
-  const activeGroup = NAV_GROUPS[role];
+  const { role } = useAuth();
+  const activeRole = role ?? "BLOOD_CENTRE";
+  const activeGroup = NAV_GROUPS[activeRole];
 
   return (
     <aside className="flex h-full w-64 flex-col bg-[hsl(var(--sidebar-bg))]">
@@ -120,8 +121,8 @@ export function Sidebar({ onClose }: SidebarProps) {
 
       {/* Footer */}
       <div className="border-t border-white/10 px-5 py-4">
-        <p className="text-[11px] text-[hsl(var(--sidebar-text)/0.4)]">
-          Demo mode — no auth
+        <p className="text-[11px] text-[hsl(var(--sidebar-text)/0.6)] font-mono">
+          Cognito Auth · ap-south-1
         </p>
       </div>
     </aside>

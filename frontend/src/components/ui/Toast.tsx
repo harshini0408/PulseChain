@@ -1,2 +1,2 @@
-// Toast — transient notification
+// stub
 export {};

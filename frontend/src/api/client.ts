@@ -1,4 +1,40 @@
-// fetch wrapper using VITE_API_URL. Throws ApiError on non-2xx responses.
+/**
+ * frontend/src/api/client.ts
+ *
+ * Typed API client for PulseChain backend endpoints.
+ * Automatically injects auth headers from window session and preserves
+ * backend error messages (such as 409 "Already claimed by <facility>").
+ */
+
+import type { BloodUnit, Offer, Facility, Escalation } from "@pulsechain/shared";
+
+export interface ActiveEscalation extends Escalation {
+  originFacilityId?: string;
+  originFacilityName?: string;
+  component?: string;
+  bloodGroup?: string;
+}
+
+export interface DailyStatsRecord {
+  date: string;
+  unitsSaved: number;
+  unitsLost: number;
+  valueSavedInr: number;
+  valueLostInr: number;
+}
+
+export interface DashboardResponse {
+  from: string;
+  to: string;
+  today: DailyStatsRecord;
+  totals: {
+    unitsSaved: number;
+    unitsLost: number;
+    valueSavedInr: number;
+    valueLostInr: number;
+  };
+  history: DailyStatsRecord[];
+}
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) ?? "";
 
@@ -12,25 +48,133 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
+function getStoredAuthHeaders(): Record<string, string> {
+  try {
+    const raw = sessionStorage.getItem("pulsechain_session_user");
+    if (raw) {
+      const user = JSON.parse(raw);
+      const headers: Record<string, string> = {};
+      if (user.token) {
+        headers["Authorization"] = `Bearer ${user.token}`;
+      }
+      return headers;
+    }
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
+async function request<T>(
+  path: string,
+  options: {
+    method?: string;
+    body?: unknown;
+    customHeaders?: Record<string, string>;
+  } = {},
+): Promise<T> {
   const url = `${BASE_URL}${path}`;
+  const authHeaders = getStoredAuthHeaders();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...authHeaders,
+    ...(options.customHeaders ?? {}),
+  };
+
   const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    method: options.method ?? "GET",
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   if (!res.ok) {
-    let message = `Request failed: ${res.status} ${res.statusText}`;
+    let message = `Request failed (${res.status})`;
     try {
-      const body = await res.json();
-      if (typeof body?.message === "string") message = body.message;
+      const errorBody = await res.json();
+      if (errorBody?.error) {
+        message = errorBody.error;
+      } else if (errorBody?.message) {
+        message = errorBody.message;
+      }
     } catch {
-      // ignore parse errors — use default message
+      // ignore JSON parse error
     }
     throw new ApiError(res.status, message);
   }
 
   return res.json() as Promise<T>;
 }
+
+export interface StockUnit extends BloodUnit {
+  hoursRemaining: number;
+}
+
+// ---------------------------------------------------------------------------
+// Typed API Endpoints
+// ---------------------------------------------------------------------------
+
+export const api = {
+  /** GET /facilities/:id/stock */
+  fetchStock: (facilityId: string) =>
+    request<StockUnit[]>(`/facilities/${facilityId}/stock`),
+
+  /** GET /facilities/:id/inbox */
+  fetchInbox: (facilityId: string) =>
+    request<Offer[]>(`/facilities/${facilityId}/inbox`),
+
+  /** POST /offers/:id/claim */
+  claimOffer: (offerId: string) =>
+    request<{ ok: boolean; message: string; unitId: string; claimedBy: string }>(
+      `/offers/${offerId}/claim`,
+      { method: "POST" },
+    ),
+
+  /** POST /offers/:id/decline */
+  declineOffer: (offerId: string, reason?: string) =>
+    request<{ ok: boolean; message: string }>(`/offers/${offerId}/decline`, {
+      method: "POST",
+      body: { reason },
+    }),
+
+  /** POST /transfers/:unitId/in-transit */
+  markInTransit: (unitId: string, courier?: string) =>
+    request<{ ok: boolean; status: string; unitId: string }>(
+      `/transfers/${unitId}/in-transit`,
+      { method: "POST", body: { courier } },
+    ),
+
+  /** POST /transfers/:unitId/received */
+  markReceived: (unitId: string, notes?: string) =>
+    request<{ ok: boolean; status: string; unitId: string; facilityId: string }>(
+      `/transfers/${unitId}/received`,
+      { method: "POST", body: { notes } },
+    ),
+
+  /** POST /demo/sweep-now */
+  triggerSweepNow: () =>
+    request<{ ok: boolean; action: string; sweptCount: number; units: any[] }>(
+      `/demo/sweep-now`,
+      { method: "POST" },
+    ),
+
+  /** POST /demo/reset */
+  triggerReset: () =>
+    request<{ ok: boolean; action: string; expectedCount: number; actualCount: number; elapsedSec: string }>(
+      `/demo/reset`,
+      { method: "POST" },
+    ),
+
+  /** GET /facilities */
+  fetchFacilities: () => request<Facility[]>("/facilities"),
+
+  /** GET /dashboard */
+  fetchDashboard: (from?: string, to?: string) => {
+    const q = from && to ? `?from=${from}&to=${to}` : "";
+    return request<DashboardResponse>(`/dashboard${q}`);
+  },
+
+  /** GET /escalations/active */
+  fetchActiveEscalations: () =>
+    request<{ escalations: ActiveEscalation[] }>("/escalations/active"),
+};

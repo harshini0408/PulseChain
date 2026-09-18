@@ -1,1 +1,171 @@
-{ "Comment": "TODO", "StartAt": "Todo", "States": { "Todo": { "Type": "Succeed" } } }
+{
+  "Comment": "PulseChain Multi-Ring Blood Unit Escalation Workflow",
+  "StartAt": "MatchRing",
+  "States": {
+    "MatchRing": {
+      "Type": "Task",
+      "Resource": "${MatchRingWorkerFunctionArn}",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "CatchToExhausted"
+        }
+      ],
+      "Next": "CreateOffers"
+    },
+    "CreateOffers": {
+      "Type": "Task",
+      "Resource": "${CreateOffersWorkerFunctionArn}",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "CatchToExhausted"
+        }
+      ],
+      "Next": "EvaluateRingOffers"
+    },
+    "EvaluateRingOffers": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.status",
+          "StringEquals": "RESOLVED",
+          "Next": "Resolved"
+        },
+        {
+          "Variable": "$.status",
+          "StringEquals": "EXHAUSTED",
+          "Next": "Exhausted"
+        },
+        {
+          "Or": [
+            {
+              "Variable": "$.escalatedToNextRing",
+              "BooleanEquals": true
+            },
+            {
+              "Variable": "$.candidatesCount",
+              "NumericEquals": 0
+            }
+          ],
+          "Next": "EvaluateNextRing"
+        }
+      ],
+      "Default": "WaitOfferWindow"
+    },
+    "WaitOfferWindow": {
+      "Type": "Wait",
+      "SecondsPath": "$.offerWindow",
+      "Next": "CheckOffers"
+    },
+    "CheckOffers": {
+      "Type": "Task",
+      "Resource": "${CheckOffersWorkerFunctionArn}",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "CatchToExhausted"
+        }
+      ],
+      "Next": "EvaluateCheckResult"
+    },
+    "EvaluateCheckResult": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.status",
+          "StringEquals": "RESOLVED",
+          "Next": "Resolved"
+        },
+        {
+          "Variable": "$.status",
+          "StringEquals": "EXHAUSTED",
+          "Next": "Exhausted"
+        },
+        {
+          "Variable": "$.status",
+          "StringEquals": "ESCALATED",
+          "Next": "EvaluateNextRing"
+        }
+      ],
+      "Default": "FinishExhausted"
+    },
+    "EvaluateNextRing": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.currentRing",
+          "NumericLessThanEquals": 3,
+          "Next": "MatchRing"
+        }
+      ],
+      "Default": "FinishExhausted"
+    },
+    "FinishExhausted": {
+      "Type": "Task",
+      "Resource": "${FinishEscalationWorkerFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "status": "EXHAUSTED",
+        "cause": "All rings completed without claim"
+      },
+      "Next": "Exhausted"
+    },
+    "CatchToExhausted": {
+      "Type": "Task",
+      "Resource": "${FinishEscalationWorkerFunctionArn}",
+      "Parameters": {
+        "unitId.$": "$.unitId",
+        "escalationId.$": "$.escalationId",
+        "status": "EXHAUSTED",
+        "cause": "Step Functions execution failure"
+      },
+      "Next": "Exhausted"
+    },
+    "Resolved": {
+      "Type": "Succeed"
+    },
+    "Exhausted": {
+      "Type": "Fail",
+      "Error": "EscalationExhausted",
+      "Cause": "No matching claim found across rings"
+    }
+  }
+}
