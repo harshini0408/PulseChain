@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { api } from "../../api/client";
 import { COMMUNITY_TYPES, type CommunityType } from "@pulsechain/shared";
-import { useRole } from "../../context/RoleContext";
+import { useAuth } from "../../auth/AuthProvider";
 
 const CORRIDOR_CITIES = [
   { name: "Coimbatore", lat: 11.0168, lng: 76.9558 },
@@ -27,7 +27,7 @@ const CORRIDOR_CITIES = [
 
 export function CommunityRegisterPage() {
   const navigate = useNavigate();
-  const { setRole } = useRole();
+  const { loginAs } = useAuth();
 
   const [name, setName] = useState("");
   const [type, setType] = useState<CommunityType>("COLLEGE");
@@ -75,7 +75,7 @@ export function CommunityRegisterPage() {
       const comm = res.community;
       setCreatedCommunity(comm);
       localStorage.setItem("pulsechain_community_id", comm.communityId);
-      setRole("COMMUNITY_COORDINATOR");
+      await loginAs("COMMUNITY_COORDINATOR");
     } catch (err: any) {
       setError(err.message || "Failed to register community");
     } finally {

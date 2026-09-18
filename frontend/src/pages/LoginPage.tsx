@@ -14,18 +14,22 @@ import { Logo } from "../components/layout/Logo";
 import { Button } from "../components/ui";
 import { BloodDropIntro } from "../components/intro/BloodDropIntro";
 
-const PERSONA_ORDER: Role[] = ["BLOOD_CENTRE", "HOSPITAL", "COORDINATOR"];
+const PERSONA_ORDER: Role[] = ["BLOOD_CENTRE", "HOSPITAL", "COORDINATOR", "COMMUNITY_COORDINATOR", "DONOR"];
 
 const PERSONA_ICON: Record<Role, typeof Building2> = {
   BLOOD_CENTRE: Building2,
   HOSPITAL: Hospital,
   COORDINATOR: Radio,
+  COMMUNITY_COORDINATOR: Building2,
+  DONOR: Hospital,
 };
 
 const PERSONA_ROLE_LABEL: Record<Role, string> = {
   BLOOD_CENTRE: "Blood centre",
   HOSPITAL: "Hospital",
   COORDINATOR: "Coordinator",
+  COMMUNITY_COORDINATOR: "Community Network",
+  DONOR: "Blood Donor",
 };
 
 export function LoginPage() {

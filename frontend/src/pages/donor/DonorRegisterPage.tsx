@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { api } from "../../api/client";
 import { BLOOD_GROUPS, type BloodGroup, type ContactVia } from "@pulsechain/shared";
-import { useRole } from "../../context/RoleContext";
+import { useAuth } from "../../auth/AuthProvider";
 
 const CORRIDOR_CITIES = [
   { name: "Coimbatore", lat: 11.0168, lng: 76.9558 },
@@ -27,7 +27,7 @@ const CORRIDOR_CITIES = [
 export function DonorRegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { setRole } = useRole();
+  const { loginAs } = useAuth();
 
   const initialCode = searchParams.get("code") || "";
 
@@ -117,7 +117,7 @@ export function DonorRegisterPage() {
       localStorage.setItem("pulsechain_donor_group", donor.bloodGroup);
 
       // Automatically switch demo role to DONOR for smooth onboarding
-      setRole("DONOR");
+      await loginAs("DONOR");
 
       navigate("/donor/dashboard");
     } catch (err: any) {
