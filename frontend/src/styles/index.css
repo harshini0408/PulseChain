@@ -2,60 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
-}
+/* ============================================================
+   DESIGN TOKENS — all colour values live here as CSS variables.
+   No hex values are permitted inside components.
+   ============================================================ */
 
-.tnum {
-  font-feature-settings: 'tnum' on, 'lnum' on;
-}
+@layer base {
+  :root {
+    /* --- Surfaces --- */
+    --surface: 210 20% 97%;         /* near-white warm neutral */
+    --surface-raised: 0 0% 100%;    /* pure white cards */
+    --surface-overlay: 210 20% 94%; /* slightly deeper for overlays */
 
-/* Custom subtle scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #d5dae1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #b4bcc6;
-}
+    /* --- Text --- */
+    --text: 220 25% 12%;            /* near-black */
+    --text-muted: 220 12% 48%;      /* secondary labels */
 
-/* Pulse urgency animation */
-@keyframes criticalPulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(193, 61, 80, 0.4);
+    /* --- Border --- */
+    --border: 220 13% 88%;          /* subtle border */
+
+    /* --- Accent (deep crimson — used sparingly for urgency) --- */
+    --accent: 352 80% 38%;
+    --accent-hover: 352 80% 32%;
+
+    /* --- Sidebar --- */
+    --sidebar-bg: 220 22% 11%;      /* near-black sidebar */
+    --sidebar-text: 210 20% 80%;
+    --sidebar-text-active: 0 0% 100%;
+    --sidebar-active-bg: 352 80% 38%;
+
+    /* ============================================================
+       COMPONENT CLOCK COLOURS
+       Platelet: urgent crimson (48-h clock)
+       RBC:      amber (7-day clock)
+       Plasma:   teal (30-day clock)
+       ============================================================ */
+    --platelet: 352 80% 42%;
+    --platelet-bg: 352 80% 95%;
+
+    --rbc: 38 92% 50%;
+    --rbc-bg: 38 92% 95%;
+
+    --plasma: 175 60% 38%;
+    --plasma-bg: 175 60% 93%;
+
+    /* ============================================================
+       UNIT STATUS COLOURS
+       OPEN / CLAIMED / IN_TRANSIT / RECEIVED / LOST / EXPIRED
+       ============================================================ */
+    --status-open: 220 70% 52%;         /* blue */
+    --status-open-bg: 220 70% 94%;
+
+    --status-claimed: 262 60% 52%;      /* purple */
+    --status-claimed-bg: 262 60% 95%;
+
+    --status-in-transit: 38 92% 50%;    /* amber */
+    --status-in-transit-bg: 38 92% 95%;
+
+    --status-received: 145 55% 38%;     /* green */
+    --status-received-bg: 145 55% 94%;
+
+    --status-lost: 352 80% 42%;         /* crimson */
+    --status-lost-bg: 352 80% 95%;
+
+    --status-expired: 220 12% 58%;      /* grey */
+    --status-expired-bg: 220 12% 94%;
   }
-  50% {
-    box-shadow: 0 0 0 6px rgba(193, 61, 80, 0);
+
+  * {
+    box-sizing: border-box;
   }
-}
 
-.pulse-critical {
-  animation: criticalPulse 2s infinite ease-in-out;
-}
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: hsl(var(--surface));
+    color: hsl(var(--text));
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-/* Component Badge Stems */
-.badge-plt {
-  background-color: #FBE9EC;
-  color: #92283A;
-  border-left: 3px solid #C13D50;
-}
+  #root {
+    height: 100%;
+  }
 
-.badge-rbc {
-  background-color: #FFF2D8;
-  color: #81500B;
-  border-left: 3px solid #B97818;
-}
+  /* Tabular numbers for any countdown / numeric display */
+  .tabular-nums,
+  [data-numeric="true"] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
 
-.badge-plasma {
-  background-color: #DFF4F0;
-  color: #12665F;
-  border-left: 3px solid #16877E;
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
 }

@@ -1,58 +1,37 @@
-import React, { useState } from "react";
-import { AuthProvider } from "./auth/context.js";
-import { Sidebar, HeaderBar, type NavTab } from "./components/Navbar.js";
-import { StockConsole } from "./pages/centre/StockConsole.js";
-import { InboxPage } from "./pages/hospital/InboxPage.js";
-import { RequisitionsPage } from "./pages/hospital/RequisitionsPage.js";
-import { TransfersPage } from "./pages/transfers/TransfersPage.js";
-import { EscalationMonitor } from "./pages/coordinator/EscalationMonitor.js";
-import { ImpactPage } from "./pages/ImpactPage.js";
+﻿import { Routes, Route, Navigate } from "react-router-dom";
+import { AppShell } from "./components/layout/AppShell";
+import { LoginPage } from "./pages/LoginPage";
+import { StockConsolePage } from "./pages/centre/StockConsolePage";
+import { OfferInboxPage } from "./pages/hospital/OfferInboxPage";
+import { RequisitionsPage } from "./pages/hospital/RequisitionsPage";
+import { TransfersPage } from "./pages/hospital/TransfersPage";
+import { EscalationMapPage } from "./pages/coordinator/EscalationMapPage";
+import { ParseRequestPage } from "./pages/coordinator/ParseRequestPage";
+import { ImpactPage } from "./pages/ImpactPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
-const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<NavTab>("stock");
-
+export function App() {
   return (
-    <div className="min-h-screen flex bg-[#f6f8fb] text-neutral-900 font-sans">
-      {/* Left Stitch Dark Sidebar Rail */}
-      <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} />
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* Top Header Bar */}
-        <HeaderBar activeTab={activeTab} onSelectTab={setActiveTab} />
-
-        {/* Tab Canvas Content */}
-        <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {activeTab === "stock" && <StockConsole />}
-          {activeTab === "offers" && <InboxPage />}
-          {activeTab === "requisitions" && <RequisitionsPage />}
-          {activeTab === "transfers" && <TransfersPage />}
-          {activeTab === "escalations" && <EscalationMonitor />}
-          {activeTab === "impact" && <ImpactPage />}
-        </main>
-
-        {/* Footer */}
-        <footer className="bg-white border-t border-neutral-200 py-4 mt-auto">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-neutral-500">
-            <div>
-              PulseChain • Zero Blood Wastage &amp; Regional Redistribution Network
-            </div>
-            <div className="font-mono text-[11px] text-neutral-400">
-              AWS EventBridge • Lambda • Step Functions • DynamoDB • Bedrock AI
-            </div>
-          </div>
-        </footer>
-      </div>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/*"
+        element={
+          <AppShell>
+            <Routes>
+              <Route index element={<Navigate to="/centre/stock" replace />} />
+              <Route path="centre/stock" element={<StockConsolePage />} />
+              <Route path="hospital/inbox" element={<OfferInboxPage />} />
+              <Route path="hospital/requisitions" element={<RequisitionsPage />} />
+              <Route path="hospital/transfers" element={<TransfersPage />} />
+              <Route path="coordinator/escalations" element={<EscalationMapPage />} />
+              <Route path="coordinator/parse" element={<ParseRequestPage />} />
+              <Route path="impact" element={<ImpactPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </AppShell>
+        }
+      />
+    </Routes>
   );
-};
-
-export const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-};
-
-export default App;
+}

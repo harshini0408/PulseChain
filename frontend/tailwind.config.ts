@@ -1,61 +1,51 @@
 import type { Config } from "tailwindcss";
 
-export default {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+const config: Config = {
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
-        crimson: {
-          50: "#FFF4F5",
-          100: "#FBE9EC",
-          200: "#F3C7CE",
-          300: "#E59AA6",
-          400: "#D65B6C",
-          500: "#C13D50",
-          600: "#AA3044",
-          700: "#89162E",
-          800: "#751B2A",
-          900: "#591522",
-          950: "#40000E",
-        },
-        neutral: {
-          50: "#F7F8FA",
-          100: "#F0F2F5",
-          200: "#E6E9EE",
-          300: "#D5DAE1",
-          400: "#B4BCC6",
-          500: "#85909E",
-          600: "#647080",
-          700: "#4B5563",
-          800: "#343B46",
-          850: "#292F39",
-          900: "#20252D",
-          950: "#171A20",
-          1000: "#111318",
-        },
-        blood: {
-          plt: "#C13D50",
-          rbc: "#B97818",
-          plasma: "#16877E",
-        },
+        // Design tokens — all values reference CSS custom properties defined in index.css
+        surface: "hsl(var(--surface) / <alpha-value>)",
+        "surface-raised": "hsl(var(--surface-raised) / <alpha-value>)",
+        "surface-overlay": "hsl(var(--surface-overlay) / <alpha-value>)",
+        border: "hsl(var(--border) / <alpha-value>)",
+        text: "hsl(var(--text) / <alpha-value>)",
+        "text-muted": "hsl(var(--text-muted) / <alpha-value>)",
+        accent: "hsl(var(--accent) / <alpha-value>)",
+        "accent-hover": "hsl(var(--accent-hover) / <alpha-value>)",
+
+        // Component clock colours
+        platelet: "hsl(var(--platelet) / <alpha-value>)",
+        "platelet-bg": "hsl(var(--platelet-bg) / <alpha-value>)",
+        rbc: "hsl(var(--rbc) / <alpha-value>)",
+        "rbc-bg": "hsl(var(--rbc-bg) / <alpha-value>)",
+        plasma: "hsl(var(--plasma) / <alpha-value>)",
+        "plasma-bg": "hsl(var(--plasma-bg) / <alpha-value>)",
+
+        // Status colours
         status: {
-          availableText: "#236B4A",
-          availableBg: "#E6F4EC",
-          openText: "#855A0B",
-          openBg: "#FFF3D6",
-          claimedText: "#344DA8",
-          claimedBg: "#E9EDFF",
-          transitText: "#175FA7",
-          transitBg: "#E4F1FF",
-          criticalText: "#A12737",
-          criticalBg: "#FBE9EC",
+          open: "hsl(var(--status-open) / <alpha-value>)",
+          claimed: "hsl(var(--status-claimed) / <alpha-value>)",
+          "in-transit": "hsl(var(--status-in-transit) / <alpha-value>)",
+          received: "hsl(var(--status-received) / <alpha-value>)",
+          lost: "hsl(var(--status-lost) / <alpha-value>)",
+          expired: "hsl(var(--status-expired) / <alpha-value>)",
         },
+      },
+      borderRadius: {
+        xl: "0.75rem",
+        "2xl": "1rem",
+      },
+      boxShadow: {
+        card: "0 1px 4px 0 hsl(var(--border) / 0.8)",
       },
     },
   },
   plugins: [],
-} satisfies Config;
+};
+
+export default config;
