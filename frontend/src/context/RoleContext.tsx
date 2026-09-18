@@ -1,6 +1,11 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-export type AppRole = "BLOOD_CENTRE" | "HOSPITAL" | "COORDINATOR";
+export type AppRole =
+  | "BLOOD_CENTRE"
+  | "HOSPITAL"
+  | "COORDINATOR"
+  | "DONOR"
+  | "COMMUNITY_COORDINATOR";
 
 interface RoleContextValue {
   role: AppRole;

@@ -16,6 +16,9 @@ import type {
   CompatibilityLevel,
   AuditEventType,
   PoolType,
+  CommunityType,
+  ContactVia,
+  CommunityAlertStatus,
 } from "./enums.js";
 
 // ---------------------------------------------------------------------------
@@ -161,3 +164,81 @@ export interface DonorPool {
   registered: number;
   groupCounts: Partial<Record<BloodGroup, number>>;
 }
+
+export interface Donor {
+  donorId: string;
+  name: string;
+  bloodGroup: BloodGroup;
+  lat: number;
+  lng: number;
+  city: string;
+  communityId?: string;
+  lastDonationAt?: string; // ISO UTC
+  nextEligibleAt: string;  // ISO UTC
+  selfDeferredUntil?: string; // ISO UTC
+  contactVia: ContactVia;
+  phone?: string;
+  email?: string;
+  registeredAt: string; // ISO UTC
+  verifiedDonations: number;
+}
+
+export interface Community {
+  communityId: string;
+  name: string;
+  type: CommunityType;
+  lat: number;
+  lng: number;
+  city: string;
+  memberCount: number;
+  groupCounts: Partial<Record<BloodGroup, number>>;
+  coordinatorName: string;
+  coordinatorContact: string;
+  joinCode: string;
+  verified: false; // always false — verification is roadmap
+}
+
+export interface CommunityAlert {
+  alertId: string;
+  communityId: string;
+  reqId: string;
+  hospitalId: string;
+  hospitalName: string;
+  component: Component;
+  bloodGroup: BloodGroup;
+  unitsNeeded: number;
+  urgency: Urgency;
+  neededBy: string; // ISO UTC
+  eligibleMatchingCount: number; // Count only, no individual donor names
+  score: number;
+  rank: number;
+  reason: string;
+  status: CommunityAlertStatus;
+  mobilisedCount?: number;
+  createdAt: string; // ISO UTC
+  respondedAt?: string; // ISO UTC
+}
+
+export interface CreateDonorInput {
+  name: string;
+  bloodGroup: BloodGroup;
+  lat: number;
+  lng: number;
+  city: string;
+  communityId?: string;
+  contactVia?: ContactVia;
+  phone?: string;
+  email?: string;
+  lastDonationAt?: string;
+}
+
+export interface CreateCommunityInput {
+  name: string;
+  type: CommunityType;
+  lat: number;
+  lng: number;
+  city: string;
+  coordinatorName: string;
+  coordinatorContact: string;
+}
+

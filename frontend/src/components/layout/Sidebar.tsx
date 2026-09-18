@@ -8,6 +8,11 @@ import {
   Zap,
   BarChart2,
   X,
+  Heart,
+  UserCheck,
+  Users,
+  Building2,
+  UserPlus,
 } from "lucide-react";
 import { useRole } from "../../context/RoleContext";
 
@@ -26,6 +31,7 @@ const NAV_GROUPS = {
       { to: "/hospital/inbox", icon: Inbox, label: "Offer Inbox" },
       { to: "/hospital/requisitions", icon: FileText, label: "Requisitions" },
       { to: "/hospital/transfers", icon: Truck, label: "Transfers" },
+      { to: "/request/donor", icon: UserPlus, label: "Community Requisition" },
     ],
   },
   COORDINATOR: {
@@ -33,6 +39,21 @@ const NAV_GROUPS = {
     items: [
       { to: "/coordinator/escalations", icon: Map, label: "Escalation Map" },
       { to: "/coordinator/parse", icon: Zap, label: "Parse Request" },
+      { to: "/community/console", icon: Users, label: "Community Console" },
+    ],
+  },
+  DONOR: {
+    label: "Donor Network",
+    items: [
+      { to: "/donor/dashboard", icon: Heart, label: "Donor Dashboard" },
+      { to: "/donor/register", icon: UserCheck, label: "Register as Donor" },
+    ],
+  },
+  COMMUNITY_COORDINATOR: {
+    label: "Community Network",
+    items: [
+      { to: "/community/console", icon: Users, label: "Community Console" },
+      { to: "/community/register", icon: Building2, label: "Register Community" },
     ],
   },
 };

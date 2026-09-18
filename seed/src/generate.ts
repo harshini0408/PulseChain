@@ -9,17 +9,122 @@ import {
   openReqGsi1,
   hospitalReqsGsi2,
   statsDayKey,
-  poolKey,
-  poolsGsi1,
-  isoNow,
+  communityKey,
+  communityGsi1,
+  donorKey,
+  donorGsi1,
+  donorGsi2,
+  computeNextEligibleDate,
+  type Community,
+  type Donor,
   todayKey,
   type Facility,
   type BloodUnit,
   type StandingDemand,
   type Requisition,
-  type DonorPool,
 } from "@pulsechain/shared";
 import { generateDistanceItems } from "./distances.js";
+
+export const SEEDED_COMMUNITIES: Community[] = [
+  {
+    communityId: "COMM-PSG-ITECH",
+    name: "PSG iTech Volunteer Community",
+    type: "COLLEGE",
+    lat: 11.058,
+    lng: 77.078,
+    city: "Coimbatore",
+    memberCount: 35,
+    groupCounts: {},
+    coordinatorName: "Dr. K. Senthil Nathan (NSS Officer)",
+    coordinatorContact: "+91 94432 10982",
+    joinCode: "PSG-7X",
+    verified: false,
+  },
+  {
+    communityId: "COMM-KCT",
+    name: "Kumaraguru College of Technology YRC",
+    type: "COLLEGE",
+    lat: 11.0775,
+    lng: 76.989,
+    city: "Coimbatore",
+    memberCount: 30,
+    groupCounts: {},
+    coordinatorName: "Prof. Priya Ramasamy",
+    coordinatorContact: "+91 98422 33441",
+    joinCode: "KCT-2B",
+    verified: false,
+  },
+  {
+    communityId: "COMM-AMRITA",
+    name: "Amrita Vishwa Vidyapeetham Pool",
+    type: "COLLEGE",
+    lat: 10.9027,
+    lng: 76.9006,
+    city: "Coimbatore",
+    memberCount: 25,
+    groupCounts: {},
+    coordinatorName: "Dr. Anand Kumar",
+    coordinatorContact: "+91 97890 11223",
+    joinCode: "AMR-9Q",
+    verified: false,
+  },
+  {
+    communityId: "COMM-RAHEJA",
+    name: "Raheja Vivarea Apartment Association",
+    type: "RESIDENTIAL",
+    lat: 11.0022,
+    lng: 76.9734,
+    city: "Coimbatore",
+    memberCount: 22,
+    groupCounts: {},
+    coordinatorName: "R. Muralidharan (Secretary)",
+    coordinatorContact: "+91 98940 55667",
+    joinCode: "RAH-4M",
+    verified: false,
+  },
+  {
+    communityId: "COMM-MAYFLOWER",
+    name: "Mayflower Gardens RWA",
+    type: "RESIDENTIAL",
+    lat: 11.0285,
+    lng: 77.0021,
+    city: "Coimbatore",
+    memberCount: 24,
+    groupCounts: {},
+    coordinatorName: "S. Venkatesh (Wellness Lead)",
+    coordinatorContact: "+91 98430 77889",
+    joinCode: "MAY-1K",
+    verified: false,
+  },
+  {
+    communityId: "COMM-BOSCH",
+    name: "Bosch Global Software Campus CSR",
+    type: "CORPORATE",
+    lat: 11.112,
+    lng: 76.998,
+    city: "Coimbatore",
+    memberCount: 24,
+    groupCounts: {},
+    coordinatorName: "Anitha Chandran",
+    coordinatorContact: "+91 99520 88990",
+    joinCode: "BOS-8P",
+    verified: false,
+  },
+  {
+    communityId: "COMM-TEA-TUP",
+    name: "Tiruppur Exporters Chamber Network",
+    type: "NGO",
+    lat: 11.107,
+    lng: 77.345,
+    city: "Tiruppur",
+    memberCount: 20,
+    groupCounts: {},
+    coordinatorName: "M. Palanisamy",
+    coordinatorContact: "+91 98421 66778",
+    joinCode: "TEA-5Z",
+    verified: false,
+  },
+];
 
 export const SEEDED_FACILITIES: Facility[] = [
   {
@@ -221,34 +326,121 @@ export function generateAllSeedItems() {
     ...req,
   });
 
-  // 6. Donor Pools
-  const pool: DonorPool = {
-    poolId: "PSG-ITECH",
-    name: "PSG iTech Campus Donor Pool",
-    poolType: "COLLEGE",
-    lat: 11.0655,
-    lng: 77.093,
-    registered: 512,
-    groupCounts: {
-      "O+": 184,
-      "A+": 126,
-      "B+": 102,
-      "AB+": 38,
-      "O-": 12,
-      "A-": 19,
-      "B-": 27,
-      "AB-": 4,
-    },
-  };
+  // 6. Seed Communities & 180 Donors (Prompt 17)
+  const donorNames = [
+    "Karthik Raja", "Praveen Kumar", "Aravind Swamy", "Suresh Menon", "Dinesh Babu",
+    "Ganesh Moorthy", "Vigneshwaran M", "Vijay Anand", "Saravanan K", "Muthuvel P",
+    "Deepak Raman", "Ashwin Sundaram", "Hariharan V", "Manoj Kumar", "Naveen Raj",
+    "Balamurugan S", "Chandrasekar T", "Elango R", "Gopalakrishnan N", "Jayakumar V",
+    "Kavitha Sundaram", "Divya Bharathi", "Pooja Hegde", "Sneha R", "Ananya Krishnan",
+    "Meenakshi Sundaram", "Keerthi Suresh", "Revathi M", "Lakshmi Narayanan", "Sandhya R",
+    "Aishwarya Mohan", "Bhavani Shankar", "Gayathri Devi", "Harini Venkat", "Indira Priyadarshini",
+    "Janani R", "Lavanya K", "Malathi N", "Nandhini S", "Pavithra M",
+    "Rajeswari C", "Sangeetha R", "Thenmozhi P", "Uma Maheshwari", "Vasanthi K",
+    "Yamuna Devi", "Abinaya S", "Bhuvaneshwari M", "Chitra Devi", "Dhanalakshmi R"
+  ];
 
-  const pKeys = poolKey(pool.poolId);
-  const pGsi1 = poolsGsi1(pool.poolId);
-  items.push({
-    ...pKeys,
-    ...pGsi1,
-    entityType: "DONOR_POOL",
-    ...pool,
+  // Distribution: B+ 35.7% (64), O+ 34.3% (62), A+ 20.0% (36), Negatives 10% (8 O-, 4 A-, 4 B-, 2 AB-) -> 180
+  const bloodGroupList: BloodGroup[] = [
+    ...Array(64).fill("B+"),
+    ...Array(62).fill("O+"),
+    ...Array(36).fill("A+"),
+    ...Array(8).fill("O-"),
+    ...Array(4).fill("A-"),
+    ...Array(4).fill("B-"),
+    ...Array(2).fill("AB-"),
+  ];
+
+  const communityCounts: Record<string, Partial<Record<BloodGroup, number>>> = {};
+  SEEDED_COMMUNITIES.forEach((c) => {
+    communityCounts[c.communityId] = {};
   });
+
+  for (let i = 0; i < 180; i++) {
+    const commIndex = i % SEEDED_COMMUNITIES.length;
+    const comm = SEEDED_COMMUNITIES[commIndex];
+    const donorId = `D-${1000 + i}`;
+    const name = `${donorNames[i % donorNames.length]} ${String.fromCharCode(65 + (i % 26))}`;
+    const bloodGroup = bloodGroupList[i];
+
+    communityCounts[comm.communityId][bloodGroup] =
+      (communityCounts[comm.communityId][bloodGroup] || 0) + 1;
+
+    let lastDonationAt: string | undefined = undefined;
+    let nextEligibleAt: string = new Date(0).toISOString();
+    let selfDeferredUntil: string | undefined = undefined;
+
+    if (i < 80) {
+      if (i % 2 === 0) {
+        const daysAgo = 100 + (i % 50);
+        lastDonationAt = new Date(now.getTime() - daysAgo * 24 * 3600 * 1000).toISOString();
+        nextEligibleAt = computeNextEligibleDate(lastDonationAt);
+      } else {
+        lastDonationAt = undefined;
+        nextEligibleAt = new Date(0).toISOString();
+      }
+    } else if (i < 140) {
+      const daysAgo = 30 + (i % 31);
+      lastDonationAt = new Date(now.getTime() - daysAgo * 24 * 3600 * 1000).toISOString();
+      nextEligibleAt = computeNextEligibleDate(lastDonationAt);
+    } else if (i < 170) {
+      const daysAgo = 5 + (i % 16);
+      lastDonationAt = new Date(now.getTime() - daysAgo * 24 * 3600 * 1000).toISOString();
+      nextEligibleAt = computeNextEligibleDate(lastDonationAt);
+    } else {
+      const deferDays = 7 + (i % 15);
+      selfDeferredUntil = new Date(now.getTime() + deferDays * 24 * 3600 * 1000).toISOString();
+      lastDonationAt = new Date(now.getTime() - 110 * 24 * 3600 * 1000).toISOString();
+      nextEligibleAt = computeNextEligibleDate(lastDonationAt);
+    }
+
+    const donor: Donor = {
+      donorId,
+      name,
+      bloodGroup,
+      lat: Math.round((comm.lat + (Math.sin(i) * 0.005)) * 10000) / 10000,
+      lng: Math.round((comm.lng + (Math.cos(i) * 0.005)) * 10000) / 10000,
+      city: comm.city,
+      communityId: comm.communityId,
+      lastDonationAt,
+      nextEligibleAt,
+      selfDeferredUntil,
+      contactVia: i % 10 === 0 ? "DIRECT" : "COORDINATOR",
+      phone: `+91 9${String(100000000 + i * 373).slice(0, 9)}`,
+      email: `donor.${donorId.toLowerCase()}@pulsechain.org`,
+      registeredAt: new Date(now.getTime() - 180 * 24 * 3600 * 1000).toISOString(),
+      verifiedDonations: lastDonationAt ? (1 + (i % 4)) : 0,
+    };
+
+    const dKeys = donorKey(donorId);
+    const dGsi1 = donorGsi1(donor.bloodGroup, donor.nextEligibleAt, donorId);
+    const dGsi2 = donorGsi2(comm.communityId, donor.name);
+
+    items.push({
+      ...dKeys,
+      ...dGsi1,
+      ...dGsi2,
+      entityType: "DONOR",
+      ...donor,
+    });
+  }
+
+  // Push community items with actual group counts
+  for (const comm of SEEDED_COMMUNITIES) {
+    const cKeys = communityKey(comm.communityId);
+    const cGsi1 = communityGsi1(comm.type, comm.communityId);
+    const groupCounts = communityCounts[comm.communityId] || {};
+    const memberCount = Object.values(groupCounts).reduce((a, b) => a + (b || 0), 0);
+
+    items.push({
+      ...cKeys,
+      ...cGsi1,
+      entityType: "COMMUNITY",
+      ...comm,
+      memberCount,
+      groupCounts,
+    });
+  }
 
   // 7. Initial Daily Stats
   const statKeys = statsDayKey(todayKey(now));

@@ -85,3 +85,9 @@ export function getConfig(mode?: Mode): Config {
     },
   };
 }
+
+export const DONATION_INTERVAL_DAYS = {
+  WHOLE_BLOOD: 90,
+  APHERESIS: 14,
+} as const;
+

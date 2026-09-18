@@ -10,7 +10,13 @@ export type Component = (typeof COMPONENTS)[number];
 export const FACILITY_TYPES = ["BLOOD_CENTRE", "HOSPITAL"] as const;
 export type FacilityType = (typeof FACILITY_TYPES)[number];
 
-export const ROLES = ["BLOOD_CENTRE", "HOSPITAL", "COORDINATOR"] as const;
+export const ROLES = [
+  "BLOOD_CENTRE",
+  "HOSPITAL",
+  "COORDINATOR",
+  "DONOR",
+  "COMMUNITY_COORDINATOR",
+] as const;
 export type Role = (typeof ROLES)[number];
 
 export const UNIT_STATUSES = [
@@ -64,6 +70,20 @@ export type CompatibilityLevel = (typeof COMPATIBILITY_LEVELS)[number];
 export const POOL_TYPES = ["COLLEGE", "RWA", "CORPORATE"] as const;
 export type PoolType = (typeof POOL_TYPES)[number];
 
+export const COMMUNITY_TYPES = ["COLLEGE", "RESIDENTIAL", "CORPORATE", "NGO"] as const;
+export type CommunityType = (typeof COMMUNITY_TYPES)[number];
+
+export const CONTACT_VIA = ["COORDINATOR", "DIRECT"] as const;
+export type ContactVia = (typeof CONTACT_VIA)[number];
+
+export const COMMUNITY_ALERT_STATUSES = [
+  "OPEN",
+  "ACKNOWLEDGED",
+  "MOBILISED",
+  "CLOSED",
+] as const;
+export type CommunityAlertStatus = (typeof COMMUNITY_ALERT_STATUSES)[number];
+
 export const AUDIT_EVENT_TYPES = [
   "UNIT_LOGGED",
   "THRESHOLD_CROSSED",
@@ -80,8 +100,10 @@ export const AUDIT_EVENT_TYPES = [
   "REQUISITION_CREATED",
   "REQUISITION_FILLED",
   "DONOR_TIER_TRIGGERED",
+  "COMMUNITY_RESPONDED",
+  "DONATION_RECORDED",
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 
-export const REQUISITION_SOURCES = ["MANUAL", "AI_PARSED"] as const;
+export const REQUISITION_SOURCES = ["MANUAL", "AI_PARSED", "COMMUNITY"] as const;
 export type RequisitionSource = (typeof REQUISITION_SOURCES)[number];

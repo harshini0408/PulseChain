@@ -2,8 +2,15 @@
 // Key formats verified character-for-character against infra/db/sample-items.json.
 
 import { padDistance } from "./time.js";
-import type { Component, UnitStatus, EscalationSubject, FacilityType } from "./enums.js";
-import type { BloodGroup } from "./enums.js";
+import type {
+  Component,
+  UnitStatus,
+  EscalationSubject,
+  FacilityType,
+  CommunityType,
+  CommunityAlertStatus,
+  BloodGroup,
+} from "./enums.js";
 
 // ---------------------------------------------------------------------------
 // Facility
@@ -195,6 +202,65 @@ export function poolKey(poolId: string) {
 
 export function poolsGsi1(poolId: string) {
   return { GSI1PK: "POOLS", GSI1SK: poolId } as const;
+}
+
+// ---------------------------------------------------------------------------
+// Donor & Community
+// ---------------------------------------------------------------------------
+
+export function donorKey(donorId: string) {
+  return { PK: `DONOR#${donorId}`, SK: "PROFILE" } as const;
+}
+
+export function donorGsi1(bloodGroup: BloodGroup, nextEligibleAt: string, donorId: string) {
+  return {
+    GSI1PK: `DONORS#${bloodGroup}`,
+    GSI1SK: `${nextEligibleAt}#${donorId}`,
+  } as const;
+}
+
+export function donorGsi2(communityId: string, name: string) {
+  return {
+    GSI2PK: `COMMUNITY#${communityId}#MEMBERS`,
+    GSI2SK: name,
+  } as const;
+}
+
+export function communityKey(communityId: string) {
+  return { PK: `COMMUNITY#${communityId}`, SK: "PROFILE" } as const;
+}
+
+export function communityGsi1(type: CommunityType, communityId: string) {
+  return {
+    GSI1PK: `COMMUNITIES#${type}`,
+    GSI1SK: communityId,
+  } as const;
+}
+
+export function communityAlertKey(communityId: string, alertId: string) {
+  return { PK: `COMMUNITY#${communityId}`, SK: `ALERT#${alertId}` } as const;
+}
+
+export function communityAlertGsi1(status: CommunityAlertStatus, createdAt: string) {
+  return {
+    GSI1PK: `ALERTS#${status}`,
+    GSI1SK: createdAt,
+  } as const;
+}
+
+export function communityAlertGsi2(reqId: string, rank: number) {
+  return {
+    GSI2PK: `REQ#${reqId}#ALERTS`,
+    GSI2SK: String(rank).padStart(3, "0"),
+  } as const;
+}
+
+export function donorsByGroupPartition(bloodGroup: BloodGroup) {
+  return `DONORS#${bloodGroup}`;
+}
+
+export function communityMembersPartition(communityId: string) {
+  return `COMMUNITY#${communityId}#MEMBERS`;
 }
 
 // ---------------------------------------------------------------------------

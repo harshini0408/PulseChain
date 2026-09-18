@@ -1,9 +1,11 @@
-﻿import { useRole, type AppRole } from "../../context/RoleContext";
+import { useRole, type AppRole } from "../../context/RoleContext";
 
 const ROLES: { value: AppRole; label: string }[] = [
   { value: "BLOOD_CENTRE", label: "Blood Centre" },
   { value: "HOSPITAL", label: "Hospital" },
   { value: "COORDINATOR", label: "Coordinator" },
+  { value: "DONOR", label: "Donor" },
+  { value: "COMMUNITY_COORDINATOR", label: "Community Coordinator" },
 ];
 
 interface RoleSwitcherProps {

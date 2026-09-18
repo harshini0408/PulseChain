@@ -34,6 +34,14 @@ export function notFound(msg: string): HttpResponse {
   };
 }
 
+export function forbidden(msg: string): HttpResponse {
+  return {
+    statusCode: 403,
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ error: msg }),
+  };
+}
+
 export function conflict(msg: string): HttpResponse {
   return {
     statusCode: 409,

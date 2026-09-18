@@ -15,6 +15,14 @@ import {
   statsDayKey,
   poolKey,
   poolsGsi1,
+  donorKey,
+  donorGsi1,
+  donorGsi2,
+  communityKey,
+  communityGsi1,
+  communityAlertKey,
+  communityAlertGsi1,
+  communityAlertGsi2,
 } from "../src/keys.js";
 
 // Load sample-items.json and extract items as a flat map keyed by PK+SK
@@ -182,3 +190,42 @@ describe("poolKey / poolsGsi1", () => {
     expect(g.GSI1SK).toBe(s(item, "GSI1SK"));
   });
 });
+
+describe("Donor and Community keys", () => {
+  it("generates correct donor keys", () => {
+    const k = donorKey("D-101");
+    expect(k.PK).toBe("DONOR#D-101");
+    expect(k.SK).toBe("PROFILE");
+
+    const gsi1 = donorGsi1("O-", "2026-09-18T10:00:00Z", "D-101");
+    expect(gsi1.GSI1PK).toBe("DONORS#O-");
+    expect(gsi1.GSI1SK).toBe("2026-09-18T10:00:00Z#D-101");
+
+    const gsi2 = donorGsi2("COMM-01", "Karthik R");
+    expect(gsi2.GSI2PK).toBe("COMMUNITY#COMM-01#MEMBERS");
+    expect(gsi2.GSI2SK).toBe("Karthik R");
+  });
+
+  it("generates correct community and alert keys", () => {
+    const ck = communityKey("COMM-01");
+    expect(ck.PK).toBe("COMMUNITY#COMM-01");
+    expect(ck.SK).toBe("PROFILE");
+
+    const cgsi1 = communityGsi1("COLLEGE", "COMM-01");
+    expect(cgsi1.GSI1PK).toBe("COMMUNITIES#COLLEGE");
+    expect(cgsi1.GSI1SK).toBe("COMM-01");
+
+    const ak = communityAlertKey("COMM-01", "ALT-01");
+    expect(ak.PK).toBe("COMMUNITY#COMM-01");
+    expect(ak.SK).toBe("ALERT#ALT-01");
+
+    const agsi1 = communityAlertGsi1("OPEN", "2026-09-18T10:00:00Z");
+    expect(agsi1.GSI1PK).toBe("ALERTS#OPEN");
+    expect(agsi1.GSI1SK).toBe("2026-09-18T10:00:00Z");
+
+    const agsi2 = communityAlertGsi2("REQ-2001", 1);
+    expect(agsi2.GSI2PK).toBe("REQ#REQ-2001#ALERTS");
+    expect(agsi2.GSI2SK).toBe("001");
+  });
+});
+
