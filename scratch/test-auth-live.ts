@@ -26,6 +26,11 @@ async function main() {
     "https://pvn1ufnvn6.execute-api.ap-south-1.amazonaws.com/health",
     "https://pvn1ufnvn6.execute-api.ap-south-1.amazonaws.com/facilities",
     "https://pvn1ufnvn6.execute-api.ap-south-1.amazonaws.com/facilities/FAC_CBE_KMCH/inbox",
+    "https://pvn1ufnvn6.execute-api.ap-south-1.amazonaws.com/pools",
+    "https://pvn1ufnvn6.execute-api.ap-south-1.amazonaws.com/requisitions?hospitalId=FAC_CBE_KMCH",
+    "https://pvn1ufnvn6.execute-api.ap-south-1.amazonaws.com/requisitions?status=OPEN",
+    "https://pvn1ufnvn6.execute-api.ap-south-1.amazonaws.com/dashboard",
+    "https://pvn1ufnvn6.execute-api.ap-south-1.amazonaws.com/escalations/active",
   ];
 
   for (const u of testUrls) {
@@ -34,8 +39,13 @@ async function main() {
         Authorization: `Bearer ${idToken}`,
       },
     });
-    const text = await r.text();
-    console.log(`[${r.status}] ${u} -> ${text.slice(0, 100)}`);
+    if (u.includes("/dashboard")) {
+      const data = await r.json();
+      console.log(`[${r.status}] ${u} FULL JSON:`, JSON.stringify(data, null, 2));
+    } else {
+      const text = await r.text();
+      console.log(`[${r.status}] ${u} -> ${text.slice(0, 100)}`);
+    }
   }
 }
 
