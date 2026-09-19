@@ -12,7 +12,7 @@
  */
 
 import { useState } from "react";
-import { Info, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import { parseRequisition, type ParseResult } from "@pulsechain/shared";
 import { useCreateRequisitionMutation, useFacilityLookup } from "../../api/hooks";
 import { ParsePanel } from "../../components/requisitions/ParsePanel";
@@ -64,13 +64,13 @@ export function ParseRequestPage() {
       push({
         tone: "success",
         title: "Requisition created",
-        message: `${created.reqId} recorded against ${values.hospitalId}. It lives in this tab only.`,
+        message: `${created.reqId} recorded against ${values.hospitalId}.`,
       });
     } catch (err) {
       push({
         tone: "error",
         title: "Could not create the requisition",
-        message: err instanceof Error ? err.message : "The adapter rejected the record.",
+        message: err instanceof Error ? err.message : "The server rejected the record.",
       });
     }
   };
@@ -82,15 +82,6 @@ export function ParseRequestPage() {
         title="Request parser"
         subtitle="Free text in Tamil, Hindi or English into a structured requisition"
       />
-
-      <div className="mb-6 flex items-start gap-3 rounded-xl border border-status-open/25 bg-status-open-bg px-4 py-3.5">
-        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-open" />
-        <p className="text-xs leading-relaxed text-text">
-          <span className="font-semibold">Parsed locally, in this browser.</span> The parser is
-          deterministic and needs no server. Submitting requisitions needs the requisitions API,
-          which is not deployed yet — anything created here is held in this tab only.
-        </p>
-      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* ── Input ─────────────────────────────────────────────────────── */}

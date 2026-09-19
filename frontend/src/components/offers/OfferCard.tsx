@@ -1,12 +1,12 @@
 import { forwardRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ChevronDown, MapPin, Building } from "lucide-react";
+import { AlertTriangle, ChevronDown, MapPin } from "lucide-react";
 import type { Offer } from "@pulsechain/shared";
 import { useClaimMutation, useDeclineMutation } from "../../api/hooks";
 import { useCountdown } from "../../lib/useCountdown";
 import { usePrefersReducedMotion } from "../../lib/motion";
-import { ringToken, componentClock } from "../../lib/status";
+import { ringToken } from "../../lib/status";
 import { formatDistanceKm } from "../../lib/format";
 import { BloodGroupToken } from "../ui/BloodGroupToken";
 import { StatusPill } from "../ui/StatusPill";
@@ -15,8 +15,6 @@ import { Button } from "../ui/Button";
 import { ClaimButton } from "./ClaimButton";
 import { CountdownRing } from "./CountdownRing";
 import { MatchBreakdown } from "./MatchBreakdown";
-import { ExpiryClock } from "../visualizations/ExpiryClock";
-import { FlowLine } from "../motion/FlowLine";
 import { soundManager } from "../../lib/soundManager";
 
 interface OfferCardProps {
@@ -34,7 +32,7 @@ const DECLINE_REASONS = [
 ] as const;
 
 export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferCard(
-  { offer, originName, isPrimary = false },
+  { offer, originName },
   ref,
 ) {
   const claim = useClaimMutation();
@@ -48,7 +46,7 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
   const [dismissed, setDismissed] = useState(false);
   const [claimed, setClaimed] = useState(false);
 
-  // Reconstructing unit's expiry from createdAt + breakdown.hoursRemaining
+  // Expiry of unit
   const unitExpiresAt = new Date(
     new Date(offer.createdAt).getTime() + offer.breakdown.hoursRemaining * 3600 * 1000,
   ).toISOString();
@@ -58,16 +56,17 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
   const ring = ringToken(offer.ring);
   const isOpen = offer.status === "OPEN";
   const windowClosed = claimWindow.isExpired;
-  const clock = componentClock(offer.component ?? "PLATELETS");
 
-  // Hold the failure on screen, then drop out
+  // Hold the failure on screen, then drop the card out
   useEffect(() => {
     if (!failure) return;
     const timer = window.setTimeout(() => setDismissed(true), FAILURE_HOLD_MS);
     return () => window.clearTimeout(timer);
   }, [failure]);
 
+  // Do not show expired offers
   if (dismissed) return null;
+  if (windowClosed && !claimed) return null;
 
   const handleClaim = async () => {
     setFailure(null);
@@ -106,10 +105,10 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
   const entry = reducedMotion
     ? { initial: false as const }
     : {
-        initial: { opacity: 0, y: 14 },
+        initial: { opacity: 0, y: 10 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, scale: 0.98 },
-        transition: { duration: 0.3, ease: [0.2, 0, 0, 1] as const },
+        transition: { duration: 0.25, ease: "easeOut" as const },
       };
 
   return (
@@ -118,142 +117,101 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
       layout={!reducedMotion}
       {...entry}
       className={[
-        "overflow-hidden rounded-2xl border shadow-sm transition-all relative",
-        isPrimary ? "glass-surface" : "",
-        failure
-          ? "border-status-lost/50 bg-status-lost-bg/30"
-          : claimed
-          ? "border-status-received/50 bg-status-received-bg/20"
-          : "border-border/80 hover:border-border-strong",
+        "overflow-hidden rounded-xl border bg-surface-raised shadow-card transition-all",
+        failure ? "border-status-lost/40" : claimed ? "border-status-received/40" : "border-border hover:border-border-strong",
       ].join(" ")}
     >
-      {/* ── Failure banner ───────────────────────────────── */}
+      {/* Failure banner */}
       {failure && (
-        <div className="flex items-start gap-2.5 bg-status-lost-bg px-4 py-3 border-b border-status-lost/30">
+        <div className="flex items-start gap-2.5 bg-status-lost-bg px-4 py-2.5">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-lost" />
           <div className="min-w-0">
-            <p className="text-sm font-bold text-text">Claim rejected</p>
-            <p className="mt-0.5 break-words text-sm text-text">{failure}</p>
+            <p className="text-xs font-bold text-text">Claim rejected</p>
+            <p className="mt-0.5 break-words text-xs text-text">{failure}</p>
           </div>
         </div>
       )}
 
-      <div className="p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5">
-          {/* Main Info */}
-          <div className="flex items-start gap-4 min-w-0 flex-1">
-            <BloodGroupToken
-              bloodGroup={offer.bloodGroup ?? "—"}
-              component={offer.component}
-              size="md"
-            />
+      <div className="p-3.5 sm:p-4">
+        <div className="flex items-start gap-3.5">
+          <BloodGroupToken
+            bloodGroup={offer.bloodGroup ?? "—"}
+            component={offer.component}
+            size="md"
+          />
 
-            <div className="min-w-0 flex-1">
-              {/* Ring badge and metadata */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={[
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-2xs font-semibold",
-                    ring.pill,
-                  ].join(" ")}
-                >
-                  <span className={["h-1.5 w-1.5 rounded-full", ring.dot].join(" ")} />
-                  {ring.label}
-                </span>
-
-                {!isOpen && <StatusPill kind="offer" value={offer.status} size="sm" />}
-
-                {offer.volumeMl !== undefined && (
-                  <span className="text-2xs text-text-subtle font-mono">{offer.volumeMl} ml</span>
-                )}
-                <span className="text-2xs font-mono text-text-subtle">· {offer.unitId}</span>
-              </div>
-
-              {/* Dominant Blood Component Display Title */}
-              <h3 className="mt-2 font-display text-2xl sm:text-3xl font-bold text-text tracking-tight">
-                {offer.bloodGroup} {clock.label}
-              </h3>
-
-              {/* Source facility and proximity */}
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-text-muted font-medium">
-                <Building className="h-3.5 w-3.5 flex-shrink-0 text-text-subtle" />
-                <span className="truncate">From {originName}</span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-surface-sunken px-1.5 py-0.5 text-2xs text-text">
-                  <MapPin className="h-2.5 w-2.5 text-accent" />
-                  {formatDistanceKm(offer.breakdown.distanceKm)}
-                </span>
-              </p>
-
-              {/* Rationale */}
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">{offer.reason}</p>
-
-              {/* Trio: Distance + Expiry Clock + Viability */}
-              <div className="mt-4 flex flex-wrap items-center gap-5 rounded-xl bg-surface/70 p-3 border border-border/60">
-                <div className="flex items-center gap-2.5">
-                  <ExpiryClock compact expiresAt={unitExpiresAt} size={30} />
-                  <div className="flex flex-col">
-                    <span className="text-3xs uppercase font-semibold text-text-subtle">
-                      Unit Shelf-Life
-                    </span>
-                    <span className="text-xs font-bold text-text tabular-nums" data-numeric="true">
-                      {unitCountdown.label} remaining
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-6 w-px bg-border/60 hidden sm:block" />
-
-                <div className="flex flex-col">
-                  <span className="text-3xs uppercase font-semibold text-text-subtle">
-                    Corridor Transit
-                  </span>
-                  <span className="text-xs font-bold text-text">
-                    ~{Math.round(offer.breakdown.distanceKm * 2.2)} mins estimated
-                  </span>
-                </div>
-              </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={[
+                  "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-2xs font-semibold",
+                  ring.pill,
+                ].join(" ")}
+              >
+                <span className={["h-1.5 w-1.5 rounded-full", ring.dot].join(" ")} />
+                {ring.label}
+              </span>
+              {!isOpen && <StatusPill kind="offer" value={offer.status} size="sm" />}
+              {offer.volumeMl !== undefined && (
+                <span className="text-2xs text-text-subtle font-mono">{offer.volumeMl} ml</span>
+              )}
+              <span className="text-2xs font-mono text-text-subtle">· {offer.unitId}</span>
             </div>
+
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-text">
+              <MapPin className="h-3 w-3 flex-shrink-0 text-accent" />
+              <span className="truncate">{originName}</span>
+              <span className="flex-shrink-0 font-normal text-text-muted">
+                · {formatDistanceKm(offer.breakdown.distanceKm)}
+              </span>
+            </p>
+
+            <p className="mt-1 text-xs leading-normal text-text-muted">{offer.reason}</p>
+
+            <p className="mt-1.5 text-2xs text-text-subtle">
+              Unit shelf-life:{" "}
+              <span className="font-semibold tabular-nums text-text-muted" data-numeric="true">
+                {unitCountdown.label} remaining
+              </span>
+            </p>
           </div>
 
-          {/* Offer Decision Clock Ring */}
-          <div className="flex-shrink-0 self-center sm:self-start">
-            <CountdownRing createdAt={offer.createdAt} claimBy={offer.claimBy} />
-          </div>
+          <CountdownRing createdAt={offer.createdAt} claimBy={offer.claimBy} size={48} />
         </div>
 
-        {/* ── Breakdown ───────────────────────────────────────────────────── */}
+        {/* Breakdown */}
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="mt-4 inline-flex items-center gap-1.5 text-2xs font-semibold text-text-muted transition-colors hover:text-accent"
+          className="mt-2.5 inline-flex items-center gap-1 text-2xs font-semibold text-text-muted transition-colors hover:text-accent"
         >
           <ChevronDown
-            className={["h-3.5 w-3.5 transition-transform", expanded ? "rotate-180" : ""].join(" ")}
+            className={["h-3 w-3 transition-transform", expanded ? "rotate-180" : ""].join(" ")}
           />
-          {expanded ? "Hide match criteria" : "Why this offer was matched to you"}
+          {expanded ? "Hide criteria" : "Why this offer was matched"}
         </button>
 
         {expanded && (
-          <div className="mt-3">
+          <div className="mt-2.5">
             <MatchBreakdown breakdown={offer.breakdown} score={offer.score} />
           </div>
         )}
 
-        {/* ── Actions ─────────────────────────────────────────────────────── */}
+        {/* Actions */}
         {isOpen && !failure && (
-          <div className="mt-5 border-t border-border/70 pt-4">
+          <div className="mt-3 border-t border-border pt-3">
             {decliningOpen ? (
               <div>
                 <p className="mb-2 text-xs font-semibold text-text">Why are you declining?</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {DECLINE_REASONS.map(({ value, label }) => (
                     <button
                       key={value}
                       type="button"
                       disabled={decline.isPending}
                       onClick={() => void handleDecline(value)}
-                      className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent disabled:opacity-50"
+                      className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent disabled:opacity-50"
                     >
                       {label}
                     </button>
@@ -261,7 +219,7 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
                   <button
                     type="button"
                     onClick={() => setDecliningOpen(false)}
-                    className="rounded-full px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text"
+                    className="rounded-full px-2.5 py-1 text-xs font-medium text-text-muted transition-colors hover:text-text"
                   >
                     Cancel
                   </button>
@@ -274,11 +232,11 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
                   to="/hospital/transfers"
                   className="text-xs font-semibold text-accent underline-offset-2 hover:underline"
                 >
-                  Track rescue corridor under Transfers →
+                  Track under Transfers →
                 </Link>
               </div>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <ClaimButton
                   onClick={() => void handleClaim()}
                   loading={claim.isPending}
@@ -286,29 +244,19 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
                 />
                 <Button
                   variant="ghost"
-                  size="md"
+                  size="sm"
                   onClick={() => setDecliningOpen(true)}
                   disabled={claim.isPending || windowClosed}
                 >
                   Decline
                 </Button>
                 {windowClosed && (
-                  <span className="text-xs text-text-subtle font-medium">Claim window expired</span>
+                  <span className="text-xs text-text-subtle">Window closed</span>
                 )}
               </div>
             )}
           </div>
         )}
-
-        {/* Flow Line Connection at bottom of card */}
-        <div className="mt-4 pt-2 border-t border-border/40">
-          <FlowLine
-            state={claimed ? "completed" : isOpen ? "active" : "inactive"}
-            originLabel={originName}
-            targetLabel="Your Centre"
-            showPulse={isOpen}
-          />
-        </div>
       </div>
     </motion.article>
   );

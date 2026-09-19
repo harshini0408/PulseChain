@@ -8,6 +8,9 @@ export interface HttpResponse {
 
 const JSON_HEADERS = {
   "content-type": "application/json",
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "Content-Type,Authorization,X-Facility-Id,X-User-Role",
+  "access-control-allow-methods": "GET,POST,OPTIONS",
 };
 
 export function ok(body: unknown, status = 200): HttpResponse {

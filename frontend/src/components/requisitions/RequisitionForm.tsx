@@ -3,8 +3,7 @@
  *
  * Shared by /hospital/requisitions (fixed to the signed-in hospital) and
  * /coordinator/parse (which picks the requesting facility, and pre-fills from
- * the parser). Both write through the session-local adapter — see
- * api/requisitionsAdapter.ts for why.
+ * the parser). Both write through api/requisitionsAdapter.ts to the real backend API.
  */
 
 import { useEffect, useState, type FormEvent } from "react";
@@ -71,6 +70,13 @@ export function RequisitionForm({
     note: "",
     ...initialValues,
   }));
+
+  // Sync hospitalId when prop updates (e.g. once auth loads)
+  useEffect(() => {
+    if (hospitalId) {
+      setValues((current) => ({ ...current, hospitalId }));
+    }
+  }, [hospitalId]);
 
   // Re-seed when the parser hands over a new result.
   useEffect(() => {
@@ -167,8 +173,21 @@ export function RequisitionForm({
             type="number"
             min={1}
             max={50}
-            value={values.unitsRequested}
-            onChange={(e) => set("unitsRequested", Math.max(1, Number(e.target.value) || 1))}
+            value={values.unitsRequested === 0 ? "" : values.unitsRequested}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "") {
+                set("unitsRequested", 0);
+              } else {
+                const parsed = parseInt(val, 10);
+                set("unitsRequested", isNaN(parsed) ? 0 : Math.min(50, Math.max(0, parsed)));
+              }
+            }}
+            onBlur={() => {
+              if (!values.unitsRequested || values.unitsRequested < 1) {
+                set("unitsRequested", 1);
+              }
+            }}
             className={[FIELD, "tabular-nums"].join(" ")}
           />
         </div>

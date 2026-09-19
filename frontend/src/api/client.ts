@@ -113,7 +113,7 @@ function getStoredAuthHeaders(): Record<string, string> {
   }
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
