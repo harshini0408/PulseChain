@@ -17,7 +17,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import type { Facility, Offer, Requisition } from "@pulsechain/shared";
+import type { DonorPool, Facility, Offer, Requisition } from "@pulsechain/shared";
 import {
   api,
   type ActiveEscalation,
@@ -47,6 +47,7 @@ export const queryKeys = {
   dashboard: (from?: string, to?: string) => ["dashboard", from, to] as const,
   health: ["health"] as const,
   requisitions: (hospitalId: string | null) => ["requisitions", hospitalId] as const,
+  pools: ["pools"] as const,
 };
 
 /**
@@ -279,6 +280,28 @@ export function useCreateRequisitionMutation() {
     mutationFn: (input: CreateRequisitionInput) => createRequisition(input),
     onSuccess: (created) => {
       client.invalidateQueries({ queryKey: queryKeys.requisitions(created.hospitalId) });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Donor pools
+// ---------------------------------------------------------------------------
+
+export function usePoolsQuery() {
+  return useQuery<DonorPool[]>({
+    queryKey: queryKeys.pools,
+    queryFn: () => api.fetchPools(),
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useCreatePoolMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (pool: Partial<DonorPool>) => api.createPool(pool),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pools });
     },
   });
 }

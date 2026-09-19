@@ -14,6 +14,7 @@ import { RequisitionsPage } from "./pages/hospital/RequisitionsPage";
 import { TransfersPage } from "./pages/hospital/TransfersPage";
 import { EscalationMapPage } from "./pages/coordinator/EscalationMapPage";
 import { ParseRequestPage } from "./pages/coordinator/ParseRequestPage";
+import { PoolsPage } from "./pages/coordinator/PoolsPage";
 
 /** "/" sends each role to the console it actually works in. */
 function RootRedirect() {
@@ -93,6 +94,14 @@ export function App() {
           element={
             <RequireRole allowedRoles={["COORDINATOR"]}>
               <EscalationMapPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/coordinator/pools"
+          element={
+            <RequireRole allowedRoles={["COORDINATOR"]}>
+              <PoolsPage />
             </RequireRole>
           }
         />

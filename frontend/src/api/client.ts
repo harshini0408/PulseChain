@@ -10,7 +10,7 @@
  * to work outside React. AuthProvider is the only writer of that key.
  */
 
-import type { BloodUnit, Escalation, Facility, Offer } from "@pulsechain/shared";
+import type { BloodUnit, DonorPool, Escalation, Facility, Offer } from "@pulsechain/shared";
 
 // ---------------------------------------------------------------------------
 // Response shapes the backend returns but shared/ does not declare
@@ -157,6 +157,13 @@ async function request<T>(
 // ---------------------------------------------------------------------------
 
 export const api = {
+  /** GET /pools */
+  fetchPools: () => request<DonorPool[]>("/pools"),
+
+  /** POST /pools */
+  createPool: (pool: Partial<DonorPool>) =>
+    request<DonorPool>("/pools", { method: "POST", body: pool }),
+
   /** GET /facilities */
   fetchFacilities: () => request<Facility[]>("/facilities"),
 

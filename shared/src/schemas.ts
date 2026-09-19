@@ -1,6 +1,6 @@
 // zod schemas for API input validation and deterministic requisition parsing.
 import { z } from "zod";
-import { COMPONENTS, BLOOD_GROUPS, URGENCY_LEVELS, REQUISITION_SOURCES } from "./enums.js";
+import { COMPONENTS, BLOOD_GROUPS, URGENCY_LEVELS, REQUISITION_SOURCES, POOL_TYPES } from "./enums.js";
 
 // ---------------------------------------------------------------------------
 // POST /units — log a new blood unit
@@ -79,3 +79,18 @@ export const transferReceivedSchema = z.object({
   notes: z.string().optional(),
 }).optional();
 export type TransferReceivedInput = z.infer<typeof transferReceivedSchema>;
+
+// ---------------------------------------------------------------------------
+// POST /pools — register a coordinator-managed donor pool
+// ---------------------------------------------------------------------------
+export const createDonorPoolSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  poolType: z.enum(POOL_TYPES),
+  city: z.string().trim().optional(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  contactName: z.string().trim().min(1, "Contact name is required"),
+  contactEmail: z.string().trim().email("Invalid contact email"),
+  groupCounts: z.record(z.enum(BLOOD_GROUPS), z.number().int().nonnegative()).default({}),
+});
+export type CreateDonorPoolInput = z.infer<typeof createDonorPoolSchema>;

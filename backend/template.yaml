@@ -189,6 +189,56 @@ Resources:
         EntryPoints:
           - src/api/facilities.ts
 
+  PoolsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/pools.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+      Events:
+        GetPools:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /pools
+            Method: GET
+        GetPoolById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /pools/{id}
+            Method: GET
+        CreatePool:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /pools
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/pools.ts
+
   UnitsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -694,6 +744,7 @@ Resources:
                 - dynamodb:GetItem
                 - dynamodb:Query
                 - dynamodb:PutItem
+                - dynamodb:UpdateItem
               Resource:
                 - !If
                   - CreateTable

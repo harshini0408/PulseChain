@@ -159,8 +159,12 @@ export interface DonorPool {
   poolId: string;
   name: string;
   poolType: PoolType;
+  city?: string;
   lat: number;
   lng: number;
   registered: number;
   groupCounts: Partial<Record<BloodGroup, number>>;
+  contactName: string;
+  contactEmail: string;
+  lastMobilisedAt: string | null;
 }

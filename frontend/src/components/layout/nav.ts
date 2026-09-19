@@ -4,7 +4,7 @@
  * role's list is already within that.
  */
 
-import { BarChart3, FileText, Inbox, Map, Droplets, Truck, Wand2 } from "lucide-react";
+import { BarChart3, FileText, Inbox, Map, Droplets, Truck, Wand2, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Role } from "../../auth/AuthProvider";
 
@@ -32,6 +32,7 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   ],
   COORDINATOR: [
     { to: "/coordinator/escalations", icon: Map, label: "Escalation map", short: "Map" },
+    { to: "/coordinator/pools", icon: Users, label: "Donor pools", short: "Pools" },
     { to: "/coordinator/parse", icon: Wand2, label: "Request parser", short: "Parse" },
     IMPACT,
   ],
