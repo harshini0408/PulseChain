@@ -329,31 +329,16 @@ export function PulseChainGeoMap({
       {/* Map DOM Canvas */}
       <div ref={mapContainerRef} className="h-full w-full" />
 
-      {/* Top Left: Operational Corridor Header Pill */}
-      <div className="pointer-events-none absolute left-4 top-4 z-[400] flex flex-col gap-2">
-        <div className="pointer-events-auto flex items-center gap-2.5 rounded-2xl glass-surface px-4 py-2.5 shadow-md">
-          <Radio className="h-4 w-4 text-accent animate-pulse" />
-          <div className="min-w-0">
-            <p className="text-2xs font-bold uppercase tracking-widest text-text">
-              Coimbatore Rescue Corridor
-            </p>
-            <p className="text-3xs text-text-muted">
-              {facilities.length} active facilities • {originFacility?.name ?? "SNS Blood Centre"}
-            </p>
-          </div>
+      {/* Selected Facility Coordinate HUD — positioned safely below the HUD */}
+      {selectedFacility && (
+        <div className="absolute left-4 top-[175px] z-[400] flex items-center gap-2 rounded-xl glass-surface px-3 py-1.5 text-2xs text-text shadow-sm border border-border/60">
+          <Compass className="h-3 w-3 text-accent" />
+          <span className="font-semibold">{selectedFacility.name.split(" ").slice(0, 2).join(" ")}:</span>
+          <span className="font-mono text-3xs text-text-muted">
+            {selectedFacility.lat.toFixed(4)}° N, {selectedFacility.lng.toFixed(4)}° E
+          </span>
         </div>
-
-        {/* Selected Facility Coordinate HUD */}
-        {selectedFacility && (
-          <div className="pointer-events-auto flex items-center gap-2 rounded-xl glass-surface px-3 py-1.5 text-2xs text-text shadow-sm">
-            <Compass className="h-3 w-3 text-accent" />
-            <span className="font-semibold">{selectedFacility.name.split(" ").slice(0, 2).join(" ")}:</span>
-            <span className="font-mono text-3xs text-text-muted">
-              {selectedFacility.lat.toFixed(4)}° N, {selectedFacility.lng.toFixed(4)}° E
-            </span>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Top Right: Map Controls */}
       <div className="absolute right-4 top-4 z-[400] flex flex-col gap-1.5">

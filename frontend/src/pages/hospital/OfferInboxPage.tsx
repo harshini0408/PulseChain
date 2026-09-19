@@ -1,27 +1,27 @@
 /**
  * /hospital/inbox — brokered offers addressed to this facility.
  *
- * Cards, not a table: each offer is a decision with a clock on it, and a table
- * row cannot carry a countdown ring, a reason and two actions legibly.
- *
- * Open offers come first, in the `rank` the backend assigned. Everything
- * settled collapses into Recent.
+ * New composition:
+ *  1. INCOMING SCENE HEADER — "N BLOOD UNITS ARE WAITING FOR YOU" with animated count
+ *  2. PRIMARY OFFER — dominant, full-width treatment
+ *  3. SECONDARY OFFERS — compact horizontal queue
+ *  4. RECENT — collapsible (unchanged)
  */
 
 import { useMemo, useState } from "react";
-import { AnimatePresence } from "framer-motion";
-import { ChevronDown, Inbox } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 import type { Offer } from "@pulsechain/shared";
 import { useAuth } from "../../auth/AuthProvider";
 import { useFacilityLookup, useInboxQuery } from "../../api/hooks";
 import { OfferCard } from "../../components/offers/OfferCard";
-import { EmptyState, ErrorState, LoadingState, PageHeader } from "../../components/ui";
+import { ErrorState, LoadingState } from "../../components/ui";
 import { ConnectionDot } from "../../components/layout/ConnectionDot";
 import { NetworkPulse } from "../../components/motion/NetworkPulse";
+import { PulseLine } from "../../components/motion/PulseLine";
 import { pluralise } from "../../lib/format";
 
 export function OfferInboxPage() {
-  // RequireAuth guarantees a facility here; there is no fallback ID.
   const { facilityId } = useAuth();
   const inbox = useInboxQuery(facilityId);
   const { nameOf } = useFacilityLookup();
@@ -38,35 +38,83 @@ export function OfferInboxPage() {
     };
   }, [inbox.data]);
 
+  const primaryOffer = open[0] ?? null;
+  const queuedOffers = open.slice(1);
+
   return (
     <div>
-      {/* ── Asymmetric Hero ──────────────────────────────────────────────── */}
-      <div className="mb-7 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/80 pb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xs font-bold uppercase tracking-widest text-text-subtle">
-              Hospital Inbox
-            </span>
-            <span className="text-text-subtle text-xs">•</span>
-            <ConnectionDot />
-          </div>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-text tracking-tight">
-            Corridor Offers.
-          </h1>
-          <p className="mt-1.5 text-sm text-text-muted max-w-lg">
-            What the network is offering your hospital right now, ranked by clinical need and proximity.
-          </p>
+      {/* ── 1. INCOMING SCENE HEADER ──────────────────────────────────────── */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="mb-8"
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-2xs font-bold uppercase tracking-widest text-text-subtle">
+            Hospital Inbox
+          </span>
+          <span className="text-text-subtle text-xs">·</span>
+          <ConnectionDot />
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-surface-raised border border-border/80 px-3.5 py-1.5 text-xs font-semibold text-text shadow-sm">
-            {open.length} pending decision{open.length === 1 ? "" : "s"}
-          </span>
-        </div>
-      </div>
+        {inbox.isLoading ? null : (
+          <>
+            <h1 className="editorial-headline text-text">
+              {open.length === 0 ? (
+                "No offers\nright now."
+              ) : open.length === 1 ? (
+                <>
+                  <motion.span
+                    key="count-1"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-accent"
+                  >
+                    1
+                  </motion.span>{" "}
+                  blood unit
+                  <br />
+                  is waiting for you.
+                </>
+              ) : (
+                <>
+                  <motion.span
+                    key={`count-${open.length}`}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-accent"
+                  >
+                    {open.length}
+                  </motion.span>{" "}
+                  blood units
+                  <br />
+                  are waiting for you.
+                </>
+              )}
+            </h1>
+
+            {open.length > 0 && (
+              <motion.p
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mt-3 text-sm text-text-muted max-w-lg"
+              >
+                Ranked by clinical need and proximity. Each offer has a claim window — act before it
+                closes.
+              </motion.p>
+            )}
+
+            <div className="mt-5 w-64 opacity-40">
+              <PulseLine height={16} color="hsl(var(--accent))" />
+            </div>
+          </>
+        )}
+      </motion.section>
 
       {inbox.isLoading ? (
-        <LoadingState variant="cards" rows={3} label="Loading offers" />
+        <LoadingState variant="cards" rows={2} label="Checking what the network is offering you…" />
       ) : inbox.isError ? (
         <ErrorState
           title="The inbox did not load"
@@ -78,42 +126,76 @@ export function OfferInboxPage() {
           onRetry={() => void inbox.refetch()}
         />
       ) : open.length === 0 && recent.length === 0 ? (
-        <div className="rounded-3xl glass-surface p-10 text-center border border-border/70 flex flex-col items-center">
-          <NetworkPulse size={54} className="mb-4" />
-          <h3 className="font-display text-xl font-bold text-text">No active offers right now</h3>
+        /* ── Empty state ─────────────────────────────────────────────────── */
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-3xl border border-border/70 bg-surface-raised p-12 text-center flex flex-col items-center"
+        >
+          <NetworkPulse size={56} className="mb-5 opacity-60" />
+          <h3 className="font-display text-2xl font-bold text-text">
+            The network is quiet right now
+          </h3>
           <p className="mt-2 text-sm text-text-muted max-w-md mx-auto leading-relaxed">
-            Nearby units matching your demand will appear here immediately when a blood centre's inventory enters an alert window.
+            Nearby units matching your demand appear here the moment a blood centre's inventory
+            enters an alert window.
           </p>
-        </div>
+        </motion.div>
       ) : (
         <div className="space-y-8">
-          {/* ── Needs your decision ─────────────────────────────────────── */}
-          <section>
-            <div className="mb-3 flex items-baseline justify-between gap-3">
-              <h2 className="text-sm font-bold text-text">Needs your decision</h2>
-              <span className="text-xs text-text-muted">{pluralise(open.length, "offer")}</span>
-            </div>
+          {/* ── 2. PRIMARY OFFER ────────────────────────────────────────────── */}
+          {primaryOffer && (
+            <section>
+              <div className="mb-3 flex items-baseline justify-between gap-3">
+                <h2 className="text-sm font-bold text-text">Needs your decision</h2>
+                <span className="text-xs text-text-muted">{pluralise(open.length, "offer")}</span>
+              </div>
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={primaryOffer.offerId}
+                  className="animate-offer-arrive"
+                  layout
+                >
+                  <OfferCard
+                    offer={primaryOffer}
+                    originName={nameOf(primaryOffer.originFacilityId)}
+                    isPrimary
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </section>
+          )}
 
-            {open.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
-                Nothing is waiting on you. Settled offers are below.
-              </p>
-            ) : (
-              <div className="space-y-4">
+          {/* ── 3. QUEUED OFFERS ────────────────────────────────────────────── */}
+          {queuedOffers.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                Also available
+              </h2>
+              <div className="space-y-3">
                 <AnimatePresence mode="popLayout">
-                  {open.map((offer) => (
-                    <OfferCard
+                  {queuedOffers.map((offer, i) => (
+                    <motion.div
                       key={offer.offerId}
-                      offer={offer}
-                      originName={nameOf(offer.originFacilityId)}
-                    />
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.97 }}
+                      transition={{ delay: i * 0.08, duration: 0.35 }}
+                      layout
+                    >
+                      <OfferCard
+                        offer={offer}
+                        originName={nameOf(offer.originFacilityId)}
+                        isPrimary={false}
+                      />
+                    </motion.div>
                   ))}
                 </AnimatePresence>
               </div>
-            )}
-          </section>
+            </section>
+          )}
 
-          {/* ── Recent ──────────────────────────────────────────────────── */}
+          {/* ── 4. RECENT ───────────────────────────────────────────────────── */}
           {recent.length > 0 && (
             <section>
               <button
@@ -132,12 +214,13 @@ export function OfferInboxPage() {
               </button>
 
               {recentOpen && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {recent.map((offer) => (
                     <OfferCard
                       key={offer.offerId}
                       offer={offer}
                       originName={nameOf(offer.originFacilityId)}
+                      isPrimary={false}
                     />
                   ))}
                 </div>

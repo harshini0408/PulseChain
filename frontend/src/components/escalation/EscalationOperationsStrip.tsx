@@ -211,7 +211,7 @@ export function EscalationOperationsStrip({
                 type="button"
                 onClick={() => onSelect(item.escalation.escalationId)}
                 className={[
-                  "group relative flex min-w-[280px] max-w-[320px] flex-col justify-between rounded-xl border p-3.5 text-left transition-all",
+                  "group relative flex min-w-[330px] max-w-[360px] flex-col justify-between rounded-xl border p-3.5 text-left transition-all overflow-hidden",
                   isSelected
                     ? "border-accent bg-accent-soft/40 shadow-sm ring-1 ring-accent"
                     : "border-border bg-surface hover:border-border-strong hover:bg-surface-raised",
@@ -219,31 +219,31 @@ export function EscalationOperationsStrip({
               >
                 {/* Top Row: Blood Group, Component, ExpiryClock, Operational Status Pill */}
                 <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <ExpiryClock compact expiresAt={Date.now() + 14 * 3600 * 1000} size={28} />
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-display text-base font-bold text-text">
+                          <span className="font-display text-sm font-bold text-text truncate">
                             {item.bloodGroup} {item.component}
                           </span>
                           {item.isCritical && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse flex-shrink-0" />
                           )}
                         </div>
-                        <span className="font-mono text-3xs text-text-subtle">{item.unitId}</span>
+                        <span className="font-mono text-3xs text-text-subtle truncate block">{item.unitId}</span>
                       </div>
                     </div>
 
                     <span
                       className={[
-                        "rounded-full px-2 py-0.5 text-3xs font-bold uppercase tracking-wider",
+                        "flex-shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-3xs font-bold uppercase tracking-wider",
                         item.state === "IN_TRANSIT"
                           ? "bg-status-in-transit-bg text-status-in-transit ring-1 ring-status-in-transit/30"
                           : item.state === "OFFER_SENT" || item.state === "SEARCHING"
                             ? "bg-accent-soft text-accent ring-1 ring-accent/30"
                             : item.state === "EXHAUSTED"
-                              ? "bg-brand-oxblood text-white"
+                              ? "bg-surface-sunken text-text-muted border border-border"
                               : "bg-surface-sunken text-text-muted",
                       ].join(" ")}
                     >

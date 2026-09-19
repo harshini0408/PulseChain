@@ -17,10 +17,12 @@ import { CountdownRing } from "./CountdownRing";
 import { MatchBreakdown } from "./MatchBreakdown";
 import { ExpiryClock } from "../visualizations/ExpiryClock";
 import { FlowLine } from "../motion/FlowLine";
+import { soundManager } from "../../lib/soundManager";
 
 interface OfferCardProps {
   offer: Offer;
   originName: string;
+  isPrimary?: boolean;
 }
 
 const FAILURE_HOLD_MS = 4000;
@@ -32,7 +34,7 @@ const DECLINE_REASONS = [
 ] as const;
 
 export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferCard(
-  { offer, originName },
+  { offer, originName, isPrimary = false },
   ref,
 ) {
   const claim = useClaimMutation();
@@ -72,6 +74,7 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
     try {
       const res = await claim.mutateAsync(offer.offerId);
       setClaimed(true);
+      soundManager.play("claim");
       push({
         tone: "success",
         title: "Unit claimed",
@@ -115,7 +118,8 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
       layout={!reducedMotion}
       {...entry}
       className={[
-        "overflow-hidden rounded-2xl border glass-surface shadow-sm transition-all relative",
+        "overflow-hidden rounded-2xl border shadow-sm transition-all relative",
+        isPrimary ? "glass-surface" : "",
         failure
           ? "border-status-lost/50 bg-status-lost-bg/30"
           : claimed

@@ -8,9 +8,11 @@ export { EmptyState } from "./EmptyState";
 export { ErrorState } from "./ErrorState";
 export { LoadingState } from "./LoadingState";
 export { PageHeader } from "./PageHeader";
+export { SoundToggle } from "./SoundToggle";
 export { Spinner } from "./Spinner";
 export { StatCard } from "./StatCard";
 export { StatusPill } from "./StatusPill";
 export { ToastProvider, useToast } from "./Toast";
 export type { StatusKind } from "./StatusPill";
 export type { ToastInput, ToastTone } from "./Toast";
+

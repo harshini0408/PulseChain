@@ -15,6 +15,7 @@ import { ConnectionDot } from "./ConnectionDot";
 import { RoleSwitcher } from "./RoleSwitcher";
 import { ROLE_LABEL } from "./nav";
 import { Logo } from "./Logo";
+import { SoundToggle } from "../ui/SoundToggle";
 
 export function TopBar() {
   const { role, facilityId, facilityName, isDemoAuth, logout } = useAuth();
@@ -52,6 +53,7 @@ export function TopBar() {
             Demo auth
           </Badge>
         )}
+        <SoundToggle />
         <RoleSwitcher />
         <button
           type="button"
