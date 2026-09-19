@@ -10,7 +10,7 @@
  * a stated limitation does.
  */
 
-import { FileText, Info } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
 import { useCreateRequisitionMutation, useRequisitionsQuery } from "../../api/hooks";
 import { RequisitionForm, type RequisitionFormValues } from "../../components/requisitions/RequisitionForm";
@@ -50,13 +50,13 @@ export function RequisitionsPage() {
       push({
         tone: "success",
         title: "Requisition created",
-        message: `${created.reqId} is open for ${pluralise(created.unitsRequested, "unit")}. It lives in this tab only.`,
+        message: `${created.reqId} is open for ${pluralise(created.unitsRequested, "unit")}.`,
       });
     } catch (err) {
       push({
         tone: "error",
         title: "Could not create the requisition",
-        message: err instanceof Error ? err.message : "The adapter rejected the record.",
+        message: err instanceof Error ? err.message : "The server rejected the record.",
       });
     }
   };
@@ -68,17 +68,6 @@ export function RequisitionsPage() {
         title="Requisitions"
         subtitle="What this facility has asked the network for"
       />
-
-      {/* Permanent, honest notice. Remove it only when the endpoint ships. */}
-      <div className="mb-6 flex items-start gap-3 rounded-xl border border-status-in-transit/30 bg-status-in-transit-bg px-4 py-3.5">
-        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-in-transit" />
-        <p className="text-xs leading-relaxed text-text">
-          <span className="font-semibold">Requisitions are session-local.</span> The requisitions
-          API is not deployed yet, so anything created here is held in this browser tab and is lost
-          on reload. The escalation state machine and the donor-tier worker exist server-side; they
-          are simply not reachable over HTTP.
-        </p>
-      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,380px)_1fr]">
         <Card>

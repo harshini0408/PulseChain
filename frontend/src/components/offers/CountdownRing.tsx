@@ -66,10 +66,10 @@ export function CountdownRing({ createdAt, claimBy, size = 56 }: CountdownRingPr
           ].join(" ")}
           data-numeric="true"
         >
-          {countdown.isExpired ? "—" : countdown.clock}
+          {countdown.isExpired ? "—" : countdown.hours >= 1 ? `${countdown.hours}h` : countdown.clock}
         </span>
         <span className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-text-subtle">
-          {countdown.isExpired ? "closed" : "to claim"}
+          {countdown.isExpired ? "closed" : "left"}
         </span>
       </span>
     </div>

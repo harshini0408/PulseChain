@@ -99,22 +99,22 @@ export function ExpiryRiskOverview({
         </div>
       </div>
 
-      <div className="p-4 sm:p-5">
+      <div className="p-3 sm:p-4">
         {/* Risk Bands Summary Cards */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           {/* Critical Box */}
           <button
             type="button"
             onClick={() => onSelectRiskFilter(activeRiskFilter === "critical" ? null : "critical")}
             className={[
-              "group relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all",
+              "group relative flex flex-col justify-between rounded-lg border p-2.5 sm:p-3 text-left transition-all",
               activeRiskFilter === "critical"
                 ? "border-accent bg-accent-soft/70 ring-1 ring-accent"
                 : "border-border bg-surface hover:border-accent/50 hover:bg-accent-soft/30",
             ].join(" ")}
           >
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-accent">
+              <span className="flex items-center gap-1.5 text-3xs font-bold uppercase tracking-wider text-accent">
                 <span className="relative flex h-2 w-2">
                   {critical.length > 0 && (
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
@@ -123,17 +123,17 @@ export function ExpiryRiskOverview({
                 </span>
                 Critical (0–6h / Rescue)
               </span>
-              <span className="text-2xs font-medium text-text-muted group-hover:text-accent">
+              <span className="text-3xs font-medium text-text-muted group-hover:text-accent">
                 {critical.length > 0 ? "Filter" : ""}
               </span>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-display text-2xl font-bold tabular-nums text-accent" data-numeric="true">
+            <div className="mt-1.5 flex items-baseline gap-1.5">
+              <span className="font-display text-xl font-bold tabular-nums text-accent" data-numeric="true">
                 {critical.length}
               </span>
-              <span className="text-xs text-text-muted">units</span>
+              <span className="text-2xs text-text-muted">units</span>
             </div>
-            <p className="mt-1 text-2xs text-text-subtle">Immediate rescue attention required</p>
+            <p className="mt-0.5 text-3xs text-text-subtle">Immediate rescue attention required</p>
           </button>
 
           {/* Urgent Box */}
@@ -141,31 +141,31 @@ export function ExpiryRiskOverview({
             type="button"
             onClick={() => onSelectRiskFilter(activeRiskFilter === "urgent" ? null : "urgent")}
             className={[
-              "group relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all",
+              "group relative flex flex-col justify-between rounded-lg border p-2.5 sm:p-3 text-left transition-all",
               activeRiskFilter === "urgent"
                 ? "border-status-in-transit bg-status-in-transit-bg/70 ring-1 ring-status-in-transit"
                 : "border-border bg-surface hover:border-status-in-transit/50 hover:bg-status-in-transit-bg/30",
             ].join(" ")}
           >
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-status-in-transit">
-                <span className="h-2 w-2 rounded-full bg-status-in-transit" />
+              <span className="flex items-center gap-1.5 text-3xs font-bold uppercase tracking-wider text-status-in-transit">
+                <span className="h-1.5 w-1.5 rounded-full bg-status-in-transit" />
                 Urgent (In Alert Window)
               </span>
-              <span className="text-2xs font-medium text-text-muted group-hover:text-status-in-transit">
+              <span className="text-3xs font-medium text-text-muted group-hover:text-status-in-transit">
                 {urgent.length > 0 ? "Filter" : ""}
               </span>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
+            <div className="mt-1.5 flex items-baseline gap-1.5">
               <span
-                className="font-display text-2xl font-bold tabular-nums text-status-in-transit"
+                className="font-display text-xl font-bold tabular-nums text-status-in-transit"
                 data-numeric="true"
               >
                 {urgent.length}
               </span>
-              <span className="text-xs text-text-muted">units</span>
+              <span className="text-2xs text-text-muted">units</span>
             </div>
-            <p className="mt-1 text-2xs text-text-subtle">Within component threshold</p>
+            <p className="mt-0.5 text-3xs text-text-subtle">Reaching critical status within 24h</p>
           </button>
 
           {/* Safe Box */}
@@ -173,31 +173,31 @@ export function ExpiryRiskOverview({
             type="button"
             onClick={() => onSelectRiskFilter(activeRiskFilter === "safe" ? null : "safe")}
             className={[
-              "group relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all",
+              "group relative flex flex-col justify-between rounded-lg border p-2.5 sm:p-3 text-left transition-all",
               activeRiskFilter === "safe"
                 ? "border-status-received bg-status-received-bg/70 ring-1 ring-status-received"
                 : "border-border bg-surface hover:border-status-received/50 hover:bg-status-received-bg/30",
             ].join(" ")}
           >
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-status-received">
-                <span className="h-2 w-2 rounded-full bg-status-received" />
-                Safe (&gt; Alert Window)
+              <span className="flex items-center gap-1.5 text-3xs font-bold uppercase tracking-wider text-status-received">
+                <span className="h-1.5 w-1.5 rounded-full bg-status-received" />
+                Safe Stock (&gt;Threshold)
               </span>
-              <span className="text-2xs font-medium text-text-muted group-hover:text-status-received">
+              <span className="text-3xs font-medium text-text-muted group-hover:text-status-received">
                 {safe.length > 0 ? "Filter" : ""}
               </span>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
+            <div className="mt-1.5 flex items-baseline gap-1.5">
               <span
-                className="font-display text-2xl font-bold tabular-nums text-status-received"
+                className="font-display text-xl font-bold tabular-nums text-status-received"
                 data-numeric="true"
               >
                 {safe.length}
               </span>
-              <span className="text-xs text-text-muted">units</span>
+              <span className="text-2xs text-text-muted">units</span>
             </div>
-            <p className="mt-1 text-2xs text-text-subtle">Stable shelf-life reserve</p>
+            <p className="mt-0.5 text-3xs text-text-subtle">Stable shelf-life reserve</p>
           </button>
         </div>
 
@@ -291,7 +291,7 @@ export function ExpiryRiskOverview({
                     type="button"
                     onClick={() => navigate(`/centre/units/${u.unitId}`)}
                     className={[
-                      "group flex flex-col justify-between rounded-2xl border p-3.5 text-left transition-all hover:shadow-sm",
+                      "group flex flex-col justify-between rounded-xl border p-2.5 sm:p-3 text-left transition-all hover:shadow-xs",
                       isCrit
                         ? "border-accent/40 bg-accent-soft/30 hover:border-accent hover:bg-accent-soft/60"
                         : "border-border bg-surface hover:border-border-strong hover:bg-surface-raised",
@@ -302,30 +302,30 @@ export function ExpiryRiskOverview({
                         <div className="flex items-center gap-1.5">
                           <span
                             className={[
-                              "h-2 w-2 rounded-full flex-shrink-0",
+                              "h-1.5 w-1.5 rounded-full flex-shrink-0",
                               isCrit ? "bg-accent animate-pulse" : "bg-status-in-transit",
                             ].join(" ")}
                           />
-                          <span className="font-mono text-xs font-semibold text-text truncate">
+                          <span className="font-mono text-3xs font-semibold text-text truncate">
                             {u.unitId}
                           </span>
                         </div>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <span className="font-display text-base font-bold text-text">
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="font-display text-sm font-bold text-text">
                             {u.bloodGroup}
                           </span>
                           <ComponentClockBadge component={u.component} size="sm" />
                         </div>
                       </div>
 
-                      <ExpiryClock compact expiresAt={u.expiresAt} size={32} />
+                      <ExpiryClock compact expiresAt={u.expiresAt} size={24} />
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2 text-2xs">
+                    <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-3xs">
                       <StatusPill kind="unit" value={u.status} size="sm" />
                       <div className="flex items-center gap-1 text-text-subtle group-hover:text-accent font-medium">
                         <span>Details</span>
-                        <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                        <ArrowRight className="h-2.5 w-2.5 transition-transform group-hover:translate-x-0.5" />
                       </div>
                     </div>
                   </button>

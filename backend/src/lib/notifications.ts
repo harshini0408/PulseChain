@@ -123,8 +123,8 @@ ${inboxUrl}
     // Record audit event so failures are tracked without stopping offer creation
     await writeAuditEvent({
       eventType: "OFFER_NOTIFICATION_FAILED",
-      subjectType: "OFFER",
-      subjectId: params.offerId,
+      subjectType: "UNIT",
+      subjectId: params.unitId,
       timestamp: isoNow(),
       details: {
         recipientFacilityId: params.recipientFacilityId,

@@ -152,7 +152,11 @@ export async function createOffers(
     throw new Error(`[create-offers] Unit not found: ${params.unitId}`);
   }
 
-  const claimBy = addSeconds(ts, cfg.offerWindowSeconds);
+  // Offer stays open until the physical blood unit's shelf life ends (or until claimed)
+  const claimBy =
+    unit.expiresAt && unit.expiresAt > ts
+      ? unit.expiresAt
+      : addSeconds(ts, cfg.offerWindowSeconds);
   const createdOffers: Offer[] = [];
   const transactItems: TransactItem[] = [];
 

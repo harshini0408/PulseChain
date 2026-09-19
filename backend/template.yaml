@@ -400,6 +400,58 @@ Resources:
         EntryPoints:
           - src/api/escalations.ts
 
+  RequisitionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/requisitions.handler
+      Environment:
+        Variables:
+          REQUISITION_ESCALATION_STATE_MACHINE_ARN: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:PulseChain-RequisitionEscalation"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:PulseChain-RequisitionEscalation"
+      Events:
+        GetRequisitions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /requisitions
+            Method: GET
+        CreateRequisition:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /requisitions
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/requisitions.ts
+
   DemoFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -659,13 +711,17 @@ Resources:
       CodeUri: .
       Handler: src/workers/requisition-search.handler
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
         - Statement:
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
                 - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
               Resource:
                 - !If
                   - CreateTable

@@ -126,5 +126,5 @@ export async function runLostCheck(nowStr?: string): Promise<LostCheckResult> {
 }
 
 export async function handler(event?: any) {
-  return await checkLostUnits();
+  return await runLostCheck();
 }

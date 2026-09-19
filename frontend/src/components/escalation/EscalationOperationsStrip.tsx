@@ -153,20 +153,20 @@ export function EscalationOperationsStrip({
   const exhaustedCount = enrichedList.filter((e) => e.state === "EXHAUSTED").length;
 
   return (
-    <div className="mt-4 rounded-2xl border border-border bg-surface-raised p-4 shadow-card">
+    <div className="mt-2 rounded-xl border border-border bg-surface-raised p-3 shadow-card">
       {/* Header Bar with Actionable Operational Counters & Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-accent" />
-            <h2 className="text-sm font-bold text-text">Active Operations</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border pb-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5">
+            <Radio className="h-3.5 w-3.5 text-accent" />
+            <h2 className="text-xs font-bold text-text">Active Operations</h2>
           </div>
-          <div className="flex items-center gap-2 text-2xs font-semibold text-text-muted">
-            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-accent">
+          <div className="flex items-center gap-1.5 text-3xs font-semibold text-text-muted">
+            <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-accent">
               {runningCount} running
             </span>
             {inTransitCount > 0 && (
-              <span className="rounded-full bg-status-in-transit-bg px-2 py-0.5 text-status-in-transit">
+              <span className="rounded-full bg-status-in-transit-bg px-1.5 py-0.5 text-status-in-transit">
                 {inTransitCount} in transit
               </span>
             )}
@@ -175,14 +175,14 @@ export function EscalationOperationsStrip({
         </div>
 
         {/* Operational Filter Pills */}
-        <div className="flex items-center gap-1 rounded-xl border border-border bg-surface p-0.5 text-xs">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-0.5 text-2xs">
           {(["ALL", "RUNNING", "IN_TRANSIT", "EXHAUSTED"] as EscalationFilter[]).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
               className={[
-                "rounded-lg px-2.5 py-1 text-2xs font-bold uppercase tracking-wider transition-colors",
+                "rounded-md px-2 py-0.5 text-3xs font-bold uppercase tracking-wider transition-colors",
                 filter === f
                   ? "bg-surface-raised text-text shadow-xs"
                   : "text-text-muted hover:text-text",
@@ -195,9 +195,9 @@ export function EscalationOperationsStrip({
       </div>
 
       {/* Horizontal Carousel of Operational Cards */}
-      <div className="mt-3.5 flex gap-3 overflow-x-auto pb-2 pt-1">
+      <div className="mt-2.5 flex gap-2.5 overflow-x-auto pb-1.5 pt-0.5">
         {filtered.length === 0 ? (
-          <div className="w-full py-8 text-center text-xs text-text-muted">
+          <div className="w-full py-6 text-center text-xs text-text-muted">
             No escalations matching the "{filter}" filter.
           </div>
         ) : (
@@ -211,20 +211,20 @@ export function EscalationOperationsStrip({
                 type="button"
                 onClick={() => onSelect(item.escalation.escalationId)}
                 className={[
-                  "group relative flex min-w-[330px] max-w-[360px] flex-col justify-between rounded-xl border p-3.5 text-left transition-all overflow-hidden",
+                  "group relative flex min-w-[270px] max-w-[290px] flex-col justify-between rounded-lg border p-2.5 text-left transition-all overflow-hidden",
                   isSelected
-                    ? "border-accent bg-accent-soft/40 shadow-sm ring-1 ring-accent"
+                    ? "border-accent bg-accent-soft/40 shadow-xs ring-1 ring-accent"
                     : "border-border bg-surface hover:border-border-strong hover:bg-surface-raised",
                 ].join(" ")}
               >
                 {/* Top Row: Blood Group, Component, ExpiryClock, Operational Status Pill */}
                 <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <ExpiryClock compact expiresAt={Date.now() + 14 * 3600 * 1000} size={28} />
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ExpiryClock compact expiresAt={Date.now() + 14 * 3600 * 1000} size={24} />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-display text-sm font-bold text-text truncate">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-text truncate">
                             {item.bloodGroup} {item.component}
                           </span>
                           {item.isCritical && (
@@ -252,7 +252,7 @@ export function EscalationOperationsStrip({
                   </div>
 
                   {/* FlowLine Connection */}
-                  <div className="mt-3 px-1">
+                  <div className="mt-2 px-0.5">
                     <FlowLine
                       state={
                         item.state === "IN_TRANSIT"
@@ -271,7 +271,7 @@ export function EscalationOperationsStrip({
                 </div>
 
                 {/* Bottom Row: Ring, Distance, Time remaining or ETA */}
-                <div className="mt-3 border-t border-border/60 pt-2 text-3xs">
+                <div className="mt-2 border-t border-border/60 pt-1.5 text-3xs">
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1 font-semibold text-text-muted">
                       <span className={["h-1.5 w-1.5 rounded-full", ring.dot].join(" ")} />
