@@ -28,10 +28,11 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  PageHeader,
   StatCard,
 } from "../../components/ui";
 import { ConnectionDot } from "../../components/layout/ConnectionDot";
+import { PulseLine } from "../../components/motion/PulseLine";
+import { ImpactCounter } from "../../components/visualizations/ImpactCounter";
 import { COMPONENT, UNIT_STATUS, componentClock, isInAlertWindow } from "../../lib/status";
 import { pluralise } from "../../lib/format";
 
@@ -179,12 +180,50 @@ export function StockConsolePage() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Blood centre"
-        title="Stock console"
-        subtitle="Live inventory, ordered by time remaining"
-        actions={<ConnectionDot />}
-      />
+      {/* ── Asymmetric Hero Section ────────────────────────────────────────── */}
+      <div className="mb-7 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border/80 pb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xs font-bold uppercase tracking-widest text-text-subtle">
+              Blood Centre Console
+            </span>
+            <span className="text-text-subtle text-xs">•</span>
+            <ConnectionDot />
+          </div>
+
+          <div className="flex items-baseline gap-3">
+            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-text tracking-tight">
+              Vigilance.
+            </h1>
+            <span className="text-sm font-medium text-text-muted">Live stock inventory</span>
+          </div>
+
+          <p className="mt-2 text-sm text-text-muted max-w-lg">
+            Component shelf-life monitored in real time across the Coimbatore corridor. Prioritized by time remaining until expiry.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="w-36 hidden sm:block opacity-60">
+            <PulseLine height={20} color="hsl(var(--accent))" />
+          </div>
+
+          <div className="rounded-2xl glass-surface px-5 py-3 border border-border/70 flex items-center gap-4">
+            <div className="flex flex-col">
+              <span className="text-2xs font-semibold uppercase tracking-wider text-text-subtle">
+                Action Window
+              </span>
+              <div className="flex items-baseline gap-1 text-accent font-bold">
+                <ImpactCounter value={counts.alert + counts.rescue} className="text-2xl" />
+                <span className="text-xs font-normal text-text-muted">units at risk</span>
+              </div>
+            </div>
+            {counts.rescue > 0 && (
+              <span className="h-2.5 w-2.5 rounded-full bg-accent animate-ping" />
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* ── Alert strip ───────────────────────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">

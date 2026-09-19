@@ -1,8 +1,10 @@
 import { type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { BottomTabBar } from "./BottomTabBar";
 import { DemoToolbar } from "../ui/DemoToolbar";
+import { PageTransition } from "../motion/PageTransition";
 
 /**
  * Desktop: fixed sidebar beside a scrolling column.
@@ -10,6 +12,8 @@ import { DemoToolbar } from "../ui/DemoToolbar";
  * scroll container so the last row of content is never trapped under it.
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation();
+
   return (
     <div className="flex h-full overflow-hidden bg-surface">
       <div className="hidden flex-shrink-0 lg:flex">
@@ -20,7 +24,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <TopBar />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-24 pt-5 sm:px-6 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8">
-          <div className="mx-auto w-full max-w-7xl">{children}</div>
+          <div className="mx-auto w-full max-w-7xl">
+            <PageTransition key={location.pathname}>{children}</PageTransition>
+          </div>
         </main>
       </div>
 

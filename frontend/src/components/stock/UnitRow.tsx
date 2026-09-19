@@ -21,7 +21,7 @@ import { usePrefersReducedMotion } from "../../lib/motion";
 import { ringAdvanceAt } from "../../lib/escalation";
 import { ringToken } from "../../lib/status";
 import { formatNumber } from "../../lib/format";
-
+import { ExpiryClock } from "../visualizations/ExpiryClock";
 import { CRITICAL_DISPLAY_HOURS } from "../../lib/status";
 
 interface UnitRowProps {
@@ -118,8 +118,8 @@ export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
 
         <div className="flex items-start justify-between gap-3 pl-2">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              {isCritical && <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />}
+            <div className="flex items-center gap-2">
+              <ExpiryClock compact expiresAt={unit.expiresAt} size={26} />
               <p className="truncate font-mono text-xs font-semibold text-text">{unit.unitId}</p>
             </div>
             <p className="mt-1 font-display text-lg font-bold text-text">{unit.bloodGroup}</p>
@@ -179,11 +179,11 @@ export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
             aria-hidden="true"
           />
         )}
-        <div className="flex items-center gap-1.5">
-          {isCritical && <span className="h-1.5 w-1.5 rounded-full bg-accent flex-shrink-0 animate-pulse" />}
+        <div className="flex items-center gap-2">
+          <ExpiryClock compact expiresAt={unit.expiresAt} size={24} />
           <span className="font-mono text-xs font-semibold text-text">{unit.unitId}</span>
         </div>
-        <span className="mt-0.5 block text-2xs text-text-subtle">
+        <span className="mt-0.5 ml-8 block text-2xs text-text-subtle">
           {formatNumber(unit.volumeMl)} ml
         </span>
       </td>

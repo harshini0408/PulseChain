@@ -331,7 +331,7 @@ export function PulseChainGeoMap({
 
       {/* Top Left: Operational Corridor Header Pill */}
       <div className="pointer-events-none absolute left-4 top-4 z-[400] flex flex-col gap-2">
-        <div className="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-border bg-surface-raised/95 px-3.5 py-2 shadow-card backdrop-blur-md">
+        <div className="pointer-events-auto flex items-center gap-2.5 rounded-2xl glass-surface px-4 py-2.5 shadow-md">
           <Radio className="h-4 w-4 text-accent animate-pulse" />
           <div className="min-w-0">
             <p className="text-2xs font-bold uppercase tracking-widest text-text">
@@ -345,8 +345,8 @@ export function PulseChainGeoMap({
 
         {/* Selected Facility Coordinate HUD */}
         {selectedFacility && (
-          <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-surface-raised/90 px-3 py-1.5 text-2xs text-text shadow-sm backdrop-blur-sm">
-            <Compass className="h-3 w-3 text-text-subtle" />
+          <div className="pointer-events-auto flex items-center gap-2 rounded-xl glass-surface px-3 py-1.5 text-2xs text-text shadow-sm">
+            <Compass className="h-3 w-3 text-accent" />
             <span className="font-semibold">{selectedFacility.name.split(" ").slice(0, 2).join(" ")}:</span>
             <span className="font-mono text-3xs text-text-muted">
               {selectedFacility.lat.toFixed(4)}° N, {selectedFacility.lng.toFixed(4)}° E
@@ -361,7 +361,7 @@ export function PulseChainGeoMap({
           type="button"
           onClick={handleZoomIn}
           aria-label="Zoom in"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface-raised/95 text-text shadow-sm transition-colors hover:bg-surface hover:text-accent"
+          className="flex h-8 w-8 items-center justify-center rounded-xl glass-surface text-text shadow-sm transition-colors hover:bg-surface-raised hover:text-accent"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -369,7 +369,7 @@ export function PulseChainGeoMap({
           type="button"
           onClick={handleZoomOut}
           aria-label="Zoom out"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface-raised/95 text-text shadow-sm transition-colors hover:bg-surface hover:text-accent"
+          className="flex h-8 w-8 items-center justify-center rounded-xl glass-surface text-text shadow-sm transition-colors hover:bg-surface-raised hover:text-accent"
         >
           <Minus className="h-4 w-4" />
         </button>
@@ -377,7 +377,7 @@ export function PulseChainGeoMap({
           type="button"
           onClick={handleFitNetwork}
           title="Fit full corridor"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface-raised/95 text-text shadow-sm transition-colors hover:bg-surface hover:text-accent"
+          className="flex h-8 w-8 items-center justify-center rounded-xl glass-surface text-text shadow-sm transition-colors hover:bg-surface-raised hover:text-accent"
         >
           <Maximize2 className="h-3.5 w-3.5" />
         </button>
@@ -385,22 +385,22 @@ export function PulseChainGeoMap({
 
       {/* Floating Active Transfer HUD (when in transit) */}
       {inTransit && originFacility && targetFacility && (
-        <div className="absolute bottom-4 left-4 z-[400] max-w-sm rounded-2xl border border-accent/40 bg-surface-raised/95 p-4 shadow-xl backdrop-blur-md">
-          <div className="flex items-center justify-between gap-2 border-b border-border pb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white">
+        <div className="absolute bottom-4 left-4 z-[400] max-w-sm rounded-3xl glass-surface p-4 shadow-xl border-accent/40">
+          <div className="flex items-center justify-between gap-2 border-b border-border/70 pb-2.5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white shadow-sm">
                 <Truck className="h-3.5 w-3.5" />
               </span>
               <div>
                 <p className="text-2xs font-bold uppercase tracking-widest text-accent">
                   Transfer In Progress
                 </p>
-                <p className="font-display text-xs font-bold text-text">
+                <p className="font-display text-sm font-bold text-text">
                   {unit?.bloodGroup ?? "O-"} {unit?.component ?? "Platelets"}
                 </p>
               </div>
             </div>
-            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-2xs font-bold text-accent">
+            <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-2xs font-bold text-accent">
               ETA ~{Math.max(1, Math.round((1 - transitProgress) * 16))} min
             </span>
           </div>
@@ -424,7 +424,7 @@ export function PulseChainGeoMap({
                 {Math.round(transitProgress * 100)}%
               </span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-surface-sunken">
               <div
                 className="h-full rounded-full bg-accent transition-all duration-300"
                 style={{ width: `${Math.round(transitProgress * 100)}%` }}
@@ -439,7 +439,7 @@ export function PulseChainGeoMap({
       )}
 
       {/* Bottom Right: Map Legend */}
-      <div className="absolute bottom-4 right-4 z-[400] flex flex-wrap items-center gap-2.5 rounded-xl border border-border bg-surface-raised/95 px-3 py-1.5 text-3xs font-semibold text-text-muted shadow-card backdrop-blur-md">
+      <div className="absolute bottom-4 right-4 z-[400] flex flex-wrap items-center gap-2.5 rounded-2xl glass-surface px-3.5 py-2 text-3xs font-semibold text-text-muted shadow-sm">
         <span className="flex items-center gap-1">
           <span className="h-2 w-2 rounded-full bg-accent" />
           Origin / Rescue

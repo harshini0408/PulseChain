@@ -21,18 +21,15 @@
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, Check, Clock, Dot } from "lucide-react";
 import { useEscalationsQuery, useFacilityLookup, useUnitQuery } from "../../api/hooks";
-import { ComponentClockBadge } from "../../components/stock/ComponentClockBadge";
-import { ExpiryCountdown } from "../../components/stock/ExpiryCountdown";
 import {
-  BloodGroupToken,
   Card,
   ErrorState,
   LoadingState,
-  StatusPill,
 } from "../../components/ui";
 import { UNIT_STATUS, componentClock, ringToken } from "../../lib/status";
 import { escalationForUnit, ringAdvanceAt } from "../../lib/escalation";
 import { formatDateTime, formatNumber, formatRelative } from "../../lib/format";
+import { UnitDetailHero } from "../../components/stock/UnitDetailHero";
 
 type StepState = "done" | "current" | "pending" | "failed";
 
@@ -178,61 +175,9 @@ export function UnitDetailPage() {
     <div>
       <BackLink />
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <Card className="mb-6 mt-4">
-        <div className="flex flex-wrap items-start gap-5">
-          <BloodGroupToken
-            bloodGroup={unit.bloodGroup}
-            component={unit.component}
-            size="lg"
-          />
-
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-xs text-text-muted">{unit.unitId}</p>
-            <h1 className="mt-1 font-display text-display-sm font-bold text-text">
-              {unit.bloodGroup} {clock.label.toLowerCase()}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <ComponentClockBadge component={unit.component} withClock />
-              <StatusPill kind="unit" value={unit.status} withDot />
-            </div>
-
-            <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-xs sm:grid-cols-3">
-              <div>
-                <dt className="text-text-subtle">Volume</dt>
-                <dd className="mt-0.5 font-semibold tabular-nums text-text">
-                  {formatNumber(unit.volumeMl)} ml
-                </dd>
-              </div>
-              <div>
-                <dt className="text-text-subtle">Collected</dt>
-                <dd className="mt-0.5 font-semibold text-text">
-                  {formatDateTime(unit.collectedAt)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-text-subtle">Held at</dt>
-                <dd className="mt-0.5 truncate font-semibold text-text">
-                  {nameOf(unit.facilityId)}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="flex-shrink-0 rounded-xl bg-surface-sunken px-5 py-4 text-center">
-            <p className="text-2xs font-semibold uppercase tracking-widest text-text-muted">
-              Expires in
-            </p>
-            <ExpiryCountdown
-              expiresAt={unit.expiresAt}
-              component={unit.component}
-              size="lg"
-              className="mt-1 block"
-            />
-            <p className="mt-1 text-2xs text-text-subtle">{formatDateTime(unit.expiresAt)}</p>
-          </div>
-        </div>
-      </Card>
+      <div className="mt-4">
+        <UnitDetailHero unit={unit} facilityName={nameOf(unit.facilityId)} />
+      </div>
 
       {/* ── Derived timeline ──────────────────────────────────────────────── */}
       <Card>

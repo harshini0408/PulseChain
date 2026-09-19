@@ -33,6 +33,8 @@ import { ringToken } from "../../lib/status";
 import { formatRelative } from "../../lib/format";
 import { StatusPill } from "../ui/StatusPill";
 import { haversineKm } from "../../lib/geo";
+import { ExpiryClock } from "../visualizations/ExpiryClock";
+import { FlowLine } from "../motion/FlowLine";
 
 export type EscalationFilter = "ALL" | "RUNNING" | "IN_TRANSIT" | "EXHAUSTED" | "RESOLVED";
 
@@ -215,19 +217,22 @@ export function EscalationOperationsStrip({
                     : "border-border bg-surface hover:border-border-strong hover:bg-surface-raised",
                 ].join(" ")}
               >
-                {/* Top Row: Blood Group, Component, Operational Status Pill */}
+                {/* Top Row: Blood Group, Component, ExpiryClock, Operational Status Pill */}
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-display text-base font-bold text-text">
-                          {item.bloodGroup} {item.component}
-                        </span>
-                        {item.isCritical && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-                        )}
+                    <div className="flex items-center gap-2">
+                      <ExpiryClock compact expiresAt={Date.now() + 14 * 3600 * 1000} size={28} />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-display text-base font-bold text-text">
+                            {item.bloodGroup} {item.component}
+                          </span>
+                          {item.isCritical && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                          )}
+                        </div>
+                        <span className="font-mono text-3xs text-text-subtle">{item.unitId}</span>
                       </div>
-                      <span className="font-mono text-3xs text-text-subtle">{item.unitId}</span>
                     </div>
 
                     <span
@@ -246,18 +251,22 @@ export function EscalationOperationsStrip({
                     </span>
                   </div>
 
-                  {/* Route Summary: Origin -> Target */}
-                  <div className="mt-2.5 rounded-lg border border-border/80 bg-surface-raised/90 p-2 text-2xs">
-                    <div className="flex items-center gap-1 text-text truncate">
-                      <span className="font-semibold text-text-subtle">From:</span>
-                      <span className="truncate">{item.originName.split(" ").slice(0, 3).join(" ")}</span>
-                    </div>
-                    <div className="mt-1 flex items-center gap-1 text-text truncate">
-                      <ArrowRight className="h-3 w-3 text-accent flex-shrink-0" />
-                      <span className="truncate font-bold text-text">
-                        {item.targetName.split(" ").slice(0, 3).join(" ")}
-                      </span>
-                    </div>
+                  {/* FlowLine Connection */}
+                  <div className="mt-3 px-1">
+                    <FlowLine
+                      state={
+                        item.state === "IN_TRANSIT"
+                          ? "active"
+                          : item.state === "RESOLVED"
+                          ? "completed"
+                          : item.state === "EXHAUSTED"
+                          ? "failed"
+                          : "searching"
+                      }
+                      originLabel={item.originName.split(" ").slice(0, 2).join(" ")}
+                      targetLabel={item.targetName.split(" ").slice(0, 2).join(" ")}
+                      showPulse={item.state === "IN_TRANSIT" || item.state === "SEARCHING"}
+                    />
                   </div>
                 </div>
 

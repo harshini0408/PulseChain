@@ -21,6 +21,9 @@ import { SavedLostBar } from "../components/dashboard/SavedLostBar";
 import { FacilityDetailDrawer } from "../components/dashboard/FacilityDetailDrawer";
 import { Badge, Card, ErrorState, LoadingState, PageHeader } from "../components/ui";
 import { ConnectionDot } from "../components/layout/ConnectionDot";
+import { NetworkOrb } from "../components/visualizations/NetworkOrb";
+import { ImpactCounter } from "../components/visualizations/ImpactCounter";
+import { FlowLine } from "../components/motion/FlowLine";
 import { formatInr, formatInrCompact, formatNumber, pluralise } from "../lib/format";
 import type { Facility } from "@pulsechain/shared";
 
@@ -64,22 +67,38 @@ export function ImpactPage() {
         />
       ) : (
         <div className="space-y-6">
-          {/* ── Hero band, Tier A ───────────────────────────────────────── */}
-          <section className="brand-field rounded-3xl border border-border px-6 py-6 sm:px-8 sm:py-8">
-            <p className="mb-2.5 inline-flex items-center gap-2 rounded-full border border-border bg-surface-raised px-3 py-1 text-xs font-medium text-text-muted shadow-card">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-              Since the network came online
-            </p>
+          {/* ── Hero band, Tier A with NetworkOrb + ImpactCounter ─────────────────── */}
+          <section className="brand-field rounded-3xl border border-border/80 p-6 sm:p-8 relative overflow-hidden shadow-sm">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
+              <div className="max-w-2xl">
+                <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border/80 bg-surface-raised/90 px-3.5 py-1.5 text-xs font-medium text-text-muted shadow-sm backdrop-blur-sm">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                  Since the network came online
+                </p>
 
-            <h2 className="max-w-3xl font-display text-2xl font-bold text-text sm:text-display-sm">
-              {formatNumber(totals?.unitsSaved ?? 0)} units reached a patient instead of a bin
-            </h2>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-text tracking-tight">
+                    <ImpactCounter value={totals?.unitsSaved ?? 0} className="text-accent" />
+                    {" "}units rescued
+                  </h2>
+                </div>
 
-            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-text-muted sm:text-base">
-              That is {formatInr(totals?.valueSavedInr ?? 0)} of product kept in the system, and{" "}
-              {pluralise(activeRescues, "rescue")} running right now across{" "}
-              {pluralise(facilities.length, "facility", "facilities")}.
-            </p>
+                <p className="mt-1 font-display text-xl sm:text-2xl text-text-muted font-medium">
+                  reached patients instead of expiring in disposal bins.
+                </p>
+
+                <p className="mt-4 max-w-xl text-sm leading-relaxed text-text-muted">
+                  That represents <span className="font-semibold text-text">{formatInr(totals?.valueSavedInr ?? 0)}</span> of viable blood components retained in the clinical system, with{" "}
+                  <span className="font-semibold text-accent">{pluralise(activeRescues, "rescue")}</span> actively running right now across{" "}
+                  {pluralise(facilities.length, "facility", "facilities")}.
+                </p>
+              </div>
+
+              {/* Orbiting Network Visualization */}
+              <div className="flex-shrink-0 flex items-center justify-center">
+                <NetworkOrb size={220} className="opacity-90" />
+              </div>
+            </div>
           </section>
 
           {/* ── Headline figures ────────────────────────────────────────── */}
@@ -182,36 +201,48 @@ export function ImpactPage() {
                         type="button"
                         onClick={() => setSelectedFacility(facility)}
                         className={[
-                          "group flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-all",
+                          "group flex flex-col w-full gap-2 rounded-xl border p-3 text-left transition-all",
                           isSelected
                             ? "border-accent bg-accent-soft/50 ring-1 ring-accent"
                             : "border-border bg-surface hover:border-border-strong hover:bg-surface-raised",
                         ].join(" ")}
                       >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold text-text group-hover:text-accent">
-                            {facility.name}
-                          </p>
-                          <div className="mt-0.5 flex items-center gap-2 text-2xs text-text-subtle">
-                            <span>{facility.city}</span>
-                            {distanceKm !== null && (
-                              <>
-                                <span>•</span>
-                                <span className="tabular-nums">
-                                  {facility.facilityId === originFacility?.facilityId
-                                    ? "Here"
-                                    : `${distanceKm.toFixed(1)} km`}
-                                </span>
-                              </>
-                            )}
+                        <div className="flex items-center gap-3 w-full">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-semibold text-text group-hover:text-accent">
+                              {facility.name}
+                            </p>
+                            <div className="mt-0.5 flex items-center gap-2 text-2xs text-text-subtle">
+                              <span>{facility.city}</span>
+                              {distanceKm !== null && (
+                                <>
+                                  <span>•</span>
+                                  <span className="tabular-nums font-medium">
+                                    {facility.facilityId === originFacility?.facilityId
+                                      ? "Here"
+                                      : `${distanceKm.toFixed(1)} km`}
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
+
+                          <Badge variant={facility.type === "BLOOD_CENTRE" ? "accent" : "outline"}>
+                            {facility.type === "BLOOD_CENTRE" ? "Centre" : "Hospital"}
+                          </Badge>
+
+                          <ChevronRight className="h-4 w-4 text-text-subtle transition-transform group-hover:translate-x-1 group-hover:text-accent" />
                         </div>
 
-                        <Badge variant={facility.type === "BLOOD_CENTRE" ? "accent" : "outline"}>
-                          {facility.type === "BLOOD_CENTRE" ? "Centre" : "Hospital"}
-                        </Badge>
-
-                        <ChevronRight className="h-3.5 w-3.5 text-text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
+                        {isSelected && originFacility && facility.facilityId !== originFacility.facilityId && (
+                          <div className="pt-1 w-full border-t border-accent/20">
+                            <FlowLine
+                              state="active"
+                              originLabel="Current Centre"
+                              targetLabel={facility.name.split(" ").slice(0, 2).join(" ")}
+                            />
+                          </div>
+                        )}
                       </button>
                     </li>
                   );

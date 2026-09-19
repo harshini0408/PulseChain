@@ -17,6 +17,7 @@ import { useFacilityLookup, useInboxQuery } from "../../api/hooks";
 import { OfferCard } from "../../components/offers/OfferCard";
 import { EmptyState, ErrorState, LoadingState, PageHeader } from "../../components/ui";
 import { ConnectionDot } from "../../components/layout/ConnectionDot";
+import { NetworkPulse } from "../../components/motion/NetworkPulse";
 import { pluralise } from "../../lib/format";
 
 export function OfferInboxPage() {
@@ -39,12 +40,30 @@ export function OfferInboxPage() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Hospital"
-        title="Offer inbox"
-        subtitle="Units the network is offering you, ranked by fit"
-        actions={<ConnectionDot />}
-      />
+      {/* ── Asymmetric Hero ──────────────────────────────────────────────── */}
+      <div className="mb-7 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/80 pb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xs font-bold uppercase tracking-widest text-text-subtle">
+              Hospital Inbox
+            </span>
+            <span className="text-text-subtle text-xs">•</span>
+            <ConnectionDot />
+          </div>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-text tracking-tight">
+            Corridor Offers.
+          </h1>
+          <p className="mt-1.5 text-sm text-text-muted max-w-lg">
+            What the network is offering your hospital right now, ranked by clinical need and proximity.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-surface-raised border border-border/80 px-3.5 py-1.5 text-xs font-semibold text-text shadow-sm">
+            {open.length} pending decision{open.length === 1 ? "" : "s"}
+          </span>
+        </div>
+      </div>
 
       {inbox.isLoading ? (
         <LoadingState variant="cards" rows={3} label="Loading offers" />
@@ -59,11 +78,13 @@ export function OfferInboxPage() {
           onRetry={() => void inbox.refetch()}
         />
       ) : open.length === 0 && recent.length === 0 ? (
-        <EmptyState
-          icon={<Inbox className="h-6 w-6" />}
-          title="No offers right now"
-          message="Nearby units that match what you need will appear here. An offer arrives when a blood centre's unit crosses into its expiry window and this facility is inside the escalation ring."
-        />
+        <div className="rounded-3xl glass-surface p-10 text-center border border-border/70 flex flex-col items-center">
+          <NetworkPulse size={54} className="mb-4" />
+          <h3 className="font-display text-xl font-bold text-text">No active offers right now</h3>
+          <p className="mt-2 text-sm text-text-muted max-w-md mx-auto leading-relaxed">
+            Nearby units matching your demand will appear here immediately when a blood centre's inventory enters an alert window.
+          </p>
+        </div>
       ) : (
         <div className="space-y-8">
           {/* ── Needs your decision ─────────────────────────────────────── */}

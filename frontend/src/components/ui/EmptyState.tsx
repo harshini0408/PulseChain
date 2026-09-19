@@ -5,6 +5,7 @@
  */
 
 import { type ReactNode } from "react";
+import { NetworkPulse } from "../motion/NetworkPulse";
 
 interface EmptyStateProps {
   title: string;
@@ -22,9 +23,13 @@ export function EmptyState({ title, message, icon, action, className = "" }: Emp
         className,
       ].join(" ")}
     >
-      {icon && (
+      {icon ? (
         <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-raised text-accent shadow-card">
           {icon}
+        </span>
+      ) : (
+        <span className="mb-5 flex items-center justify-center">
+          <NetworkPulse size={50} />
         </span>
       )}
       <h3 className="font-display text-display-sm font-semibold text-text">{title}</h3>

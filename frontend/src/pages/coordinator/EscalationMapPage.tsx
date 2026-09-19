@@ -74,29 +74,40 @@ export function EscalationMapPage() {
 
   return (
     <div className="flex flex-col">
-      <PageHeader
-        eyebrow="Coordinator"
-        title="Escalation corridor"
-        subtitle="Live geographic blood-rescue control centre"
-        actions={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSimulateTransit((prev) => !prev)}
-              className={[
-                "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold shadow-xs transition-colors",
-                simulateTransit
-                  ? "border-accent bg-accent text-white"
-                  : "border-border bg-surface-raised text-text hover:border-border-strong",
-              ].join(" ")}
-            >
-              <Truck className="h-3.5 w-3.5" />
-              {simulateTransit ? "Simulation Active" : "Simulate Transfer"}
-            </button>
+      {/* ── Coordinator Asymmetric Hero ────────────────────────────────────── */}
+      <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/80 pb-5">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xs font-bold uppercase tracking-widest text-text-subtle">
+              Corridor Operations
+            </span>
+            <span className="text-text-subtle text-xs">•</span>
             <ConnectionDot />
           </div>
-        }
-      />
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-text tracking-tight">
+            Escalation Map.
+          </h1>
+          <p className="mt-1 text-sm text-text-muted max-w-lg">
+            Real-time geographic ring dispatch, transit telemetry, and corridor facility audit across Coimbatore.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setSimulateTransit((prev) => !prev)}
+            className={[
+              "inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-xs font-semibold shadow-sm transition-all",
+              simulateTransit
+                ? "border-accent bg-accent text-white"
+                : "glass-surface text-text hover:border-accent/40",
+            ].join(" ")}
+          >
+            <Truck className="h-4 w-4" />
+            <span>{simulateTransit ? "Simulation Active" : "Simulate Live Transit"}</span>
+          </button>
+        </div>
+      </div>
 
       {isLoading ? (
         <LoadingState variant="map" label="Loading the geographic corridor" />
@@ -112,8 +123,8 @@ export function EscalationMapPage() {
         />
       ) : (
         <div className="flex flex-col">
-          {/* ── Prominent Real Geographic Map (70% viewport dominant) ─────── */}
-          <div className="relative h-[62vh] min-h-[460px] w-full">
+          {/* ── Prominent Real Geographic Map (68vh viewport dominant) ─────── */}
+          <div className="relative h-[68vh] min-h-[520px] w-full">
             <PulseChainGeoMap
               facilities={facilities}
               escalation={selected}

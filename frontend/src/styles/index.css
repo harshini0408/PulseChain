@@ -193,6 +193,20 @@
     --ring-2: 43 100% 34%;
     --ring-3: 280 44% 42%;
 
+    /* --- Motion Tokens --- */
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --dur-fast: 150ms;
+    --dur-medium: 300ms;
+    --dur-slow: 600ms;
+    --dur-hero: 1200ms;
+
+    /* --- Glass Tokens --- */
+    --glass-bg: 0 0% 100% / 0.75;
+    --glass-border: 0 35% 91% / 0.8;
+    --glass-blur: 12px;
+
     /* --- Typefaces ---
        Lufga first so licensed files win when present; the Google pairing
        behind it holds the same character.                                */
@@ -290,6 +304,21 @@
     animation: skeleton-sheen 1.4s ease-in-out infinite;
     border-radius: 0.5rem;
   }
+
+  /* Glass surface utility matching Emotion Agency layered depth */
+  .glass-surface {
+    background-color: hsl(var(--surface-raised) / 0.85);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  .glass-surface-dark {
+    background-color: hsl(var(--brand-oxblood) / 0.88);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--border) / 0.15);
+  }
 }
 
 @keyframes skeleton-sheen {
@@ -328,6 +357,67 @@
   }
 }
 
+/* Traveling pulse wave */
+@keyframes pulse-travel {
+  0% {
+    stroke-dashoffset: 200;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Connection flow pulse dot */
+@keyframes flow-pulse {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+/* Smooth reveal */
+@keyframes state-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Network Orbit */
+@keyframes network-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes network-orbit-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
 /* Under prefers-reduced-motion state changes swap instantly rather than
    animating, and the ring pulse becomes static. */
 @media (prefers-reduced-motion: reduce) {
@@ -345,3 +435,4 @@
     background: hsl(var(--surface-overlay));
   }
 }
+

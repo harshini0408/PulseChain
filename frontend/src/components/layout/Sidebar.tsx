@@ -5,10 +5,12 @@
  */
 
 import { NavLink } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useAuth } from "../../auth/AuthProvider";
 import { useFacilityLookup } from "../../api/hooks";
 import { NAV_BY_ROLE, ROLE_LABEL } from "./nav";
 import { Logo } from "./Logo";
+import { PulseLine } from "../motion/PulseLine";
 
 export function Sidebar() {
   const { role, facilityId, facilityName } = useAuth();
@@ -37,26 +39,46 @@ export function Sidebar() {
         </p>
         <ul className="space-y-1">
           {items.map(({ to, icon: Icon, label }) => (
-            <li key={to}>
+            <li key={to} className="relative">
               <NavLink
                 to={to}
                 end={to === "/impact"}
                 className={({ isActive }) =>
                   [
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                    "relative z-10 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-sidebar-active-bg text-sidebar-text-active"
-                      : "text-sidebar-text hover:bg-sidebar-text-active/10 hover:text-sidebar-text-active",
+                      ? "text-sidebar-text-active font-semibold"
+                      : "text-sidebar-text hover:text-sidebar-text-active",
                   ].join(" ")
                 }
               >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.div
+                        layoutId="sidebar-active-pill"
+                        className="absolute inset-0 rounded-xl bg-sidebar-active-bg -z-10 shadow-sm"
+                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                      />
+                    )}
+                    <Icon
+                      className={`h-4 w-4 flex-shrink-0 transition-transform ${
+                        isActive ? "scale-110" : ""
+                      }`}
+                    />
+                    <span>{label}</span>
+                  </>
+                )}
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
+
+      {/* Living network heartbeat in sidebar footer */}
+      <div className="px-5 py-2">
+        <PulseLine height={16} color="hsl(var(--sidebar-active-bg))" className="opacity-40" />
+      </div>
 
       <div className="border-t border-sidebar-text/15 px-5 py-4">
         <p className="text-2xs font-semibold uppercase tracking-widest text-sidebar-text/60">

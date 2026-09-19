@@ -29,7 +29,7 @@ export function TopBar() {
   };
 
   return (
-    <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border bg-surface-raised px-4 lg:px-6">
+    <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border/60 bg-surface-raised/85 backdrop-blur-md px-4 lg:px-6 sticky top-0 z-30 transition-colors">
       {/* The mark only appears here on small screens; the sidebar carries it above 1024px. */}
       <span className="flex items-center gap-2 text-accent lg:hidden">
         <Logo className="h-5 w-5" />

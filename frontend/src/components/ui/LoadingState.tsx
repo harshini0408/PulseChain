@@ -4,6 +4,8 @@
  * user nothing about what is coming.
  */
 
+import { PulseLine } from "../motion/PulseLine";
+
 type Variant = "table" | "cards" | "stats" | "list" | "map" | "detail";
 
 interface LoadingStateProps {
@@ -20,8 +22,15 @@ export function LoadingState({ variant = "list", rows = 5, label }: LoadingState
   const count = Math.max(1, rows);
 
   return (
-    <div role="status" aria-busy="true" aria-live="polite">
-      <span className="sr-only">{label ?? "Loading"}</span>
+    <div role="status" aria-busy="true" aria-live="polite" className="space-y-4">
+      <div className="flex items-center justify-between gap-4 px-1 py-1">
+        <span className="text-xs font-semibold text-text-subtle">
+          {label ?? "Synchronizing corridor data…"}
+        </span>
+        <div className="w-32 opacity-40">
+          <PulseLine height={16} color="hsl(var(--accent))" />
+        </div>
+      </div>
 
       {variant === "table" && (
         <div className="overflow-hidden rounded-xl border border-border bg-surface-raised">
