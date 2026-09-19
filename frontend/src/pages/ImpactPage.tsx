@@ -7,11 +7,13 @@
  */
 
 import { useState } from "react";
-import { Activity, ChevronRight, IndianRupee, Radio, TrendingDown, TrendingUp } from "lucide-react";
+import { Activity, CheckCircle, ChevronRight, IndianRupee, Radio, TrendingDown, TrendingUp, Users } from "lucide-react";
 import {
   useDashboardQuery,
   useEscalationsQuery,
   useFacilityLookup,
+  usePoolsQuery,
+  useRequisitionsQuery,
 } from "../api/hooks";
 import { useAuth } from "../auth/AuthProvider";
 import { haversineKm } from "../lib/geo";
@@ -25,10 +27,15 @@ import { formatInr, formatInrCompact, formatNumber, pluralise } from "../lib/for
 import type { Facility } from "@pulsechain/shared";
 
 export function ImpactPage() {
-  const { facilityId } = useAuth();
+  const { facilityId, role } = useAuth();
   const dashboard = useDashboardQuery();
   const { data: escalations } = useEscalationsQuery();
   const { facilities, byId } = useFacilityLookup();
+  const { data: pools } = usePoolsQuery();
+  // Requisitions: only hospitals have their own list; coordinators see open ones
+  const { data: requisitions } = useRequisitionsQuery(
+    role === "HOSPITAL" ? facilityId : null,
+  );
 
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
 
@@ -37,6 +44,28 @@ export function ImpactPage() {
   const totals = dashboard.data?.totals;
   const history = dashboard.data?.history ?? [];
   const activeRescues = (escalations ?? []).filter((e) => e.status === "RUNNING").length;
+
+  // ── Block 5: live-computed rates from existing endpoints ──────────────────
+  // Mobilisation stats — each DonorPool carries lastMobilisedAt + lastMobilisationStatus
+  const poolsContacted = (pools ?? []).filter((p) => p.lastMobilisedAt != null).length;
+  const poolsAcknowledged = (pools ?? []).filter(
+    (p) => p.lastMobilisationStatus === "ACKNOWLEDGED",
+  ).length;
+  const mobilisationResponseRatePct =
+    poolsContacted > 0
+      ? Math.round((poolsAcknowledged / poolsContacted) * 1000) / 10
+      : null;
+
+  // Requisition stats — from the current hospital's own list (available without re-deploy)
+  const reqList = requisitions ?? [];
+  const reqFilled = reqList.filter(
+    (r) => r.status === "FILLED" || r.status === "DONOR_TIER",
+  ).length;
+  const reqPartial = reqList.filter((r) => r.status === "PARTIAL").length;
+  const reqOpen = reqList.filter((r) => r.status === "OPEN").length;
+  const reqTotal = reqList.length;
+  const fulfilmentRatePct =
+    reqTotal > 0 ? Math.round((reqFilled / reqTotal) * 1000) / 10 : null;
 
   return (
     <div>
@@ -109,6 +138,50 @@ export function ImpactPage() {
               value={formatNumber(activeRescues)}
               caption="Escalating right now"
               tone={activeRescues > 0 ? "saved" : "neutral"}
+              icon={<Radio className="h-4 w-4" />}
+            />
+          </div>
+
+          {/* ── Block 5: Requisition & Mobilisation rates ────────────────── */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatTile
+              label="Requisitions filled"
+              value={fulfilmentRatePct !== null ? `${fulfilmentRatePct}%` : "—"}
+              caption={
+                reqTotal > 0
+                  ? `${reqFilled} of ${reqTotal} requests`
+                  : "No requisitions yet"
+              }
+              tone={fulfilmentRatePct !== null && fulfilmentRatePct >= 50 ? "saved" : "neutral"}
+              icon={<CheckCircle className="h-4 w-4" />}
+            />
+            <StatTile
+              label="Partially filled"
+              value={formatNumber(reqPartial)}
+              caption={reqPartial > 0 ? "Units received, not complete" : "None yet"}
+              tone="neutral"
+              icon={<TrendingUp className="h-4 w-4" />}
+            />
+            <StatTile
+              label="Mobilisation response"
+              value={mobilisationResponseRatePct !== null ? `${mobilisationResponseRatePct}%` : "—"}
+              caption={
+                poolsContacted > 0
+                  ? `${poolsAcknowledged} of ${poolsContacted} pools responded`
+                  : "No mobilisations sent yet"
+              }
+              tone={
+                mobilisationResponseRatePct !== null && mobilisationResponseRatePct >= 40
+                  ? "saved"
+                  : "neutral"
+              }
+              icon={<Users className="h-4 w-4" />}
+            />
+            <StatTile
+              label="Still open"
+              value={formatNumber(reqOpen)}
+              caption={reqOpen > 0 ? "Requests awaiting supply" : "All requests resolved"}
+              tone={reqOpen > 0 ? "lost" : "neutral"}
               icon={<Radio className="h-4 w-4" />}
             />
           </div>

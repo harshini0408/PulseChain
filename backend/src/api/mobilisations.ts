@@ -24,6 +24,7 @@ import {
 import { docClient, getItem, requireTableName, transact, type TransactItem } from "../lib/db.js";
 import { badRequest, conflict, notFound, ok, withErrors } from "../lib/http.js";
 import { buildAuditTransactItem } from "../lib/audit.js";
+import { recordMobilisationAcknowledged } from "../lib/stats.js";
 
 /** Extract strictly the safe summary fields exposed to the public link */
 function toMobilisationSummary(item: MobilisationRecord): MobilisationSummary {
@@ -167,6 +168,11 @@ export const handler = withErrors(
         }
         throw err;
       }
+
+      // Block 5: increment the daily mobilisationsAcknowledged STATS counter
+      void recordMobilisationAcknowledged(now).catch((e) =>
+        console.warn("[mobilisations] mobilisationsAcknowledged counter failed:", e),
+      );
 
       item.status = "ACKNOWLEDGED";
       item.acknowledgedAt = now;

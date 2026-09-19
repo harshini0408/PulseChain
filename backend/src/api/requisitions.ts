@@ -26,6 +26,7 @@ import { putItem, queryAll } from "../lib/db.js";
 import { badRequest, ok, withErrors } from "../lib/http.js";
 import { writeAuditEvent } from "../lib/audit.js";
 import { getCallerContext } from "../lib/auth.js";
+import { recordRequisitionOpen } from "../lib/stats.js";
 
 function toRequisition(item: Record<string, any>): Requisition {
   const { PK, SK, GSI1PK, GSI1SK, GSI2PK, GSI2SK, entityType, _tag, ...rest } = item;
@@ -162,6 +163,11 @@ export const handler = withErrors(
 
       // Persist the REQUISITION item
       await putItem(requisitionItem);
+
+      // Block 5: increment the daily STATS open-requisition counter
+      void recordRequisitionOpen(now).catch((e) =>
+        console.warn("[requisitions] stats counter failed:", e),
+      );
 
       // Write REQUISITION_CREATED audit event
       await writeAuditEvent({

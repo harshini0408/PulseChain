@@ -16,12 +16,26 @@ import { EscalationMapPage } from "./pages/coordinator/EscalationMapPage";
 import { ParseRequestPage } from "./pages/coordinator/ParseRequestPage";
 import { PoolsPage } from "./pages/coordinator/PoolsPage";
 import { MobiliseResponsePage } from "./pages/public/MobiliseResponsePage";
+import { LandingPage } from "./pages/public/LandingPage";
+import { PublicRequestPage } from "./pages/public/PublicRequestPage";
 
-/** "/" sends each role to the console it actually works in. */
+/**
+ * "/" — unauthenticated visitors see the public landing page.
+ *       Authenticated users are sent to their role console as before.
+ */
 function RootRedirect() {
-  const { role } = useAuth();
-  return <Navigate to={role ? LANDING_PATHS[role] : "/login"} replace />;
+  const { role, isAuthenticated, isRestoring } = useAuth();
+  if (isRestoring) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <p className="text-sm text-text-muted">Restoring your session…</p>
+      </div>
+    );
+  }
+  if (!isAuthenticated || !role) return <LandingPage />;
+  return <Navigate to={LANDING_PATHS[role]} replace />;
 }
+
 
 /**
  * Everything except /login lives inside this layout: authenticated first,
@@ -40,12 +54,12 @@ function ProtectedLayout() {
 export function App() {
   return (
     <Routes>
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/mobilise/:token" element={<MobiliseResponsePage />} />
+      <Route path="/request" element={<PublicRequestPage />} />
 
       <Route element={<ProtectedLayout />}>
-        <Route path="/" element={<RootRedirect />} />
-
         {/* Blood centre */}
         <Route
           path="/centre/stock"

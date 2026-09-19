@@ -38,6 +38,7 @@ import { haversineKm } from "@pulsechain/seed/src/distances-util.js";
 import { docClient, getItem, putItem, queryAll, requireTableName } from "../lib/db.js";
 import { writeAuditEvent } from "../lib/audit.js";
 import { sendMobilisationEmailNotification } from "../lib/mobilisation-notifications.js";
+import { recordMobilisationSent, recordRequisitionFilled } from "../lib/stats.js";
 
 export interface DonorTierParams {
   requisitionId: string;
@@ -195,6 +196,11 @@ export async function activateDonorTier(params: DonorTierParams): Promise<DonorT
         hospitalCity: hospital?.city ?? "Coimbatore",
       });
 
+      // Block 5: count each pool as a mobilisation sent
+      void recordMobilisationSent(ts).catch((e) =>
+        console.warn("[donor-tier] mobilisationsSent counter failed:", e),
+      );
+
       successfullyMobilised.push({
         poolId: pool.poolId,
         name: pool.name,
@@ -223,6 +229,12 @@ export async function activateDonorTier(params: DonorTierParams): Promise<DonorT
           ExpressionAttributeValues: { ":dt": "DONOR_TIER" },
         }),
       );
+      // Block 5: DONOR_TIER outcome counts as filled for fulfilment rate
+      if (successfullyMobilised.length > 0) {
+        void recordRequisitionFilled(ts).catch((e) =>
+          console.warn("[donor-tier] requisitionsFilled counter failed:", e),
+        );
+      }
     } catch (err: any) {
       console.warn(`[donor-tier] Could not update requisition status for ${params.requisitionId}:`, err?.message);
     }

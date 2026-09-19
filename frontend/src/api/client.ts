@@ -36,6 +36,12 @@ export interface DailyStatsRecord {
   unitsLost: number;
   valueSavedInr: number;
   valueLostInr: number;
+  // Block 5 counters (may be absent on older records — treat missing as 0)
+  requisitionsFilled?: number;
+  requisitionsPartial?: number;
+  requisitionsOpen?: number;
+  mobilisationsSent?: number;
+  mobilisationsAcknowledged?: number;
 }
 
 export interface DashboardResponse {
@@ -47,6 +53,16 @@ export interface DashboardResponse {
     unitsLost: number;
     valueSavedInr: number;
     valueLostInr: number;
+    requisitionsFilled: number;
+    requisitionsPartial: number;
+    requisitionsOpen: number;
+    mobilisationsSent: number;
+    mobilisationsAcknowledged: number;
+  };
+  /** Derived rates computed server-side; null when denominator is zero. */
+  rates?: {
+    fulfilmentRatePct: number | null;
+    mobilisationResponseRatePct: number | null;
   };
   history: DailyStatsRecord[];
 }
