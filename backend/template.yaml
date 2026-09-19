@@ -239,6 +239,54 @@ Resources:
         EntryPoints:
           - src/api/pools.ts
 
+  MobilisationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/mobilisations.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+      Events:
+        GetMobilisation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /mobilise/{token}
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        AcknowledgeMobilisation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /mobilise/{token}/acknowledge
+            Method: POST
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/mobilisations.ts
+
   UnitsFunction:
     Type: AWS::Serverless::Function
     Properties:

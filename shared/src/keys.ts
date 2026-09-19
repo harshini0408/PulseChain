@@ -198,6 +198,14 @@ export function poolsGsi1(poolId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Mobilisation
+// ---------------------------------------------------------------------------
+
+export function mobilisationKey(token: string) {
+  return { PK: `MOBILISATION#${token}`, SK: "META" } as const;
+}
+
+// ---------------------------------------------------------------------------
 // Query-prefix helpers (GSI/table partition values for query calls)
 // ---------------------------------------------------------------------------
 

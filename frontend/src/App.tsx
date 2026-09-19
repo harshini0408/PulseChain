@@ -15,6 +15,7 @@ import { TransfersPage } from "./pages/hospital/TransfersPage";
 import { EscalationMapPage } from "./pages/coordinator/EscalationMapPage";
 import { ParseRequestPage } from "./pages/coordinator/ParseRequestPage";
 import { PoolsPage } from "./pages/coordinator/PoolsPage";
+import { MobiliseResponsePage } from "./pages/public/MobiliseResponsePage";
 
 /** "/" sends each role to the console it actually works in. */
 function RootRedirect() {
@@ -40,6 +41,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/mobilise/:token" element={<MobiliseResponsePage />} />
 
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<RootRedirect />} />

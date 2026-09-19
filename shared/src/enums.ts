@@ -83,9 +83,17 @@ export const AUDIT_EVENT_TYPES = [
   "REQUISITION_CREATED",
   "REQUISITION_FILLED",
   "DONOR_TIER_TRIGGERED",
+  "MOBILISATION_ACKNOWLEDGED",
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 
 export const REQUISITION_SOURCES = ["MANUAL", "PARSED"] as const;
 export type RequisitionSource = (typeof REQUISITION_SOURCES)[number];
+
+export const MOBILISATION_STATUSES = [
+  "PENDING",
+  "ACKNOWLEDGED",
+  "EXPIRED",
+] as const;
+export type MobilisationStatus = (typeof MOBILISATION_STATUSES)[number];
 

@@ -16,6 +16,7 @@ import type {
   CompatibilityLevel,
   AuditEventType,
   PoolType,
+  MobilisationStatus,
 } from "./enums.js";
 
 // ---------------------------------------------------------------------------
@@ -167,4 +168,40 @@ export interface DonorPool {
   contactName: string;
   contactEmail: string;
   lastMobilisedAt: string | null;
+  lastMobilisationStatus?: MobilisationStatus | null;
+}
+
+export interface MobilisationRecord {
+  token: string;
+  poolId: string;
+  poolName: string;
+  requisitionId: string;
+  expiresAt: string;
+  status: MobilisationStatus;
+  hospitalId: string;
+  hospitalName: string;
+  hospitalCity: string;
+  component: Component;
+  bloodGroup: BloodGroup;
+  unitsRequested: number;
+  urgency: Urgency;
+  neededBy: string;
+  createdAt: string;
+  acknowledgedAt?: string | null;
+}
+
+export interface MobilisationSummary {
+  token: string;
+  poolId: string;
+  poolName: string;
+  hospitalName: string;
+  hospitalCity: string;
+  component: Component;
+  bloodGroup: BloodGroup;
+  unitsRequested: number;
+  urgency: Urgency;
+  neededBy: string;
+  status: MobilisationStatus;
+  expiresAt: string;
+  acknowledgedAt?: string | null;
 }

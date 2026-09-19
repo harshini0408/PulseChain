@@ -5,6 +5,7 @@
 
 import {
   escalationStatusToken,
+  mobilisationStatusToken,
   offerStatusToken,
   requisitionStatusToken,
   unitStatusToken,
@@ -12,7 +13,7 @@ import {
   type StatusToken,
 } from "../../lib/status";
 
-export type StatusKind = "unit" | "offer" | "requisition" | "escalation" | "urgency";
+export type StatusKind = "unit" | "offer" | "requisition" | "escalation" | "urgency" | "mobilisation";
 
 interface StatusPillProps {
   kind: StatusKind;
@@ -28,6 +29,7 @@ const resolvers: Record<StatusKind, (value: string) => StatusToken> = {
   requisition: requisitionStatusToken,
   escalation: escalationStatusToken,
   urgency: urgencyToken,
+  mobilisation: mobilisationStatusToken,
 };
 
 export function StatusPill({

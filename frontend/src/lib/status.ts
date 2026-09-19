@@ -15,6 +15,7 @@ import {
   type CompatibilityLevel,
   type Component,
   type EscalationStatus,
+  type MobilisationStatus,
   type OfferStatus,
   type RequisitionStatus,
   type UnitStatus,
@@ -381,6 +382,35 @@ export function componentToken(component: string): StatusToken {
 
 export function compatibilityToken(level: string): StatusToken {
   return COMPATIBILITY[level as CompatibilityLevel] ?? { ...UNKNOWN_STATUS, label: level };
+}
+
+// ---------------------------------------------------------------------------
+// Mobilisation status
+// ---------------------------------------------------------------------------
+
+export const MOBILISATION_STATUS: Record<MobilisationStatus, StatusToken> = {
+  PENDING: {
+    label: "Pending",
+    pill: "bg-status-open-bg text-status-open",
+    text: "text-status-open",
+    dot: "bg-status-open",
+  },
+  ACKNOWLEDGED: {
+    label: "Acknowledged",
+    pill: "bg-status-received-bg text-status-received",
+    text: "text-status-received",
+    dot: "bg-status-received",
+  },
+  EXPIRED: {
+    label: "Expired",
+    pill: "bg-status-expired-bg text-status-expired",
+    text: "text-status-expired",
+    dot: "bg-status-expired",
+  },
+};
+
+export function mobilisationStatusToken(status: string): StatusToken {
+  return MOBILISATION_STATUS[status as MobilisationStatus] ?? { ...UNKNOWN_STATUS, label: status };
 }
 
 // ---------------------------------------------------------------------------

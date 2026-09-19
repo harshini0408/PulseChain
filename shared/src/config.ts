@@ -28,6 +28,8 @@ export interface Config {
   sweepIntervalMinutes: number;
   /** Default unit value for impact dashboard */
   valuePerUnitInr: number;
+  /** Hours before a public community mobilisation token expires */
+  mobilisationExpiryHours: number;
   scoreWeights: {
     compatibility: number;
     distance: number;
@@ -75,6 +77,7 @@ export function getConfig(mode?: Mode): Config {
     offersPerRing: 3,
     sweepIntervalMinutes: 5,
     valuePerUnitInr: 1500,
+    mobilisationExpiryHours: 24,
     scoreWeights: {
       compatibility:    0.25,
       distance:         0.25,

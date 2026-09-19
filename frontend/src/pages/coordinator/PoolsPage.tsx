@@ -31,6 +31,7 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  StatusPill,
   useToast,
 } from "../../components/ui";
 import { formatRelative, pluralise } from "../../lib/format";
@@ -539,11 +540,19 @@ export function PoolsPage() {
                           {/* Last Mobilised */}
                           <td className="px-3 py-3 text-right last:pr-4">
                             {pool.lastMobilisedAt ? (
-                              <div>
+                              <div className="flex flex-col items-end gap-1">
                                 <Badge variant="accent" className="text-3xs">
                                   <Clock className="mr-1 h-2.5 w-2.5" />
                                   {formatRelative(pool.lastMobilisedAt)}
                                 </Badge>
+                                {pool.lastMobilisationStatus ? (
+                                  <StatusPill
+                                    kind="mobilisation"
+                                    value={pool.lastMobilisationStatus}
+                                    size="sm"
+                                    withDot
+                                  />
+                                ) : null}
                               </div>
                             ) : (
                               <span className="inline-flex items-center text-3xs text-text-subtle">

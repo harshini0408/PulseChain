@@ -16,22 +16,28 @@
  * - Atomic/conditional lastMobilisedAt update to prevent concurrent requisitions from racing on same pool.
  */
 
+import { randomUUID } from "crypto";
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import {
   isoNow,
   hoursBetween,
+  addHours,
+  getConfig,
   facilityKey,
   poolKey,
   requisitionKey,
+  mobilisationKey,
   type Component,
   type BloodGroup,
   type DonorPool,
   type Facility,
   type Requisition,
+  type MobilisationRecord,
 } from "@pulsechain/shared";
 import { haversineKm } from "@pulsechain/seed/src/distances-util.js";
-import { docClient, getItem, queryAll, requireTableName } from "../lib/db.js";
+import { docClient, getItem, putItem, queryAll, requireTableName } from "../lib/db.js";
 import { writeAuditEvent } from "../lib/audit.js";
+import { sendMobilisationEmailNotification } from "../lib/mobilisation-notifications.js";
 
 export interface DonorTierParams {
   requisitionId: string;
@@ -50,6 +56,7 @@ export interface SelectedPoolSummary {
   hasBloodGroup: boolean;
   donorCount: number;
   inCooldown: boolean;
+  token?: string;
 }
 
 export interface DonorTierResult {
@@ -136,16 +143,57 @@ export async function activateDonorTier(params: DonorTierParams): Promise<DonorT
         new UpdateCommand({
           TableName: requireTableName(),
           Key: poolKey(pool.poolId),
-          UpdateExpression: "SET lastMobilisedAt = :ts",
+          UpdateExpression: "SET lastMobilisedAt = :ts, lastMobilisationStatus = :pStatus",
           ConditionExpression:
             "attribute_not_exists(lastMobilisedAt) OR lastMobilisedAt = :nullVal OR lastMobilisedAt <= :cutoff",
           ExpressionAttributeValues: {
             ":ts": ts,
             ":nullVal": null,
             ":cutoff": cutoff24h,
+            ":pStatus": "PENDING",
           },
         }),
       );
+
+      // Generate unpredictable, single-use, time-limited token
+      const token = randomUUID().replace(/-/g, "");
+      const expiresAt = addHours(ts, getConfig().mobilisationExpiryHours);
+
+      const mobItem: MobilisationRecord = {
+        ...mobilisationKey(token),
+        token,
+        poolId: pool.poolId,
+        poolName: pool.name,
+        requisitionId: params.requisitionId,
+        expiresAt,
+        status: "PENDING",
+        hospitalId: params.facilityId,
+        hospitalName: hospital?.name ?? params.facilityId,
+        hospitalCity: hospital?.city ?? "Coimbatore",
+        component: params.component,
+        bloodGroup: params.bloodGroup,
+        unitsRequested: params.unitsRequested,
+        urgency: existingReq?.urgency ?? "NORMAL",
+        neededBy: existingReq?.neededBy ?? addHours(ts, 24),
+        createdAt: ts,
+        acknowledgedAt: null,
+      };
+
+      await putItem(mobItem);
+
+      // Send SES email to pool contact (non-blocking for sandbox / demo .invalid)
+      await sendMobilisationEmailNotification({
+        token,
+        poolId: pool.poolId,
+        poolName: pool.name,
+        contactName: pool.contactName,
+        contactEmail: pool.contactEmail,
+        component: params.component,
+        bloodGroup: params.bloodGroup,
+        unitsRequested: params.unitsRequested,
+        hospitalName: hospital?.name ?? params.facilityId,
+        hospitalCity: hospital?.city ?? "Coimbatore",
+      });
 
       successfullyMobilised.push({
         poolId: pool.poolId,
@@ -155,6 +203,7 @@ export async function activateDonorTier(params: DonorTierParams): Promise<DonorT
         hasBloodGroup: donorCount > 0,
         donorCount,
         inCooldown,
+        token,
       });
     } catch (err: any) {
       // If condition failed, another concurrent requisition mobilised this pool

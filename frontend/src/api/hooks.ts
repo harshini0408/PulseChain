@@ -17,7 +17,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import type { DonorPool, Facility, Offer, Requisition } from "@pulsechain/shared";
+import type { DonorPool, Facility, Offer, Requisition, MobilisationSummary } from "@pulsechain/shared";
 import {
   api,
   type ActiveEscalation,
@@ -48,6 +48,7 @@ export const queryKeys = {
   health: ["health"] as const,
   requisitions: (hospitalId: string | null) => ["requisitions", hospitalId] as const,
   pools: ["pools"] as const,
+  mobilisation: (token: string | null) => ["mobilisation", token] as const,
 };
 
 /**
@@ -305,3 +306,29 @@ export function useCreatePoolMutation() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Community Mobilisation
+// ---------------------------------------------------------------------------
+
+export function useMobilisationQuery(token: string | null | undefined) {
+  return useQuery<MobilisationSummary>({
+    queryKey: queryKeys.mobilisation(token ?? null),
+    queryFn: () => (token ? api.fetchMobilisation(token) : Promise.reject(new Error("No token provided"))),
+    enabled: Boolean(token),
+    retry: false,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useAcknowledgeMobilisationMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => api.acknowledgeMobilisation(token),
+    onSuccess: (_, token) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.mobilisation(token) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.pools });
+    },
+  });
+}
+
