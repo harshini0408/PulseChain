@@ -293,7 +293,7 @@ Resources:
       CodeUri: .
       Handler: src/api/units.handler
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
         - Statement:
             - Effect: Allow
@@ -302,6 +302,8 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Scan
                 - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
               Resource:
                 - !If
                   - CreateTable
@@ -320,6 +322,12 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /units/{id}
             Method: GET
+        BatchImportUnits:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /units/batch
+            Method: POST
     Metadata:
       BuildMethod: esbuild
       BuildProperties:

@@ -281,10 +281,26 @@ shifts the layout mid-shot.
 
 ## 7. What is deliberately not built
 
-- `/donor`, `/donor/register`, `/community/*` — no endpoints, no `shared`
-  types beyond `DonorPool`, and out of scope.
+**Status updated after Blocks 1–3 (September 2026).**
+
+Items previously listed as missing that are now implemented:
+
+| Item | Was | Now |
+|---|---|---|
+| `POST /requisitions`, `GET /requisitions` | `backend/src/api/requisitions.ts` was `export {}` — not deployed | Block 1: real handler, Zod-validated, writes `REQ#` item + audit event, starts `RequisitionEscalationStateMachine` |
+| `POST /pools`, `GET /pools` | No endpoints, `DonorPool` type existed in `shared` only | Block 2: real coordinator-managed pool CRUD; `POOL#<id>` key shape; GSI1 `POOLS` partition |
+| `/mobilise/:token` (public unauthenticated) | No donor or community routes at all | Block 3: secure one-time acknowledgement link; atomic DynamoDB transaction; SES notification via `mobilisation-notifications.ts` |
+
+Items that remain deliberately out of scope:
+
+- `/donor`, `/donor/register` — individual donor registration and accounts.
+  Community pools are aggregate-count only; no individual donor directory
+  exists and none will be built.
 - A dark theme. One theme done properly beats two done partly, and this is a
   daytime demo.
 - A network-wide offer list on the coordinator map, and a fetched audit trail
   on unit detail. Both need endpoints that do not exist; both are stated on
   screen rather than faked.
+- RFID, barcode scanning, cold-chain telemetry, e-RaktKosh/BBMS integration,
+  demand forecasting, and courier routing — all remain roadmap items per
+  `docs/LEARNINGS.md`.

@@ -237,6 +237,21 @@ export const api = {
   /** POST /demo/reset */
   triggerReset: () => request<ResetResponse>("/demo/reset", { method: "POST" }),
 
+  /** POST /units/batch — blood centre CSV bulk import (max 20 units) */
+  logUnitBatch: (units: Array<{
+    component: string;
+    bloodGroup: string;
+    volumeMl: number;
+    valueInr: number;
+    collectedAt: string;
+    expiresAt: string;
+  }>) =>
+    request<{
+      imported: number;
+      total: number;
+      results: Array<{ unitId: string; status: "ok" | "error"; error?: string }>;
+    }>("/units/batch", { method: "POST", body: { units } }),
+
   /** GET /health — drives the connection dot in the top bar. */
   fetchHealth: async (): Promise<HealthProbe> => {
     const started = performance.now();
