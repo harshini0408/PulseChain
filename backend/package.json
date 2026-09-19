@@ -5,7 +5,10 @@
   "scripts": {
     "build": "tsc --noEmit",
     "test": "vitest run",
-    "test:core": "tsx --env-file=../.env tests/run-acceptance.ts"
+    "test:core": "tsx --env-file=../.env tests/run-acceptance.ts",
+    "test:requisitions": "tsx --env-file=../.env tests/run-requisition-tests.ts",
+    "test:fulfillment": "tsx --env-file=../.env tests/run-fulfillment-tests.ts",
+    "test:workflow": "tsx --env-file=../.env tests/run-workflow-tests.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.645.0",

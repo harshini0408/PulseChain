@@ -82,6 +82,9 @@ export interface BloodUnit {
   receivedAt?: string;
   lostAt?: string;
   activeEscalationId?: string;
+  reservedForRequisitionId?: string;
+  reservedAt?: string;
+  reservedByFacilityId?: string;
 }
 
 export interface MatchBreakdown {
@@ -126,18 +129,48 @@ export interface Escalation {
 }
 
 export interface Requisition {
+  id: string;
   reqId: string;
+  facilityId: string;
   hospitalId: string;
   component: Component;
   bloodGroup: BloodGroup;
   unitsRequested: number;
+  unitsFulfilled: number;
   unitsFilled: number;
+  unitsRemaining?: number;
   urgency: Urgency;
+  requiredBy: string; // ISO UTC
   neededBy: string; // ISO UTC
   status: RequisitionStatus;
   source: RequisitionSource;
   rawText?: string;
   createdAt: string; // ISO UTC
+  updatedAt?: string; // ISO UTC
+  createdBy?: string;
+  executionArn?: string;
+  lastSearchAt?: string;
+  donorEscalationStartedAt?: string;
+  donorEscalationStatus?: string;
+  failureReason?: string;
+  reservedUnitIds?: string[];
+  cancelledAt?: string;
+  cancelledBy?: string;
+  cancelReason?: string;
+  securedUnits?: SecuredUnitSummary[];
+}
+
+export interface SecuredUnitSummary {
+  unitId: string;
+  component: Component;
+  bloodGroup: BloodGroup;
+  facilityId: string;
+  facilityName?: string;
+  status: UnitStatus;
+  reservedAt?: string;
+  expiresAt: string;
+  compatibilityLevel?: string;
+  notes?: string;
 }
 
 export interface AuditEvent {

@@ -69,21 +69,28 @@ export async function listRequisitions(hospitalId: string): Promise<Requisition[
   );
 }
 
-/** Mirrors `POST /requisitions` as it would behave. */
+/** Mirrors `POST /requisitions` as it would behave (isolated fallback only). */
 export async function createRequisition(input: CreateRequisitionInput): Promise<Requisition> {
+  const reqId = nextReqId();
+  const now = new Date().toISOString();
   const requisition: Requisition = {
-    reqId: nextReqId(),
+    id: reqId,
+    reqId,
+    facilityId: input.hospitalId,
     hospitalId: input.hospitalId,
     component: input.component,
     bloodGroup: input.bloodGroup,
     unitsRequested: input.unitsRequested,
+    unitsFulfilled: 0,
     unitsFilled: 0,
     urgency: input.urgency,
+    requiredBy: input.neededBy,
     neededBy: input.neededBy,
     status: "OPEN",
     source: input.source ?? "MANUAL",
     rawText: input.rawText,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
   };
 
   const rows = store.get(input.hospitalId) ?? [];
@@ -92,5 +99,5 @@ export async function createRequisition(input: CreateRequisitionInput): Promise<
   return requisition;
 }
 
-/** True while requisitions are session-local. Flip to false with the swap above. */
-export const REQUISITIONS_ARE_SESSION_LOCAL = true;
+/** Kept only for isolated demo/offline fallback. Production data path uses DynamoDB API. */
+export const REQUISITIONS_ARE_SESSION_LOCAL = false;

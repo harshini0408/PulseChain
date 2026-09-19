@@ -19,8 +19,9 @@ import {
   type Component,
   type UnitStatus,
   type OfferStatus,
+  type BloodUnit,
 } from "@pulsechain/shared";
-import { transact, type TransactItem } from "./db.js";
+import { getItem, transact, type TransactItem } from "./db.js";
 import { buildAuditTransactItem } from "./audit.js";
 
 // ---------------------------------------------------------------------------
@@ -77,6 +78,133 @@ export async function transitionAvailableToRescuePending(params: {
   };
 
   await transact([unitUpdate, auditItem]);
+}
+
+/**
+ * AVAILABLE → RESERVED
+ * Atomically reserves an available blood unit for a hospital requisition.
+ * Removes unit from sparse GSI1 queue (QUEUE#AVAILABLE#...) to prevent double-allocation.
+ */
+export async function transitionAvailableToReserved(params: {
+  unitId: string;
+  requisitionId: string;
+  reservedByFacilityId: string;
+  actorFacilityId?: string | null;
+  timestamp?: string;
+}): Promise<void> {
+  const ts = params.timestamp ?? isoNow();
+  const key = unitKey(params.unitId);
+
+  const { transactItem: auditItem } = buildAuditTransactItem({
+    eventType: "UNIT_RESERVED",
+    subjectType: "UNIT",
+    subjectId: params.unitId,
+    actorFacilityId: params.actorFacilityId ?? params.reservedByFacilityId,
+    timestamp: ts,
+    details: {
+      fromStatus: "AVAILABLE",
+      toStatus: "RESERVED",
+      requisitionId: params.requisitionId,
+      reservedByFacilityId: params.reservedByFacilityId,
+    },
+  });
+
+  const unitUpdate: TransactItem = {
+    Update: {
+      Key: key,
+      UpdateExpression:
+        "SET #status = :newStatus, reservedForRequisitionId = :reqId, reservedByFacilityId = :facId, reservedAt = :ts, version = if_not_exists(version, :zero) + :inc REMOVE GSI1PK, GSI1SK",
+      ConditionExpression: "#status = :expectedStatus AND attribute_not_exists(reservedForRequisitionId)",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":expectedStatus": "AVAILABLE" satisfies UnitStatus,
+        ":newStatus": "RESERVED" satisfies UnitStatus,
+        ":reqId": params.requisitionId,
+        ":facId": params.reservedByFacilityId,
+        ":ts": ts,
+        ":inc": 1,
+        ":zero": 0,
+      },
+    },
+  };
+
+  await transact([unitUpdate, auditItem]);
+}
+
+/**
+ * RESERVED → AVAILABLE
+ * Reverses a reservation when a requisition is cancelled or reservation is abandoned.
+ * Restores unit to sparse GSI1 queue (QUEUE#AVAILABLE#<component>) so it re-enters regional supply.
+ * Verifies unit is currently RESERVED and was reserved specifically for the given requisition.
+ */
+export async function transitionReservedToAvailable(params: {
+  unitId: string;
+  requisitionId: string;
+  actorFacilityId?: string | null;
+  reason?: string;
+  timestamp?: string;
+}): Promise<boolean> {
+  const ts = params.timestamp ?? isoNow();
+  const key = unitKey(params.unitId);
+
+  // Fetch unit to retrieve component and expiresAt to rebuild GSI1 keys
+  const unit = await getItem<BloodUnit>(key.PK, key.SK);
+  if (!unit) {
+    throw new Error(`Unit ${params.unitId} not found`);
+  }
+
+  // Safety checks: must be RESERVED and reserved for THIS requisition
+  if (unit.status !== "RESERVED" || unit.reservedForRequisitionId !== params.requisitionId) {
+    // If unit has progressed (e.g. IN_TRANSIT, RECEIVED, CLAIMED) or belongs to another requisition, DO NOT rollback
+    return false;
+  }
+
+  const { transactItem: auditItem } = buildAuditTransactItem({
+    eventType: "UNIT_RESERVATION_RELEASED",
+    subjectType: "UNIT",
+    subjectId: params.unitId,
+    actorFacilityId: params.actorFacilityId ?? unit.facilityId,
+    timestamp: ts,
+    details: {
+      fromStatus: "RESERVED",
+      toStatus: "AVAILABLE",
+      requisitionId: params.requisitionId,
+      reason: params.reason ?? "Requisition cancelled",
+      releasedAt: ts,
+    },
+  });
+
+  const unitUpdate: TransactItem = {
+    Update: {
+      Key: key,
+      UpdateExpression:
+        "SET #status = :newStatus, GSI1PK = :gsi1pk, GSI1SK = :gsi1sk, version = if_not_exists(version, :zero) + :inc REMOVE reservedForRequisitionId, reservedByFacilityId, reservedAt",
+      ConditionExpression:
+        "#status = :expectedStatus AND reservedForRequisitionId = :reqId",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":expectedStatus": "RESERVED" satisfies UnitStatus,
+        ":newStatus": "AVAILABLE" satisfies UnitStatus,
+        ":reqId": params.requisitionId,
+        ":gsi1pk": `QUEUE#AVAILABLE#${unit.component}`,
+        ":gsi1sk": `${unit.expiresAt}#${unit.unitId}`,
+        ":inc": 1,
+        ":zero": 0,
+      },
+    },
+  };
+
+  try {
+    await transact([unitUpdate, auditItem]);
+    return true;
+  } catch (err: any) {
+    console.warn(`[transitions] Failed to release reservation for unit ${params.unitId}:`, err.message);
+    return false;
+  }
 }
 
 /**

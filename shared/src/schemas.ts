@@ -26,17 +26,25 @@ export type CreateUnitInput = z.infer<typeof createUnitSchema>;
 // ---------------------------------------------------------------------------
 // POST /requisitions — create a manual or parsed blood request
 // ---------------------------------------------------------------------------
-export const createRequisitionSchema = z.object({
-  hospitalId: z.string().min(1),
-  component: z.enum(COMPONENTS),
-  bloodGroup: z.enum(BLOOD_GROUPS),
-  unitsRequested: z.number().int().positive(),
-  urgency: z.enum(URGENCY_LEVELS).default("NORMAL"),
-  neededBy: z.string().datetime({ offset: true }),
-  source: z.enum(REQUISITION_SOURCES).default("MANUAL"),
-  rawText: z.string().optional(),
-});
+export const createRequisitionSchema = z
+  .object({
+    hospitalId: z.string().min(1).optional(),
+    facilityId: z.string().min(1).optional(),
+    component: z.enum(COMPONENTS),
+    bloodGroup: z.enum(BLOOD_GROUPS),
+    unitsRequested: z.number().int().positive(),
+    urgency: z.enum(URGENCY_LEVELS).default("NORMAL"),
+    neededBy: z.string().datetime({ offset: true }).optional(),
+    requiredBy: z.string().datetime({ offset: true }).optional(),
+    source: z.enum(REQUISITION_SOURCES).default("MANUAL"),
+    rawText: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.neededBy || data.requiredBy), {
+    message: "Either requiredBy or neededBy must be provided as a valid ISO datetime",
+    path: ["requiredBy"],
+  });
 export type CreateRequisitionInput = z.infer<typeof createRequisitionSchema>;
+
 
 // ---------------------------------------------------------------------------
 // Parsed requisition schema — from free text (Tamil / Hindi / English)

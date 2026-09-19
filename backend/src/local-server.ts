@@ -49,6 +49,12 @@ function parsePathParameters(path: string): Record<string, string> {
     params.id = segments[1];
   }
 
+  // /requisitions/{id}
+  if (segments[0] === "requisitions" && segments[1]) {
+    params.reqId = segments[1];
+    params.id = segments[1];
+  }
+
   // /communities/{id}/alerts/{alertId}/respond or /communities/{id}
   if (segments[0] === "communities" && segments[1]) {
     params.communityId = segments[1];
@@ -65,7 +71,7 @@ const server = http.createServer(async (req, res) => {
   // Permissive CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-facility-id, x-community-id, x-role");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-facility-id, x-community-id, x-role, x-user-role, x-user-id, Idempotency-Key, idempotency-key");
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);

@@ -137,6 +137,8 @@ Resources:
           - Authorization
           - X-Facility-Id
           - X-User-Role
+          - Idempotency-Key
+          - idempotency-key
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
         Authorizers:
@@ -330,6 +332,76 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/api/transfers.ts
+
+  RequisitionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/api/requisitions.handler
+      Environment:
+        Variables:
+          REQUISITION_ESCALATION_STATE_MACHINE_ARN: !Ref RequisitionEscalationStateMachine
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:BatchGetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !If
+                  - CreateTable
+                  - !Sub "${PulseChainTable.Arn}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingTableName}/index/*"
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+                - states:StopExecution
+              Resource: !Ref RequisitionEscalationStateMachine
+      Events:
+        CreateRequisition:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /requisitions
+            Method: POST
+        GetRequisitions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /requisitions
+            Method: GET
+        GetRequisitionById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /requisitions/{id}
+            Method: GET
+        CancelRequisition:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /requisitions/{id}/cancel
+            Method: POST
+        GetRequisitionEvents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /requisitions/{id}/events
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/api/requisitions.ts
 
   DashboardFunction:
     Type: AWS::Serverless::Function
@@ -659,13 +731,15 @@ Resources:
       CodeUri: .
       Handler: src/workers/requisition-search.handler
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !If [CreateTable, !Ref PulseChainTable, !Ref ExistingTableName]
         - Statement:
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
                 - dynamodb:Query
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
               Resource:
                 - !If
                   - CreateTable

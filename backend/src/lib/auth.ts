@@ -18,12 +18,12 @@ export function getCallerContext(event: APIGatewayProxyEventV2): CallerContext {
     | Record<string, any>
     | undefined;
 
-  const facilityId =
+  let facilityId =
     claims?.["custom:facilityId"] ??
     claims?.["facilityId"] ??
     null;
 
-  const role =
+  let role =
     claims?.["custom:role"] ??
     claims?.["role"] ??
     (Array.isArray(claims?.["cognito:groups"])
@@ -31,10 +31,60 @@ export function getCallerContext(event: APIGatewayProxyEventV2): CallerContext {
       : claims?.["cognito:groups"]) ??
     null;
 
-  const userId =
+  let userId =
     claims?.["sub"] ??
     claims?.["username"] ??
     null;
+
+  // Fallback to decode Authorization Bearer token if claims not pre-populated by authorizer
+  const authHeader = event.headers?.["authorization"] ?? event.headers?.["Authorization"];
+  if ((!facilityId || !role) && authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    try {
+      const token = authHeader.slice(7);
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
+        if (!facilityId) {
+          facilityId = payload["custom:facilityId"] ?? payload["facilityId"] ?? null;
+        }
+        if (!role) {
+          role =
+            payload["custom:role"] ??
+            payload["role"] ??
+            (Array.isArray(payload["cognito:groups"])
+              ? payload["cognito:groups"][0]
+              : payload["cognito:groups"]) ??
+            null;
+        }
+        if (!userId) {
+          userId = payload["sub"] ?? payload["username"] ?? null;
+        }
+      }
+    } catch {
+      // ignore invalid bearer tokens
+    }
+  }
+
+  // Fallback to dev/test headers if still not determined
+  if (!facilityId) {
+    facilityId =
+      event.headers?.["x-facility-id"] ??
+      event.headers?.["X-Facility-Id"] ??
+      null;
+  }
+  if (!role) {
+    role =
+      event.headers?.["x-user-role"] ??
+      event.headers?.["x-role"] ??
+      event.headers?.["X-User-Role"] ??
+      null;
+  }
+  if (!userId) {
+    userId =
+      event.headers?.["x-user-id"] ??
+      event.headers?.["X-User-Id"] ??
+      null;
+  }
 
   return { facilityId, role, userId };
 }

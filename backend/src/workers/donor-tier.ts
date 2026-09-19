@@ -42,12 +42,19 @@ export interface DonorTierInput {
   requisitionId?: string;
   escalationId?: string;
   unitId?: string;
+  unitsRemaining?: number;
+  unitsRequested?: number;
+  unitsFulfilled?: number;
+  status?: string;
 }
 
 export interface DonorTierOutput {
   triggered: boolean;
   reqId?: string;
   reason?: string;
+  unitsRemaining?: number;
+  unitsTargeted?: number;
+  alreadyMobilized?: boolean;
   communitiesAlerted: Array<{
     communityId: string;
     name: string;
@@ -80,8 +87,60 @@ export async function handler(event: DonorTierInput): Promise<DonorTierOutput> {
     };
   }
 
+  // Calculate remaining units needed
+  const unitsFulfilled = req.unitsFulfilled ?? req.unitsFilled ?? 0;
+  const unitsRemaining = event.unitsRemaining ?? (req.unitsRemaining ?? Math.max(0, req.unitsRequested - unitsFulfilled));
+
+  // If already fully fulfilled or cancelled, do not trigger donor tier
+  if (req.status === "CANCELLED" || req.status === "CLOSED") {
+    return {
+      triggered: false,
+      reqId,
+      reason: "Requisition was cancelled; aborting donor mobilisation",
+      communitiesAlerted: [],
+    };
+  }
+
+  if (unitsRemaining <= 0 || req.status === "FULFILLED" || req.status === "FILLED") {
+    return {
+      triggered: false,
+      reqId,
+      reason: "Requisition already fulfilled from institutional inventory",
+      communitiesAlerted: [],
+    };
+  }
+
+  // Idempotency: Check if alerts were already generated for this requisition
+  const existingAlerts = await queryAll<CommunityAlert & Record<string, any>>({
+    indexName: "GSI2",
+    keyCondition: "GSI2PK = :pk",
+    values: {
+      ":pk": `REQ#${reqId}#ALERTS`,
+    },
+  });
+
+  if ((existingAlerts && existingAlerts.length > 0) || req.status === "DONOR_MOBILIZING" || req.status === "EXHAUSTED") {
+    console.log(`[donor-tier] Requisition ${reqId} already processed by donor tier (status=${req.status}, alerts=${existingAlerts?.length ?? 0}).`);
+    return {
+      triggered: true,
+      reqId,
+      alreadyMobilized: true,
+      unitsTargeted: unitsRemaining,
+      unitsRemaining,
+      reason: `Donor tier already activated for requisition ${reqId} (status: ${req.status})`,
+      communitiesAlerted: (existingAlerts ?? []).map((a) => ({
+        communityId: a.communityId,
+        name: a.communityId,
+        eligibleCount: a.eligibleMatchingCount ?? 0,
+        score: a.score ?? 1.0,
+        rank: a.rank ?? 1,
+      })),
+    };
+  }
+
   // Fetch requesting hospital location
-  const hospKeys = facilityKey(req.hospitalId);
+  const hospitalId = req.facilityId || req.hospitalId;
+  const hospKeys = facilityKey(hospitalId);
   const hospital = await getItem<Facility & WithKeys<Facility>>(hospKeys.PK, hospKeys.SK);
   const hospLat = hospital?.lat ?? 11.0168;
   const hospLng = hospital?.lng ?? 76.9558;
@@ -136,9 +195,31 @@ export async function handler(event: DonorTierInput): Promise<DonorTierOutput> {
 
   const communityIds = Object.keys(eligibleDonorsByCommunity);
   if (communityIds.length === 0) {
+    // If no eligible community donors found matching, mark EXHAUSTED
+    await putItem({
+      ...req,
+      status: "EXHAUSTED",
+      unitsRemaining,
+      updatedAt: nowIso,
+    });
+    await writeAuditEvent({
+      eventType: "REQUISITION_EXHAUSTED",
+      subjectType: "REQUISITION",
+      subjectId: reqId,
+      actorFacilityId: hospitalId,
+      details: {
+        reqId,
+        unitsRequested: req.unitsRequested,
+        unitsRemaining,
+        reason: "No eligible community donors found matching compatible groups",
+      },
+    });
+
     return {
       triggered: true,
       reqId,
+      unitsTargeted: unitsRemaining,
+      unitsRemaining,
       reason: "No eligible community donors found matching compatible groups",
       communitiesAlerted: [],
     };
@@ -211,13 +292,13 @@ export async function handler(event: DonorTierInput): Promise<DonorTierOutput> {
       alertId,
       communityId: item.community.communityId,
       reqId,
-      hospitalId: req.hospitalId,
+      hospitalId,
       hospitalName: hospName,
       component: req.component,
       bloodGroup: req.bloodGroup,
-      unitsNeeded: req.unitsRequested - req.unitsFilled,
+      unitsNeeded: unitsRemaining, // ONLY the remaining need!
       urgency: req.urgency,
-      neededBy: req.neededBy,
+      neededBy: req.requiredBy || req.neededBy,
       eligibleMatchingCount: item.eligibleCount, // Count only, NO donor names
       score: item.score,
       rank,
@@ -247,15 +328,13 @@ export async function handler(event: DonorTierInput): Promise<DonorTierOutput> {
     });
   }
 
-  // 5. Update Requisition status to DONOR_TIER
+  // 5. Update Requisition status to DONOR_MOBILIZING
   await putItem({
-    ...reqKeys,
-    GSI1PK: `OPENREQ#${req.component}`,
-    GSI1SK: `${req.bloodGroup}#${req.neededBy}`,
-    GSI2PK: `FACILITY#${req.hospitalId}#REQS`,
-    GSI2SK: req.neededBy,
     ...req,
-    status: "DONOR_TIER",
+    status: "DONOR_MOBILIZING",
+    unitsRemaining,
+    donorEscalationStartedAt: nowIso,
+    updatedAt: nowIso,
   });
 
   // 6. Write DONOR_TIER_TRIGGERED audit event
@@ -263,11 +342,14 @@ export async function handler(event: DonorTierInput): Promise<DonorTierOutput> {
     eventType: "DONOR_TIER_TRIGGERED",
     subjectType: "REQUISITION",
     subjectId: reqId,
-    actorFacilityId: req.hospitalId,
+    actorFacilityId: hospitalId,
     details: {
       reqId,
       bloodGroup: req.bloodGroup,
       component: req.component,
+      unitsRequested: req.unitsRequested,
+      unitsFulfilled,
+      unitsRemaining,
       communitiesCount: alertedResults.length,
       communitiesAlerted: alertedResults.map((c) => ({
         communityId: c.communityId,
@@ -282,6 +364,8 @@ export async function handler(event: DonorTierInput): Promise<DonorTierOutput> {
   return {
     triggered: true,
     reqId,
+    unitsTargeted: unitsRemaining,
+    unitsRemaining,
     communitiesAlerted: alertedResults,
   };
 }

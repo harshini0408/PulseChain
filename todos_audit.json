@@ -1,0 +1,87 @@
+[
+  {
+    "file": "backend\\src\\lib\\ses.ts",
+    "line": 18,
+    "text": "`[SES MOCK] Email notification sent to ${params.toEmail} for Offer ${params.offer.offerId} (Unit ${params.unit.unitId}, Group ${params.unit.bloodGroup} ${params.unit.component}). Claim by: ${params.offer.claimBy}`"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 42,
+    "text": "function mockEvent(params: {"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 157,
+    "text": "const sweepEvt = mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 208,
+    "text": "const inboxEvt = mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 231,
+    "text": "const unauthEvt = mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 248,
+    "text": "const claimEvt = mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 394,
+    "text": "mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 402,
+    "text": "mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 501,
+    "text": "const inTransitEvt = mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 520,
+    "text": "const receivedEvt = mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 539,
+    "text": "const stockEvt = mockEvent({"
+  },
+  {
+    "file": "backend\\tests\\run-acceptance.ts",
+    "line": 589,
+    "text": "const dashEvt = mockEvent({"
+  },
+  {
+    "file": "frontend\\src\\components\\dashboard\\FacilityDetailDrawer.tsx",
+    "line": 44,
+    "text": "// Deterministic mock / seeded activity derived reliably per facility ID"
+  },
+  {
+    "file": "frontend\\src\\pages\\hospital\\RequisitionsPage.tsx",
+    "line": 5,
+    "text": "* stub with no route in template.yaml. This page therefore reads and writes"
+  },
+  {
+    "file": "package-lock.json",
+    "line": 2422,
+    "text": "\"node_modules/@vitest/mocker\": {"
+  },
+  {
+    "file": "package-lock.json",
+    "line": 2424,
+    "text": "\"resolved\": \"https://registry.npmjs.org/@vitest/mocker/-/mocker-2.1.9.tgz\","
+  },
+  {
+    "file": "package-lock.json",
+    "line": 5737,
+    "text": "\"@vitest/mocker\": \"2.1.9\","
+  }
+]

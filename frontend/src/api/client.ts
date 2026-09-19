@@ -10,7 +10,7 @@
  * to work outside React. AuthProvider is the only writer of that key.
  */
 
-import type { BloodUnit, Escalation, Facility, Offer } from "@pulsechain/shared";
+import type { BloodUnit, Escalation, Facility, Offer, Requisition } from "@pulsechain/shared";
 
 // ---------------------------------------------------------------------------
 // Response shapes the backend returns but shared/ does not declare
@@ -115,13 +115,14 @@ function getStoredAuthHeaders(): Record<string, string> {
 
 async function request<T>(
   path: string,
-  options: { method?: string; body?: unknown } = {},
+  options: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: options.method ?? "GET",
     headers: {
       "Content-Type": "application/json",
       ...getStoredAuthHeaders(),
+      ...(options.headers ?? {}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
@@ -242,12 +243,46 @@ export const api = {
     }
   },
 
+  /** GET /requisitions */
+  fetchRequisitions: (hospitalId?: string) => {
+    const q = hospitalId ? `?hospitalId=${encodeURIComponent(hospitalId)}` : "";
+    return request<Requisition[]>(`/requisitions${q}`);
+  },
+
+  /** GET /requisitions/:id */
+  fetchRequisition: (id: string) => request<Requisition>(`/requisitions/${id}`),
+
   /** POST /requisitions */
-  createRequisition: (data: any) =>
-    request<{ requisition: any }>("/requisitions", {
+  createRequisition: (data: any, idempotencyKey?: string) =>
+    request<Requisition>("/requisitions", {
       method: "POST",
       body: data,
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     }),
+
+  /** POST /requisitions/:id/cancel */
+  cancelRequisition: (id: string, reason?: string) =>
+    request<{ success: boolean; requisition: Requisition; releasedReservationsCount: number }>(
+      `/requisitions/${id}/cancel`,
+      {
+        method: "POST",
+        body: { reason },
+      },
+    ),
+
+  /** GET /requisitions/:id/events */
+  fetchRequisitionEvents: (id: string) =>
+    request<{
+      requisitionId: string;
+      events: Array<{
+        eventId: string;
+        eventType: string;
+        timestamp: string;
+        title: string;
+        summary: string;
+        metadata?: any;
+      }>;
+    }>(`/requisitions/${id}/events`),
 
   // ---------------------------------------------------------------------------
   // Donors

@@ -4,6 +4,7 @@ import {
   GetCommand,
   PutCommand,
   QueryCommand,
+  UpdateCommand,
   TransactWriteCommand,
   type TransactWriteCommandInput,
 } from "@aws-sdk/lib-dynamodb";
@@ -94,6 +95,25 @@ export async function putItem<T extends Record<string, any>>(
       ConditionExpression: condition,
       ExpressionAttributeValues: conditionValues,
       ExpressionAttributeNames: conditionNames,
+    })
+  );
+}
+
+export async function updateItem(params: {
+  Key: { PK: string; SK: string };
+  UpdateExpression: string;
+  ExpressionAttributeValues?: Record<string, any>;
+  ExpressionAttributeNames?: Record<string, string>;
+  ConditionExpression?: string;
+}): Promise<void> {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: requireTableName(),
+      Key: params.Key,
+      UpdateExpression: params.UpdateExpression,
+      ExpressionAttributeValues: params.ExpressionAttributeValues,
+      ExpressionAttributeNames: params.ExpressionAttributeNames,
+      ConditionExpression: params.ConditionExpression,
     })
   );
 }

@@ -17,7 +17,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import type { Facility, Offer, Requisition } from "@pulsechain/shared";
+import type { CreateRequisitionInput, Facility, Offer, Requisition } from "@pulsechain/shared";
 import {
   api,
   type ActiveEscalation,
@@ -25,11 +25,6 @@ import {
   type HealthProbe,
   type StockUnit,
 } from "./client";
-import {
-  createRequisition,
-  listRequisitions,
-  type CreateRequisitionInput,
-} from "./requisitionsAdapter";
 
 export const POLL_INTERVAL_MS = 3500;
 
@@ -47,6 +42,8 @@ export const queryKeys = {
   dashboard: (from?: string, to?: string) => ["dashboard", from, to] as const,
   health: ["health"] as const,
   requisitions: (hospitalId: string | null) => ["requisitions", hospitalId] as const,
+  requisition: (id: string | null) => ["requisition", id] as const,
+  requisitionEvents: (id: string | null) => ["requisition-events", id] as const,
 };
 
 /**
@@ -259,26 +256,78 @@ export function useResetMutation() {
 // ---------------------------------------------------------------------------
 // Requisitions
 //
-// These read and write ./requisitionsAdapter.ts, which is session-local because
-// the requisitions API is not deployed. The hook names and signatures are the
-// ones the real endpoint would use, so when it ships only the adapter import
-// below changes.
+// Persistent, DynamoDB-backed queries and mutations via deployed API routes.
 // ---------------------------------------------------------------------------
 
 export function useRequisitionsQuery(hospitalId: string | null) {
   return useQuery<Requisition[]>({
     queryKey: queryKeys.requisitions(hospitalId),
-    queryFn: () => listRequisitions(hospitalId as string),
+    queryFn: () => api.fetchRequisitions(hospitalId as string),
     enabled: Boolean(hospitalId),
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useRequisitionQuery(id: string | null) {
+  return useQuery<Requisition>({
+    queryKey: queryKeys.requisition(id),
+    queryFn: () => api.fetchRequisition(id as string),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data) return POLL_INTERVAL_MS;
+      const terminalStatuses = ["FULFILLED", "CANCELLED", "EXPIRED", "EXHAUSTED", "CLOSED"];
+      if (terminalStatuses.includes(data.status)) {
+        return false;
+      }
+      return POLL_INTERVAL_MS;
+    },
+  });
+}
+
+export function useRequisitionEventsQuery(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.requisitionEvents(id),
+    queryFn: () => api.fetchRequisitionEvents(id as string),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      // Query events at same cadence or stop if parent requisition query is terminal
+      return POLL_INTERVAL_MS;
+    },
+  });
+}
+
+export function useCancelRequisitionMutation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      api.cancelRequisition(id, reason),
+    onSuccess: (_data, variables) => {
+      client.invalidateQueries({ queryKey: queryKeys.requisition(variables.id) });
+      client.invalidateQueries({ queryKey: queryKeys.requisitionEvents(variables.id) });
+      client.invalidateQueries({ queryKey: ["requisitions"] });
+    },
   });
 }
 
 export function useCreateRequisitionMutation() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateRequisitionInput) => createRequisition(input),
+    mutationFn: (input: CreateRequisitionInput & { idempotencyKey?: string }) => {
+      const { idempotencyKey, ...data } = input;
+      const key =
+        idempotencyKey ||
+        (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `IDEMP-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      return api.createRequisition(data, key);
+    },
     onSuccess: (created) => {
-      client.invalidateQueries({ queryKey: queryKeys.requisitions(created.hospitalId) });
+      const facilityId = created.facilityId || created.hospitalId;
+      if (facilityId) {
+        client.invalidateQueries({ queryKey: queryKeys.requisitions(facilityId) });
+      }
+      client.invalidateQueries({ queryKey: ["requisitions"] });
     },
   });
 }

@@ -163,6 +163,14 @@ export function hospitalReqsGsi2(hospitalId: string, neededBy: string) {
   } as const;
 }
 
+/** PK + SK for requisition idempotency record */
+export function idempotencyKey(facilityId: string, key: string) {
+  return {
+    PK: `IDEMPOTENCY#${facilityId}#${key}`,
+    SK: "REQUISITION",
+  } as const;
+}
+
 // ---------------------------------------------------------------------------
 // Audit
 // ---------------------------------------------------------------------------

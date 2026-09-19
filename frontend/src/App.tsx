@@ -11,6 +11,7 @@ import { StockConsolePage } from "./pages/centre/StockConsolePage";
 import { UnitDetailPage } from "./pages/centre/UnitDetailPage";
 import { OfferInboxPage } from "./pages/hospital/OfferInboxPage";
 import { RequisitionsPage } from "./pages/hospital/RequisitionsPage";
+import { RequisitionDetailPage } from "./pages/hospital/RequisitionDetailPage";
 import { TransfersPage } from "./pages/hospital/TransfersPage";
 import { EscalationMapPage } from "./pages/coordinator/EscalationMapPage";
 import { ParseRequestPage } from "./pages/coordinator/ParseRequestPage";
@@ -80,6 +81,14 @@ export function App() {
           element={
             <RequireRole allowedRoles={["HOSPITAL"]}>
               <RequisitionsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/hospital/requisitions/:id"
+          element={
+            <RequireRole allowedRoles={["HOSPITAL"]}>
+              <RequisitionDetailPage />
             </RequireRole>
           }
         />
