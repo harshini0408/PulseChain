@@ -208,9 +208,36 @@ export const api = {
     } catch (err) {
       console.warn("[API] /facilities request failed, using static fallback facilities:", err);
       return [
-        { facilityId: "FAC_CBE_KMCH", name: "Kovai Medical Centre and Hospital", city: "Coimbatore", type: "HOSPITAL", lat: 11.0268, lng: 77.0345, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { facilityId: "FAC_CBE_SNS", name: "Coimbatore SNS Blood Centre", city: "Coimbatore", type: "BLOOD_CENTRE", lat: 11.0168, lng: 76.9558, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { facilityId: "FAC_CBE_PSG", name: "PSG Institute of Medical Sciences", city: "Coimbatore", type: "HOSPITAL", lat: 11.0255, lng: 77.0024, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        {
+          facilityId: "FAC_CBE_KMCH",
+          name: "Kovai Medical Centre and Hospital",
+          city: "Coimbatore",
+          type: "HOSPITAL",
+          lat: 11.0268,
+          lng: 77.0345,
+          components: ["RBC", "PLASMA", "PLATELETS"],
+          contactEmail: "kmch@example.invalid",
+        },
+        {
+          facilityId: "FAC_CBE_SNS",
+          name: "Coimbatore SNS Blood Centre",
+          city: "Coimbatore",
+          type: "BLOOD_CENTRE",
+          lat: 11.0168,
+          lng: 76.9558,
+          components: ["RBC", "PLASMA", "PLATELETS"],
+          contactEmail: "centre@example.invalid",
+        },
+        {
+          facilityId: "FAC_CBE_PSG",
+          name: "PSG Institute of Medical Sciences",
+          city: "Coimbatore",
+          type: "HOSPITAL",
+          lat: 11.0255,
+          lng: 77.0024,
+          components: ["RBC", "PLASMA", "PLATELETS"],
+          contactEmail: "psg@example.invalid",
+        },
       ];
     }
   },
