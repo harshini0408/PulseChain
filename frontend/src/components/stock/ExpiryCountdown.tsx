@@ -57,8 +57,8 @@ export function ExpiryCountdown({
         countdown.isExpired
           ? "This unit has passed its expiry"
           : critical
-            ? `Under ${CRITICAL_DISPLAY_HOURS} hours remaining — expires ${new Date(expiresAt).toLocaleString("en-IN")}`
-            : `Expires ${new Date(expiresAt).toLocaleString("en-IN")}`
+            ? `Under ${CRITICAL_DISPLAY_HOURS} hours remaining — expires ${expiresAt ? new Date(expiresAt).toLocaleString("en-IN") : "—"}`
+            : `Expires ${expiresAt ? new Date(expiresAt).toLocaleString("en-IN") : "—"}`
       }
     >
       {critical && <AlertTriangle className="h-3 w-3 flex-shrink-0" aria-hidden="true" />}

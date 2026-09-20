@@ -53,7 +53,7 @@ export const ImpactCounter: React.FC<ImpactCounterProps> = ({
       data-numeric="true"
     >
       {prefix && <span className="mr-0.5 opacity-80">{prefix}</span>}
-      <span>{current.toLocaleString()}</span>
+      <span>{(current ?? 0).toLocaleString()}</span>
       {suffix && <span className="ml-0.5 opacity-80">{suffix}</span>}
     </span>
   );

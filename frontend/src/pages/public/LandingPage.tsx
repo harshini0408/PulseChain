@@ -11,10 +11,21 @@ export function LandingPage() {
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#FAF6F6]">
-      {/* ── Background Illustration from Screenshot ───────────────────────── */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-cover bg-right-top bg-no-repeat opacity-95"
-        style={{ backgroundImage: "url('/image.png')" }}
+      {/* ── Background Illustration with positive-only upward micro-rotation ───── */}
+      <motion.div
+        animate={{
+          rotate: [0, 0.8, 0],
+        }}
+        transition={{
+          duration: 9,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="pointer-events-none absolute inset-0 bg-cover bg-right-top bg-no-repeat opacity-95 origin-bottom-right"
+        style={{
+          backgroundImage: "url('/image.png')",
+          transformOrigin: "100% 100%",
+        }}
         aria-hidden="true"
       />
 

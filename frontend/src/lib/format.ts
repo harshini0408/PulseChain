@@ -1,10 +1,3 @@
-/**
- * frontend/src/lib/format.ts
- *
- * Presentation helpers. Dates render in the Asia/Kolkata-facing en-IN locale
- * because every facility in the corridor is in Tamil Nadu.
- */
-
 import { formatDistanceToNowStrict } from "date-fns";
 
 export function formatDateTime(iso: string | undefined): string {
@@ -42,24 +35,26 @@ export function formatRelative(iso: string | undefined): string {
 }
 
 export function formatDistanceKm(km: number | undefined): string {
-  if (km === undefined || Number.isNaN(km)) return "—";
+  if (km === undefined || km === null || Number.isNaN(km)) return "—";
   return `${km.toFixed(1)} km`;
 }
 
-export function formatHoursMinutes(hours: number): string {
-  if (hours <= 0) return "0h 00m";
+export function formatHoursMinutes(hours: number | undefined | null): string {
+  if (hours === undefined || hours === null || hours <= 0) return "0h 00m";
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
 /** Full rupee amount, e.g. "₹1,23,500" — Indian digit grouping. */
-export function formatInr(value: number): string {
+export function formatInr(value: number | undefined | null): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "₹0";
   return `₹${Math.round(value).toLocaleString("en-IN")}`;
 }
 
 /** Compact rupee amount for stat tiles, e.g. "₹1.2L" / "₹84.0k". */
-export function formatInrCompact(value: number): string {
+export function formatInrCompact(value: number | undefined | null): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "₹0";
   const abs = Math.abs(value);
   if (abs >= 10_000_000) return `₹${(value / 10_000_000).toFixed(1)}Cr`;
   if (abs >= 100_000) return `₹${(value / 100_000).toFixed(1)}L`;
@@ -67,11 +62,13 @@ export function formatInrCompact(value: number): string {
   return `₹${Math.round(value)}`;
 }
 
-export function formatNumber(value: number): string {
+export function formatNumber(value: number | undefined | null): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "0";
   return value.toLocaleString("en-IN");
 }
 
 /** "3 units" / "1 unit". */
-export function pluralise(count: number, singular: string, plural = `${singular}s`): string {
-  return `${count} ${count === 1 ? singular : plural}`;
+export function pluralise(count: number | undefined | null, singular: string, plural = `${singular}s`): string {
+  const n = count ?? 0;
+  return `${n} ${n === 1 ? singular : plural}`;
 }
