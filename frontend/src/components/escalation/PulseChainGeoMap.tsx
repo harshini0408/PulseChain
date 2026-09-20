@@ -94,14 +94,16 @@ export function PulseChainGeoMap({
       attributionControl: false,
     });
 
-    // High quality, subtle cartographic tile layer matching PulseChain off-white / clean palette
-    L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-      {
-        maxZoom: 19,
-        subdomains: "abcd",
-      },
-    ).addTo(map);
+    // High quality tile layer: uses Carto if an API key is provided, or OpenStreetMap (free, no watermark)
+    const cartoKey = import.meta.env.VITE_CARTO_API_KEY as string | undefined;
+    const tileUrl = cartoKey
+      ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`
+      : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+    L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      subdomains: cartoKey ? "abcd" : "abc",
+    }).addTo(map);
 
     markersLayerRef.current = L.layerGroup().addTo(map);
     ringsLayerRef.current = L.layerGroup().addTo(map);
