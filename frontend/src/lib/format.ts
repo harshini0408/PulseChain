@@ -54,12 +54,14 @@ export function formatHoursMinutes(hours: number): string {
 }
 
 /** Full rupee amount, e.g. "₹1,23,500" — Indian digit grouping. */
-export function formatInr(value: number): string {
+export function formatInr(value: number | undefined | null): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "₹0";
   return `₹${Math.round(value).toLocaleString("en-IN")}`;
 }
 
 /** Compact rupee amount for stat tiles, e.g. "₹1.2L" / "₹84.0k". */
-export function formatInrCompact(value: number): string {
+export function formatInrCompact(value: number | undefined | null): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "₹0";
   const abs = Math.abs(value);
   if (abs >= 10_000_000) return `₹${(value / 10_000_000).toFixed(1)}Cr`;
   if (abs >= 100_000) return `₹${(value / 100_000).toFixed(1)}L`;
@@ -67,7 +69,8 @@ export function formatInrCompact(value: number): string {
   return `₹${Math.round(value)}`;
 }
 
-export function formatNumber(value: number): string {
+export function formatNumber(value: number | undefined | null): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "0";
   return value.toLocaleString("en-IN");
 }
 

@@ -16,7 +16,9 @@ interface SavedLostBarProps {
 }
 
 export function SavedLostBar({ unitsSaved, unitsLost }: SavedLostBarProps) {
-  const total = unitsSaved + unitsLost;
+  const safeSaved = unitsSaved || 0;
+  const safeLost = unitsLost || 0;
+  const total = safeSaved + safeLost;
 
   if (total === 0) {
     return (
@@ -26,7 +28,7 @@ export function SavedLostBar({ unitsSaved, unitsLost }: SavedLostBarProps) {
     );
   }
 
-  const savedPct = (unitsSaved / total) * 100;
+  const savedPct = (safeSaved / total) * 100;
   const lostPct = 100 - savedPct;
 
   return (
@@ -34,9 +36,9 @@ export function SavedLostBar({ unitsSaved, unitsLost }: SavedLostBarProps) {
       <div
         className="flex h-9 w-full gap-0.5 overflow-hidden rounded-lg"
         role="img"
-        aria-label={`${formatNumber(unitsSaved)} units saved, ${formatNumber(unitsLost)} lost, of ${formatNumber(total)} resolved`}
+        aria-label={`${formatNumber(safeSaved)} units saved, ${formatNumber(safeLost)} lost, of ${formatNumber(total)} resolved`}
       >
-        {unitsSaved > 0 && (
+        {safeSaved > 0 && (
           <div
             className="flex items-center justify-start rounded-l-lg bg-status-received pl-2.5 first:rounded-l-lg last:rounded-r-lg"
             style={{ width: `${savedPct}%` }}
