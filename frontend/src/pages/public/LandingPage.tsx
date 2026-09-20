@@ -170,13 +170,7 @@ export function LandingPage() {
         </motion.div>
       </section>
 
-      {/* ── Bottom Right Slogan matching screenshot ───────────────────────── */}
-      <div className="pointer-events-none hidden xl:block absolute right-16 bottom-16 text-right">
-        <p className="text-xs font-bold tracking-[0.2em] text-[#7A5858] uppercase leading-relaxed">
-          A SMALL ACT<br />
-          A BIG IMPACT
-        </p>
-      </div>
+
     </main>
   );
 }
