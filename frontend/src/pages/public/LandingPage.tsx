@@ -54,14 +54,14 @@ export function LandingPage() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/impact")}
+              onClick={() => navigate("/about")}
               className="hover:text-[#B71C1C] transition-colors"
             >
               About
             </button>
             <button
               type="button"
-              onClick={() => navigate("/impact")}
+              onClick={() => navigate("/donate")}
               className="hover:text-[#B71C1C] transition-colors"
             >
               Donate

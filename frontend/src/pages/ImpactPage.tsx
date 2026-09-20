@@ -43,14 +43,17 @@ export function ImpactPage() {
   const originFacility = facilityId ? byId.get(facilityId) ?? null : null;
 
   const totals = dashboard.data?.totals;
-  const history = dashboard.data?.history ?? [];
-  const activeRescues = (escalations ?? []).filter((e) => e.status === "RUNNING").length;
+  const history = Array.isArray(dashboard.data?.history) ? dashboard.data.history : [];
+  const activeRescues = Array.isArray(escalations)
+    ? escalations.filter((e) => e && e.status === "RUNNING").length
+    : 0;
 
   // ── Block 5: live-computed rates from existing endpoints ──────────────────
   // Mobilisation stats — each DonorPool carries lastMobilisedAt + lastMobilisationStatus
-  const poolsContacted = (pools ?? []).filter((p) => p.lastMobilisedAt != null).length;
-  const poolsAcknowledged = (pools ?? []).filter(
-    (p) => p.lastMobilisationStatus === "ACKNOWLEDGED",
+  const poolList = Array.isArray(pools) ? pools : [];
+  const poolsContacted = poolList.filter((p) => p && p.lastMobilisedAt != null).length;
+  const poolsAcknowledged = poolList.filter(
+    (p) => p && p.lastMobilisationStatus === "ACKNOWLEDGED",
   ).length;
   const mobilisationResponseRatePct =
     poolsContacted > 0
@@ -58,12 +61,12 @@ export function ImpactPage() {
       : null;
 
   // Requisition stats — from the current hospital's own list (available without re-deploy)
-  const reqList = requisitions ?? [];
+  const reqList = Array.isArray(requisitions) ? requisitions : [];
   const reqFilled = reqList.filter(
-    (r) => r.status === "FILLED" || r.status === "DONOR_TIER",
+    (r) => r && (r.status === "FILLED" || r.status === "DONOR_TIER"),
   ).length;
-  const reqPartial = reqList.filter((r) => r.status === "PARTIAL").length;
-  const reqOpen = reqList.filter((r) => r.status === "OPEN").length;
+  const reqPartial = reqList.filter((r) => r && r.status === "PARTIAL").length;
+  const reqOpen = reqList.filter((r) => r && r.status === "OPEN").length;
   const reqTotal = reqList.length;
   const fulfilmentRatePct =
     reqTotal > 0 ? Math.round((reqFilled / reqTotal) * 1000) / 10 : null;
@@ -254,7 +257,7 @@ export function ImpactPage() {
                       Saved today
                     </dt>
                     <dd className="mt-1 text-lg font-bold tabular-nums text-status-received" data-numeric="true">
-                      {formatNumber(dashboard.data.today.unitsSaved)}
+                      {formatNumber(dashboard.data.today.unitsSaved ?? 0)}
                     </dd>
                   </div>
                   <div>
@@ -262,7 +265,7 @@ export function ImpactPage() {
                       Lost today
                     </dt>
                     <dd className="mt-1 text-lg font-bold tabular-nums text-status-lost" data-numeric="true">
-                      {formatNumber(dashboard.data.today.unitsLost)}
+                      {formatNumber(dashboard.data.today.unitsLost ?? 0)}
                     </dd>
                   </div>
                 </dl>
@@ -277,11 +280,17 @@ export function ImpactPage() {
               </div>
 
               <ul className="max-h-80 space-y-2 overflow-y-auto pr-1">
-                {facilities.map((facility) => {
+                {(Array.isArray(facilities) ? facilities : []).map((facility) => {
+                  if (!facility) return null;
                   const isSelected = selectedFacility?.facilityId === facility.facilityId;
-                  const distanceKm = originFacility
-                    ? haversineKm(originFacility.lat, originFacility.lng, facility.lat, facility.lng)
-                    : null;
+                  const distanceKm =
+                    originFacility &&
+                    typeof originFacility.lat === "number" &&
+                    typeof originFacility.lng === "number" &&
+                    typeof facility.lat === "number" &&
+                    typeof facility.lng === "number"
+                      ? haversineKm(originFacility.lat, originFacility.lng, facility.lat, facility.lng)
+                      : null;
 
                   return (
                     <li key={facility.facilityId}>
