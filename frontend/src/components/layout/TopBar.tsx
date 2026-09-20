@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { LogOut, Building2, Hospital, Radio } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
 import { useFacilityLookup } from "../../api/hooks";
 import { Badge } from "../ui/Badge";
@@ -49,7 +49,14 @@ export function TopBar() {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold leading-tight text-text">{displayName}</p>
           <div className="flex items-center gap-2">
-            {role && <p className="text-2xs text-text-muted">{ROLE_LABEL[role]}</p>}
+            {role && (
+              <p className="inline-flex items-center gap-1.5 text-2xs text-text-muted">
+                {role === "BLOOD_CENTRE" && <Building2 className="h-3 w-3 text-accent" />}
+                {role === "HOSPITAL" && <Hospital className="h-3 w-3 text-accent" />}
+                {role === "COORDINATOR" && <Radio className="h-3 w-3 text-accent" />}
+                <span>{ROLE_LABEL[role]}</span>
+              </p>
+            )}
             <span className="text-2xs text-border-strong" aria-hidden="true">
               ·
             </span>

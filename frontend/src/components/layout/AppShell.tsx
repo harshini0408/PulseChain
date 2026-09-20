@@ -23,7 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-24 pt-5 sm:px-6 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-24 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pb-10 lg:pt-4">
           <div className="mx-auto w-full max-w-7xl">
             <PageTransition key={location.pathname}>{children}</PageTransition>
           </div>

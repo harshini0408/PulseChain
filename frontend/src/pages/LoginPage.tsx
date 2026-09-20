@@ -11,6 +11,8 @@ import { PulseLine } from "../components/motion/PulseLine";
 import { NetworkOrb } from "../components/visualizations/NetworkOrb";
 import { soundManager } from "../lib/soundManager";
 
+import { InteractivePinkBackground } from "../components/visualizations/InteractivePinkBackground";
+
 const PERSONA_ORDER: Role[] = ["BLOOD_CENTRE", "HOSPITAL", "COORDINATOR"];
 
 const PERSONA_ICON: Record<Role, typeof Building2> = {
@@ -76,12 +78,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="brand-field min-h-screen relative overflow-hidden">
-      {/* Ambient NetworkOrb background — very subtle */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-10">
-        <NetworkOrb size={800} subtle />
-      </div>
-
+    <InteractivePinkBackground>
       {/* Main content is immediately available; the splash only runs after a successful sign-in. */}
       <AnimatePresence>
           <motion.div
@@ -298,6 +295,6 @@ export function LoginPage() {
           <BloodDropIntro onComplete={() => navigate(successDestination, { replace: true })} />
         )}
       </AnimatePresence>
-    </div>
+    </InteractivePinkBackground>
   );
 }

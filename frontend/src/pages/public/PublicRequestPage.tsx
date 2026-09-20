@@ -29,6 +29,8 @@ import { createRequisition } from "../../api/requisitionsAdapter";
 /** Well-known placeholder: public requests have no authenticated facilityId. */
 const PUBLIC_HOSPITAL_ID = "PUBLIC";
 
+import { InteractivePinkBackground } from "../../components/visualizations/InteractivePinkBackground";
+
 export function PublicRequestPage() {
   const navigate = useNavigate();
   const [pending, setPending] = useState(false);
@@ -67,13 +69,7 @@ export function PublicRequestPage() {
   };
 
   return (
-    <div className="brand-field min-h-screen relative overflow-hidden">
-      {/* Ambient background */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-8">
-        <NetworkOrb size={700} subtle />
-      </div>
-
-      <div className="relative z-10">
+    <InteractivePinkBackground>
         {/* ── Top nav ──────────────────────────────────────────────────── */}
         <nav className="flex items-center justify-between px-6 py-5 sm:px-10">
           <button
@@ -203,7 +199,6 @@ export function PublicRequestPage() {
             )}
           </AnimatePresence>
         </div>
-      </div>
-    </div>
+    </InteractivePinkBackground>
   );
 }
