@@ -188,59 +188,14 @@ export const api = {
     }>(`/mobilise/${encodeURIComponent(token)}/acknowledge`, { method: "POST" }),
 
   /** GET /pools */
-  fetchPools: async (): Promise<DonorPool[]> => {
-    try {
-      return await request<DonorPool[]>("/pools");
-    } catch (err) {
-      console.warn("[API] /pools request failed, returning empty list:", err);
-      return [];
-    }
-  },
+  fetchPools: () => request<DonorPool[]>("/pools"),
 
   /** POST /pools */
   createPool: (pool: Partial<DonorPool>) =>
     request<DonorPool>("/pools", { method: "POST", body: pool }),
 
   /** GET /facilities */
-  fetchFacilities: async (): Promise<Facility[]> => {
-    try {
-      return await request<Facility[]>("/facilities");
-    } catch (err) {
-      console.warn("[API] /facilities request failed, using static fallback facilities:", err);
-      return [
-        {
-          facilityId: "FAC_CBE_KMCH",
-          name: "Kovai Medical Centre and Hospital",
-          city: "Coimbatore",
-          type: "HOSPITAL",
-          lat: 11.0268,
-          lng: 77.0345,
-          components: ["RBC", "PLASMA", "PLATELETS"],
-          contactEmail: "kmch@example.invalid",
-        },
-        {
-          facilityId: "FAC_CBE_SNS",
-          name: "Coimbatore SNS Blood Centre",
-          city: "Coimbatore",
-          type: "BLOOD_CENTRE",
-          lat: 11.0168,
-          lng: 76.9558,
-          components: ["RBC", "PLASMA", "PLATELETS"],
-          contactEmail: "centre@example.invalid",
-        },
-        {
-          facilityId: "FAC_CBE_PSG",
-          name: "PSG Institute of Medical Sciences",
-          city: "Coimbatore",
-          type: "HOSPITAL",
-          lat: 11.0255,
-          lng: 77.0024,
-          components: ["RBC", "PLASMA", "PLATELETS"],
-          contactEmail: "psg@example.invalid",
-        },
-      ];
-    }
-  },
+  fetchFacilities: () => request<Facility[]>("/facilities"),
 
   /** GET /facilities/:id */
   fetchFacility: (facilityId: string) => request<Facility>(`/facilities/${facilityId}`),
@@ -283,64 +238,14 @@ export const api = {
     ),
 
   /** GET /dashboard?from=&to= */
-  fetchDashboard: async (from?: string, to?: string): Promise<DashboardResponse> => {
-    try {
-      const q = from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : "";
-      return await request<DashboardResponse>(`/dashboard${q}`);
-    } catch (err) {
-      console.warn("[API] /dashboard request failed, using local impact fallback data:", err);
-      return {
-        from: from ?? new Date(Date.now() - 7 * 86400000).toISOString(),
-        to: to ?? new Date().toISOString(),
-        today: {
-          date: new Date().toISOString().slice(0, 10),
-          unitsSaved: 14,
-          unitsLost: 2,
-          valueSavedInr: 28000,
-          valueLostInr: 4000,
-          requisitionsFilled: 12,
-          requisitionsPartial: 2,
-          requisitionsOpen: 1,
-          mobilisationsSent: 5,
-          mobilisationsAcknowledged: 4,
-        },
-        totals: {
-          unitsSaved: 84,
-          unitsLost: 9,
-          valueSavedInr: 168000,
-          valueLostInr: 18000,
-          requisitionsFilled: 78,
-          requisitionsPartial: 6,
-          requisitionsOpen: 3,
-          mobilisationsSent: 28,
-          mobilisationsAcknowledged: 24,
-        },
-        rates: {
-          fulfilmentRatePct: 92.8,
-          mobilisationResponseRatePct: 85.7,
-        },
-        history: [
-          { date: "2026-09-14", unitsSaved: 10, unitsLost: 1, valueSavedInr: 20000, valueLostInr: 2000 },
-          { date: "2026-09-15", unitsSaved: 12, unitsLost: 2, valueSavedInr: 24000, valueLostInr: 4000 },
-          { date: "2026-09-16", unitsSaved: 15, unitsLost: 1, valueSavedInr: 30000, valueLostInr: 2000 },
-          { date: "2026-09-17", unitsSaved: 11, unitsLost: 2, valueSavedInr: 22000, valueLostInr: 4000 },
-          { date: "2026-09-18", unitsSaved: 14, unitsLost: 0, valueSavedInr: 28000, valueLostInr: 0 },
-          { date: "2026-09-19", unitsSaved: 18, unitsLost: 1, valueSavedInr: 36000, valueLostInr: 2000 },
-          { date: "2026-09-20", unitsSaved: 14, unitsLost: 2, valueSavedInr: 28000, valueLostInr: 4000 },
-        ],
-      };
-    }
+  fetchDashboard: (from?: string, to?: string) => {
+    const q = from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : "";
+    return request<DashboardResponse>(`/dashboard${q}`);
   },
 
   /** GET /escalations/active */
-  fetchActiveEscalations: async (): Promise<{ escalations: ActiveEscalation[] }> => {
-    try {
-      return await request<{ escalations: ActiveEscalation[] }>("/escalations/active");
-    } catch (err) {
-      console.warn("[API] /escalations/active request failed, returning empty list:", err);
-      return { escalations: [] };
-    }
-  },
+  fetchActiveEscalations: () =>
+    request<{ escalations: ActiveEscalation[] }>("/escalations/active"),
 
   /** POST /demo/sweep-now */
   triggerSweepNow: () => request<SweepResponse>("/demo/sweep-now", { method: "POST" }),

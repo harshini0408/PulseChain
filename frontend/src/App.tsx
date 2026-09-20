@@ -62,7 +62,6 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/mobilise/:token" element={<MobiliseResponsePage />} />
       <Route path="/request" element={<PublicRequestPage />} />
-      <Route path="/impact" element={<ImpactPage />} />
 
       <Route element={<ProtectedLayout />}>
         {/* Blood centre */}
@@ -134,6 +133,9 @@ export function App() {
             </RequireRole>
           }
         />
+
+        {/* Any authenticated role */}
+        <Route path="/impact" element={<ImpactPage />} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Route>
