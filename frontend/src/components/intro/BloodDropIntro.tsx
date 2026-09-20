@@ -11,12 +11,12 @@ interface BloodDropIntroProps {
 
 // Micro splash particles radiating outward on impact
 const PARTICLES = [
-  { id: 1, x: -34, y: -20, delay: 0.9 },
-  { id: 2, x: 36, y: -22, delay: 0.9 },
-  { id: 3, x: -22, y: -30, delay: 0.92 },
-  { id: 4, x: 22, y: -28, delay: 0.92 },
-  { id: 5, x: -10, y: -38, delay: 0.94 },
-  { id: 6, x: 14, y: -36, delay: 0.94 },
+  { id: 1, x: -30, y: -18, delay: 0.28 },
+  { id: 2, x: 32, y: -20, delay: 0.28 },
+  { id: 3, x: -20, y: -26, delay: 0.3 },
+  { id: 4, x: 20, y: -24, delay: 0.3 },
+  { id: 5, x: -9, y: -32, delay: 0.32 },
+  { id: 6, x: 12, y: -30, delay: 0.32 },
 ];
 
 export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
@@ -30,10 +30,10 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
       return;
     }
 
-    // Auto-advance timeline: 3.2s cinematic pacing
+    // Auto-advance timeline: snappy ~1.1s pacing
     const timer = window.setTimeout(() => {
       handleDismiss();
-    }, 3200);
+    }, 1100);
 
     return () => window.clearTimeout(timer);
   }, [reducedMotion]);
@@ -54,9 +54,9 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
           key="pulsechain-intro-layer"
           initial={{ opacity: 1, y: 0 }}
           exit={{
-            y: "-100%",
-            opacity: 0.98,
-            transition: { duration: 0.7, ease: [0.2, 0, 0, 1] },
+            opacity: 0,
+            y: -24,
+            transition: { duration: 0.35, ease: [0.2, 0, 0, 1] },
           }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-between overflow-hidden bg-surface select-none"
         >
@@ -66,12 +66,12 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
             <NetworkOrb size={640} subtle className="opacity-15" />
           </div>
 
-          {/* Top Bar with Brand & Skip Option */}
-          <div className="relative z-10 flex w-full max-w-5xl items-center justify-between px-6 py-6 sm:px-10">
+          {/* Top Bar with Brand only — Skip button removed */}
+          <div className="relative z-10 flex w-full max-w-5xl items-center justify-start px-6 py-6 sm:px-10">
             <motion.div
-              initial={{ opacity: 0, y: -8 }}
+              initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
+              transition={{ duration: 0.3 }}
               className="flex items-center gap-2.5 text-accent"
             >
               <Logo className="h-6 w-6" />
@@ -79,32 +79,22 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
                 PulseChain
               </span>
             </motion.div>
-
-            <motion.button
-              type="button"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              onClick={handleDismiss}
-              className="rounded-full border border-border/80 bg-surface-raised/85 px-4 py-1.5 text-xs font-medium text-text-muted backdrop-blur-md transition-all hover:border-accent/40 hover:text-accent focus:outline-none shadow-sm"
-            >
-              Skip
-            </motion.button>
           </div>
 
           {/* Centered Animation Stage */}
           <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
-            <div className="relative flex h-60 w-60 items-center justify-center">
+            <div className="relative flex h-52 w-52 items-center justify-center">
               {/* Radial red light bloom from impact point */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.2 }}
                 animate={{
-                  opacity: [0, 0, 0.6, 0.2, 0],
-                  scale: [0.2, 0.2, 1.8, 2.5, 3],
+                  opacity: [0, 0, 0.6, 0.15, 0],
+                  scale: [0.2, 0.2, 1.6, 2.2, 2.6],
                 }}
                 transition={{
-                  duration: 2.2,
-                  times: [0, 0.38, 0.48, 0.75, 1],
+                  duration: 0.7,
+                  delay: 0.15,
+                  times: [0, 0.2, 0.45, 0.7, 1],
                   ease: "easeOut",
                 }}
                 className="pointer-events-none absolute h-32 w-32 rounded-full bg-accent/30 blur-2xl"
@@ -114,28 +104,29 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
               <motion.div
                 initial={{ opacity: 0.1, scaleX: 0.3, scaleY: 0.2 }}
                 animate={{
-                  opacity: [0.1, 0.2, 0.8, 0.3],
-                  scaleX: [0.3, 0.5, 1.6, 1.2],
+                  opacity: [0.1, 0.3, 0.8, 0.3],
+                  scaleX: [0.3, 0.6, 1.5, 1.1],
                   scaleY: [0.2, 0.3, 0.6, 0.4],
                 }}
                 transition={{
-                  duration: 1.4,
-                  times: [0, 0.3, 0.46, 0.8],
+                  duration: 0.5,
+                  times: [0, 0.3, 0.6, 1],
                   ease: "easeOut",
                 }}
-                className="pointer-events-none absolute bottom-14 h-4 w-16 rounded-full bg-brand-oxblood/20 blur-sm"
+                className="pointer-events-none absolute bottom-12 h-4 w-16 rounded-full bg-brand-oxblood/20 blur-sm"
               />
 
               {/* Ripple Ring 1 */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.1 }}
                 animate={{
-                  opacity: [0, 0, 0.85, 0],
-                  scale: [0.1, 0.1, 1.4, 2.8],
+                  opacity: [0, 0.85, 0],
+                  scale: [0.1, 1.4, 2.6],
                 }}
                 transition={{
-                  duration: 1.4,
-                  times: [0, 0.42, 0.54, 1],
+                  duration: 0.5,
+                  delay: 0.28,
+                  times: [0, 0.35, 1],
                   ease: "easeOut",
                 }}
                 className="pointer-events-none absolute h-16 w-16 rounded-full border border-accent/75"
@@ -145,12 +136,13 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
               <motion.div
                 initial={{ opacity: 0, scale: 0.1 }}
                 animate={{
-                  opacity: [0, 0, 0.6, 0],
-                  scale: [0.1, 0.1, 1.2, 3.6],
+                  opacity: [0, 0.6, 0],
+                  scale: [0.1, 1.2, 3.2],
                 }}
                 transition={{
-                  duration: 1.5,
-                  times: [0, 0.46, 0.6, 1],
+                  duration: 0.55,
+                  delay: 0.32,
+                  times: [0, 0.35, 1],
                   ease: "easeOut",
                 }}
                 className="pointer-events-none absolute h-16 w-16 rounded-full border border-accent/45"
@@ -168,7 +160,7 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
                     scale: [0, 1.2, 0.4],
                   }}
                   transition={{
-                    duration: 0.5,
+                    duration: 0.35,
                     delay: p.delay,
                     ease: "easeOut",
                   }}
@@ -179,27 +171,27 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
               {/* Falling & Impacting Blood Drop SVG */}
               <motion.div
                 initial={{
-                  y: -110,
-                  scaleY: 1.35,
-                  scaleX: 0.75,
+                  y: -90,
+                  scaleY: 1.3,
+                  scaleX: 0.8,
                   opacity: 0,
                 }}
                 animate={{
-                  y: [-110, -110, 0, -8, 0],
+                  y: [-90, -90, 0, -6, 0],
                   opacity: [0, 1, 1, 1, 0.95],
-                  scaleY: [1.35, 1.35, 0.45, 1.15, 1],
-                  scaleX: [0.75, 0.75, 1.6, 0.9, 1],
+                  scaleY: [1.3, 1.3, 0.5, 1.1, 1],
+                  scaleX: [0.8, 0.8, 1.5, 0.92, 1],
                 }}
                 transition={{
-                  duration: 1.4,
-                  times: [0, 0.12, 0.46, 0.62, 0.8],
+                  duration: 0.5,
+                  times: [0, 0.1, 0.55, 0.75, 1],
                   ease: [0.45, 0, 0.7, 1],
                 }}
                 className="relative z-20 flex items-center justify-center text-accent drop-shadow-md"
               >
                 <svg
-                  width="42"
-                  height="50"
+                  width="40"
+                  height="48"
                   viewBox="0 0 38 46"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
@@ -224,31 +216,31 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
             <motion.div
               initial={{ opacity: 0, scaleX: 0 }}
               animate={{ opacity: 1, scaleX: 1 }}
-              transition={{ duration: 0.8, delay: 0.9, ease: [0.2, 0, 0, 1] }}
-              className="w-64 max-w-xs -mt-6 mb-4"
+              transition={{ duration: 0.45, delay: 0.32, ease: [0.2, 0, 0, 1] }}
+              className="w-64 max-w-xs -mt-5 mb-3"
             >
               <PulseLine height={20} color="hsl(var(--accent))" />
             </motion.div>
 
             {/* Understated Caption */}
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.1 }}
+              transition={{ duration: 0.35, delay: 0.36 }}
               className="text-center"
             >
               <p className="font-display text-lg font-bold tracking-tight text-text sm:text-xl">
                 Every drop counts.
               </p>
-              <p className="mt-1 text-2xs font-semibold uppercase tracking-widest text-text-subtle">
+              <p className="mt-0.5 text-2xs font-semibold uppercase tracking-widest text-text-subtle">
                 Coimbatore corridor network
               </p>
             </motion.div>
           </div>
 
           {/* Bottom subtle baseline */}
-          <div className="relative z-10 pb-8 text-center">
-            <span className="h-1 w-14 rounded-full bg-border inline-block" />
+          <div className="relative z-10 pb-6 text-center">
+            <span className="h-1 w-12 rounded-full bg-border inline-block" />
           </div>
         </motion.div>
       )}
