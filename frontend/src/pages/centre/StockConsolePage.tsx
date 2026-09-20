@@ -256,10 +256,11 @@ export function StockConsolePage() {
         actions={<ConnectionDot />}
       />
 
-      {/* ── 1. Stat cards alert strip ───────────────────────────────────────── */}
+      {/* ── 1. Stat cards alert strip ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {VIEWS.map((v) => {
+        {VIEWS.map((v, i) => {
           const meta = VIEW_META[v];
+          const isUrgent = (v === "alert" || v === "rescue") && meta.value > 0;
           return (
             <StatCard
               key={v}
@@ -270,6 +271,8 @@ export function StockConsolePage() {
               tone={meta.tone}
               active={view === v}
               onClick={() => toggleView(v)}
+              urgent={isUrgent}
+              delay={i * 0.07}
             />
           );
         })}

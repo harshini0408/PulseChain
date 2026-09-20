@@ -15,9 +15,21 @@ interface BloodGroupTokenProps {
 }
 
 const sizeClasses = {
-  sm: { box: "h-12 w-12 rounded-xl", group: "text-base", caption: "text-[9px]" },
-  md: { box: "h-16 w-16 rounded-2xl", group: "text-xl", caption: "text-[10px]" },
-  lg: { box: "h-20 w-20 rounded-2xl", group: "text-2xl", caption: "text-2xs" },
+  sm: {
+    box: "min-w-[3.75rem] h-auto min-h-[3.25rem] px-2 py-1.5 rounded-xl gap-0.5",
+    group: "text-sm font-black leading-tight",
+    caption: "text-[8px] font-bold tracking-wider leading-none text-center max-w-full px-0.5 truncate",
+  },
+  md: {
+    box: "min-w-[4.5rem] h-auto min-h-[4rem] px-2.5 py-2 rounded-2xl gap-1",
+    group: "text-lg font-black leading-tight",
+    caption: "text-[9px] font-bold tracking-wider leading-none text-center max-w-full px-0.5 truncate",
+  },
+  lg: {
+    box: "min-w-[5.5rem] h-auto min-h-[5rem] px-3 py-2.5 rounded-2xl gap-1",
+    group: "text-2xl font-black leading-tight",
+    caption: "text-2xs font-bold tracking-wider leading-none text-center max-w-full px-0.5 truncate",
+  },
 } as const;
 
 export function BloodGroupToken({
@@ -32,18 +44,18 @@ export function BloodGroupToken({
   return (
     <div
       className={[
-        "flex flex-col items-center justify-center flex-shrink-0 border border-border bg-surface-raised shadow-card",
+        "flex flex-col items-center justify-center flex-shrink-0 border border-border bg-surface-raised shadow-card overflow-hidden",
         s.box,
         className,
       ].join(" ")}
     >
-      <span className={["font-display font-black leading-none text-accent", s.group].join(" ")}>
+      <span className={["font-display text-accent", s.group].join(" ")}>
         {bloodGroup}
       </span>
       {token && (
         <span
           className={[
-            "mt-1 font-semibold uppercase tracking-wider leading-none",
+            "font-semibold uppercase leading-none",
             s.caption,
             token.text,
           ].join(" ")}

@@ -15,6 +15,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   BLOOD_GROUPS,
   POOL_TYPES,
@@ -68,6 +69,10 @@ export function PoolsPage() {
   const { data: pools, isLoading, isError, error, refetch } = usePoolsQuery();
   const createMutation = useCreatePoolMutation();
   const { push } = useToast();
+
+  /** active tab */
+  type Tab = "pools" | "register";
+  const [activeTab, setActiveTab] = useState<Tab>("pools");
 
   // Form State
   const [name, setName] = useState("");
@@ -188,6 +193,8 @@ export function PoolsPage() {
         "AB+": 0,
       });
       setFormErrors({});
+      // Switch back to active pools tab after successful registration
+      setActiveTab("pools");
     } catch (err) {
       push({
         tone: "error",
@@ -217,360 +224,425 @@ export function PoolsPage() {
 
   const registeredPools = pools ?? [];
 
+  /** Tab definitions */
+  const TABS: { id: Tab; label: string; badge?: string }[] = [
+    {
+      id: "pools",
+      label: "Active Pools",
+      badge: String(registeredPools.length),
+    },
+    { id: "register", label: "Register New Pool" },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         eyebrow="Coordinator Operations"
         title="Donor Pools"
         subtitle="Manage community, campus, and corporate donor reserves for hospital shortage escalation"
         actions={
-          <Badge variant="accent" className="px-3 py-1 text-xs">
-            <Users className="mr-1.5 h-3.5 w-3.5" />
-            {pluralise(registeredPools.length, "pool")} registered
-          </Badge>
+          <button
+            type="button"
+            onClick={() => setActiveTab("register")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent transition-all hover:bg-accent hover:text-white"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Register pool
+          </button>
         }
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* ── Left Column: Pool Registration Form (5 cols) ───────────────── */}
-        <div className="lg:col-span-5">
-          <Card className="sticky top-6">
-            <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <h2 className="text-base font-bold text-text">Register New Pool</h2>
-                <p className="text-xs text-text-muted">
-                  Add a verified community cohort with aggregate group counts
-                </p>
-              </div>
-              <Plus className="h-5 w-5 text-accent" />
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name */}
-              <div>
-                <label htmlFor="pool-name" className="mb-1 block text-xs font-semibold text-text">
-                  Pool Name *
-                </label>
-                <input
-                  id="pool-name"
-                  type="text"
-                  placeholder="e.g. PSG College of Technology NSS"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm text-text placeholder-text-subtle focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                />
-                {formErrors.name && <p className="mt-1 text-2xs text-accent">{formErrors.name}</p>}
-              </div>
-
-              {/* Pool Type */}
-              <div>
-                <label htmlFor="pool-type" className="mb-1 block text-xs font-semibold text-text">
-                  Cohort Type *
-                </label>
-                <select
-                  id="pool-type"
-                  value={poolType}
-                  onChange={(e) => setPoolType(e.target.value as PoolType)}
-                  className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-                  {POOL_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {POOL_TYPE_META[type].label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* City & Coordinates with Presets */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-text">Location & Presets</label>
-                  <span className="text-2xs text-text-muted">Click preset to autofill</span>
-                </div>
-
-                {/* Preset Chips */}
-                <div className="flex flex-wrap gap-1.5">
-                  {PRESETS.map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => handlePresetSelect(preset)}
-                      className="inline-flex items-center rounded-md border border-border bg-surface-sunken px-2 py-1 text-2xs text-text-muted hover:border-accent hover:text-accent"
-                    >
-                      <MapPin className="mr-1 h-2.5 w-2.5" />
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label htmlFor="pool-city" className="mb-0.5 block text-2xs text-text-muted">
-                      City
-                    </label>
-                    <input
-                      id="pool-city"
-                      type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-surface-raised px-2.5 py-1.5 text-xs text-text focus:border-accent focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="pool-lat" className="mb-0.5 block text-2xs text-text-muted">
-                      Latitude
-                    </label>
-                    <input
-                      id="pool-lat"
-                      type="text"
-                      value={latStr}
-                      onChange={(e) => setLatStr(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-surface-raised px-2.5 py-1.5 text-xs text-text focus:border-accent focus:outline-none"
-                    />
-                    {formErrors.lat && <p className="mt-0.5 text-3xs text-accent">{formErrors.lat}</p>}
-                  </div>
-                  <div>
-                    <label htmlFor="pool-lng" className="mb-0.5 block text-2xs text-text-muted">
-                      Longitude
-                    </label>
-                    <input
-                      id="pool-lng"
-                      type="text"
-                      value={lngStr}
-                      onChange={(e) => setLngStr(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-surface-raised px-2.5 py-1.5 text-xs text-text focus:border-accent focus:outline-none"
-                    />
-                    {formErrors.lng && <p className="mt-0.5 text-3xs text-accent">{formErrors.lng}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Details */}
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="contact-name" className="mb-1 block text-xs font-semibold text-text">
-                    Contact Coordinator *
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-subtle" />
-                    <input
-                      id="contact-name"
-                      type="text"
-                      placeholder="e.g. Dr. R. Sundaram"
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-2.5 text-xs text-text placeholder-text-subtle focus:border-accent focus:outline-none"
-                    />
-                  </div>
-                  {formErrors.contactName && (
-                    <p className="mt-1 text-2xs text-accent">{formErrors.contactName}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="contact-email" className="mb-1 block text-xs font-semibold text-text">
-                    Contact Email *
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-subtle" />
-                    <input
-                      id="contact-email"
-                      type="email"
-                      placeholder="coordinator@domain.invalid"
-                      value={contactEmail}
-                      onChange={(e) => setContactEmail(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-2.5 text-xs text-text placeholder-text-subtle focus:border-accent focus:outline-none"
-                    />
-                  </div>
-                  {formErrors.contactEmail && (
-                    <p className="mt-1 text-2xs text-accent">{formErrors.contactEmail}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Group Counts Breakdown & Live Derived Counter */}
-              <div className="rounded-xl border border-border bg-surface-sunken p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-text">Donor Counts by Group</span>
-                  <Badge variant="accent" className="font-mono text-2xs">
-                    Derived Total: {derivedRegistered}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-4 gap-2">
-                  {BLOOD_GROUPS.map((bg) => (
-                    <div key={bg} className="rounded-lg border border-border bg-surface-raised p-1.5 text-center">
-                      <span className="block font-display text-2xs font-bold text-accent">{bg}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={counts[bg]}
-                        onChange={(e) => handleCountChange(bg, e.target.value)}
-                        className="mt-1 w-full rounded border border-border/80 bg-surface-raised px-1 py-0.5 text-center font-mono text-xs text-text focus:border-accent focus:outline-none"
-                      />
-                    </div>
-                  ))}
-                </div>
-                {formErrors.counts && <p className="mt-2 text-2xs text-accent">{formErrors.counts}</p>}
-              </div>
-
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full justify-center"
-                disabled={createMutation.isPending}
+      {/* ── Tab bar ─────────────────────────────────────────────────────── */}
+      <div className="relative flex items-center gap-0.5 rounded-xl border border-border bg-surface-raised p-1 shadow-card w-fit">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={[
+              "relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
+              activeTab === tab.id ? "text-text" : "text-text-muted hover:text-text",
+            ].join(" ")}
+          >
+            {activeTab === tab.id && (
+              <motion.span
+                layoutId="pools-tab-pill"
+                className="absolute inset-0 rounded-lg bg-surface-overlay shadow-sm"
+                transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              />
+            )}
+            <span className="relative z-10">{tab.label}</span>
+            {tab.badge !== undefined && (
+              <span
+                className={[
+                  "relative z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-2xs font-bold tabular-nums",
+                  activeTab === tab.id
+                    ? "bg-accent text-white"
+                    : "bg-surface-overlay text-text-muted",
+                ].join(" ")}
               >
-                {createMutation.isPending ? "Registering…" : "Register Donor Pool"}
-              </Button>
-            </form>
-          </Card>
-        </div>
+                {tab.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
-        {/* ── Right Column: Registered Pools Table (7 cols) ───────────────── */}
-        <div className="lg:col-span-7">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-text">Active Donor Pools</h2>
+      {/* ── Tab panels ──────────────────────────────────────────────────── */}
+      <AnimatePresence mode="wait">
+        {activeTab === "pools" ? (
+          /* ── Active Pools panel ───────────────────────────────────────── */
+          <motion.div
+            key="pools"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25, ease: [0.05, 0.7, 0.1, 1] }}
+          >
+            <div className="mb-3 flex items-baseline justify-between gap-3">
               <p className="text-xs text-text-muted">
                 Available for regional emergency ranking when hospital inventory cannot be filled
               </p>
+              <span className="text-xs font-semibold tabular-nums text-text-muted">
+                {pluralise(registeredPools.length, "registered pool")}
+              </span>
             </div>
-            <span className="text-xs font-semibold text-text-muted">
-              {pluralise(registeredPools.length, "registered pool")}
-            </span>
-          </div>
 
-          {registeredPools.length === 0 ? (
-            <EmptyState
-              title="No donor pools registered"
-              message="Register college student bodies, resident associations, or corporate CSR groups to establish regional donor mobilization pools for emergency hospital requisitions."
-              icon={<Users className="h-6 w-6" />}
-            />
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-border bg-surface-raised shadow-card">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-border bg-surface-sunken">
-                      <th className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted first:pl-4">
-                        Pool & Contact
-                      </th>
-                      <th className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted">
-                        Type
-                      </th>
-                      <th className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted">
-                        City & Geo
-                      </th>
-                      <th className="px-3 py-2.5 text-center text-2xs font-semibold uppercase tracking-widest text-text-muted">
-                        Registered
-                      </th>
-                      <th className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted">
-                        Group Breakdown
-                      </th>
-                      <th className="px-3 py-2.5 text-right text-2xs font-semibold uppercase tracking-widest text-text-muted last:pr-4">
-                        Last Mobilised
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
-                    {registeredPools.map((pool) => {
-                      const meta = POOL_TYPE_META[pool.poolType] || POOL_TYPE_META.COLLEGE;
-                      const Icon = meta.icon;
-                      const activeGroups = BLOOD_GROUPS.filter((bg) => (pool.groupCounts?.[bg] ?? 0) > 0);
+            {registeredPools.length === 0 ? (
+              <EmptyState
+                title="No donor pools registered"
+                message="Register college student bodies, resident associations, or corporate CSR groups to establish regional donor mobilization pools for emergency hospital requisitions."
+                icon={<Users className="h-6 w-6" />}
+              />
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-border bg-surface-raised shadow-card">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-border bg-surface-sunken">
+                        <th className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted first:pl-4">
+                          Pool & Contact
+                        </th>
+                        <th className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted">
+                          Type
+                        </th>
+                        <th className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted">
+                          City & Geo
+                        </th>
+                        <th className="px-3 py-2.5 text-center text-2xs font-semibold uppercase tracking-widest text-text-muted">
+                          Registered
+                        </th>
+                        <th className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-widest text-text-muted">
+                          Group Breakdown
+                        </th>
+                        <th className="px-3 py-2.5 text-right text-2xs font-semibold uppercase tracking-widest text-text-muted last:pr-4">
+                          Last Mobilised
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {registeredPools.map((pool) => {
+                        const meta = POOL_TYPE_META[pool.poolType] || POOL_TYPE_META.COLLEGE;
+                        const Icon = meta.icon;
+                        const activeGroups = BLOOD_GROUPS.filter((bg) => (pool.groupCounts?.[bg] ?? 0) > 0);
 
-                      return (
-                        <tr key={pool.poolId} className="hover:bg-surface-sunken/40 transition-colors">
-                          {/* Name & Contact */}
-                          <td className="px-3 py-3 first:pl-4">
-                            <div className="font-semibold text-sm text-text leading-snug">{pool.name}</div>
-                            <div className="mt-0.5 flex items-center gap-1.5 text-2xs text-text-muted">
-                              <span>{pool.contactName}</span>
-                              <span>•</span>
-                              <a
-                                href={`mailto:${pool.contactEmail}`}
-                                className="text-accent hover:underline"
-                              >
-                                {pool.contactEmail}
-                              </a>
-                            </div>
-                          </td>
+                        return (
+                          <tr key={pool.poolId} className="hover:bg-surface-sunken/40 transition-colors">
+                            {/* Name & Contact */}
+                            <td className="px-3 py-3 first:pl-4">
+                              <div className="font-semibold text-sm text-text leading-snug">{pool.name}</div>
+                              <div className="mt-0.5 flex items-center gap-1.5 text-2xs text-text-muted">
+                                <span>{pool.contactName}</span>
+                                <span>•</span>
+                                <a
+                                  href={`mailto:${pool.contactEmail}`}
+                                  className="text-accent hover:underline"
+                                >
+                                  {pool.contactEmail}
+                                </a>
+                              </div>
+                            </td>
 
-                          {/* Type */}
-                          <td className="px-3 py-3">
-                            <Badge variant="outline" className="inline-flex items-center gap-1 py-0.5 text-2xs">
-                              <Icon className="h-3 w-3 text-accent" />
-                              <span>{meta.label.split(" ")[0]}</span>
-                            </Badge>
-                          </td>
+                            {/* Type */}
+                            <td className="px-3 py-3">
+                              <Badge variant="outline" className="inline-flex items-center gap-1 py-0.5 text-2xs">
+                                <Icon className="h-3 w-3 text-accent" />
+                                <span>{meta.label.split(" ")[0]}</span>
+                              </Badge>
+                            </td>
 
-                          {/* City & Coordinates */}
-                          <td className="px-3 py-3">
-                            <div className="text-xs font-medium text-text">{pool.city || "Coimbatore"}</div>
-                            <div className="text-3xs text-text-subtle font-mono">
-                              {pool.lat.toFixed(4)}, {pool.lng.toFixed(4)}
-                            </div>
-                          </td>
+                            {/* City & Coordinates */}
+                            <td className="px-3 py-3">
+                              <div className="text-xs font-medium text-text">{pool.city || "Coimbatore"}</div>
+                              <div className="text-3xs text-text-subtle font-mono">
+                                {pool.lat.toFixed(4)}, {pool.lng.toFixed(4)}
+                              </div>
+                            </td>
 
-                          {/* Derived Registered Donors */}
-                          <td className="px-3 py-3 text-center">
-                            <span className="inline-block rounded-md bg-surface-overlay px-2 py-1 font-mono text-xs font-bold text-text">
-                              {pool.registered}
-                            </span>
-                          </td>
+                            {/* Derived Registered Donors */}
+                            <td className="px-3 py-3 text-center">
+                              <span className="inline-block rounded-md bg-surface-overlay px-2 py-1 font-mono text-xs font-bold text-text">
+                                {pool.registered}
+                              </span>
+                            </td>
 
-                          {/* Per-Group Breakdown */}
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {/* Per-Group Breakdown */}
+                            <td className="px-3 py-3">
                               {activeGroups.length === 0 ? (
                                 <span className="text-3xs text-text-muted">No counts</span>
                               ) : (
-                                activeGroups.map((bg) => (
-                                  <span
-                                    key={bg}
-                                    className="inline-flex items-center rounded border border-border/80 bg-surface-sunken px-1.5 py-0.5 text-3xs font-mono text-text-muted"
-                                  >
-                                    <strong className="text-accent font-semibold mr-1">{bg}</strong>
-                                    {pool.groupCounts?.[bg]}
-                                  </span>
-                                ))
+                                <div className="grid grid-cols-4 gap-x-2 gap-y-0.5 w-[168px]">
+                                  {activeGroups.map((bg) => (
+                                    <div
+                                      key={bg}
+                                      className="flex items-center justify-between gap-0.5"
+                                    >
+                                      <span className="text-3xs font-semibold text-accent font-mono leading-tight">{bg}</span>
+                                      <span className="text-3xs font-mono text-text-muted leading-tight tabular-nums">{pool.groupCounts?.[bg]}</span>
+                                    </div>
+                                  ))}
+                                </div>
                               )}
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Last Mobilised */}
-                          <td className="px-3 py-3 text-right last:pr-4">
-                            {pool.lastMobilisedAt ? (
-                              <div className="flex flex-col items-end gap-1">
-                                <Badge variant="accent" className="text-3xs">
-                                  <Clock className="mr-1 h-2.5 w-2.5" />
-                                  {formatRelative(pool.lastMobilisedAt)}
-                                </Badge>
-                                {pool.lastMobilisationStatus ? (
-                                  <StatusPill
-                                    kind="mobilisation"
-                                    value={pool.lastMobilisationStatus}
-                                    size="sm"
-                                    withDot
-                                  />
-                                ) : null}
-                              </div>
-                            ) : (
-                              <span className="inline-flex items-center text-3xs text-text-subtle">
-                                <CheckCircle2 className="mr-1 h-3 w-3 text-text-subtle" />
-                                Never mobilised
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            {/* Last Mobilised */}
+                            <td className="px-3 py-3 text-right last:pr-4">
+                              {pool.lastMobilisedAt ? (
+                                <div className="flex flex-col items-end gap-1">
+                                  <Badge variant="accent" className="text-3xs">
+                                    <Clock className="mr-1 h-2.5 w-2.5" />
+                                    {formatRelative(pool.lastMobilisedAt)}
+                                  </Badge>
+                                  {pool.lastMobilisationStatus ? (
+                                    <StatusPill
+                                      kind="mobilisation"
+                                      value={pool.lastMobilisationStatus}
+                                      size="sm"
+                                      withDot
+                                    />
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center text-3xs text-text-subtle">
+                                  <CheckCircle2 className="mr-1 h-3 w-3 text-text-subtle" />
+                                  Never mobilised
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </motion.div>
+        ) : (
+          /* ── Register Pool panel ──────────────────────────────────────── */
+          <motion.div
+            key="register"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25, ease: [0.05, 0.7, 0.1, 1] }}
+            className="flex justify-center"
+          >
+            <Card className="w-full max-w-2xl mx-auto">
+              <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+                <div>
+                  <h2 className="text-base font-bold text-text">Register New Pool</h2>
+                  <p className="text-xs text-text-muted">
+                    Add a verified community cohort with aggregate group counts
+                  </p>
+                </div>
+                <Plus className="h-5 w-5 text-accent" />
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Name */}
+                <div>
+                  <label htmlFor="pool-name" className="mb-1 block text-xs font-semibold text-text">
+                    Pool Name *
+                  </label>
+                  <input
+                    id="pool-name"
+                    type="text"
+                    placeholder="e.g. PSG College of Technology NSS"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm text-text placeholder-text-subtle focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                  />
+                  {formErrors.name && <p className="mt-1 text-2xs text-accent">{formErrors.name}</p>}
+                </div>
+
+                {/* Pool Type */}
+                <div>
+                  <label htmlFor="pool-type" className="mb-1 block text-xs font-semibold text-text">
+                    Cohort Type *
+                  </label>
+                  <select
+                    id="pool-type"
+                    value={poolType}
+                    onChange={(e) => setPoolType(e.target.value as PoolType)}
+                    className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                  >
+                    {POOL_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {POOL_TYPE_META[type].label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* City & Coordinates with Presets */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-text">Location & Presets</label>
+                    <span className="text-2xs text-text-muted">Click preset to autofill</span>
+                  </div>
+
+                  {/* Preset Chips */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => handlePresetSelect(preset)}
+                        className="inline-flex items-center rounded-md border border-border bg-surface-sunken px-2 py-1 text-2xs text-text-muted hover:border-accent hover:text-accent"
+                      >
+                        <MapPin className="mr-1 h-2.5 w-2.5" />
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label htmlFor="pool-city" className="mb-0.5 block text-2xs text-text-muted">
+                        City
+                      </label>
+                      <input
+                        id="pool-city"
+                        type="text"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-surface-raised px-2.5 py-1.5 text-xs text-text focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="pool-lat" className="mb-0.5 block text-2xs text-text-muted">
+                        Latitude
+                      </label>
+                      <input
+                        id="pool-lat"
+                        type="text"
+                        value={latStr}
+                        onChange={(e) => setLatStr(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-surface-raised px-2.5 py-1.5 text-xs text-text focus:border-accent focus:outline-none"
+                      />
+                      {formErrors.lat && <p className="mt-0.5 text-3xs text-accent">{formErrors.lat}</p>}
+                    </div>
+                    <div>
+                      <label htmlFor="pool-lng" className="mb-0.5 block text-2xs text-text-muted">
+                        Longitude
+                      </label>
+                      <input
+                        id="pool-lng"
+                        type="text"
+                        value={lngStr}
+                        onChange={(e) => setLngStr(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-surface-raised px-2.5 py-1.5 text-xs text-text focus:border-accent focus:outline-none"
+                      />
+                      {formErrors.lng && <p className="mt-0.5 text-3xs text-accent">{formErrors.lng}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Details */}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="contact-name" className="mb-1 block text-xs font-semibold text-text">
+                      Contact Coordinator *
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-subtle" />
+                      <input
+                        id="contact-name"
+                        type="text"
+                        placeholder="e.g. Dr. R. Sundaram"
+                        value={contactName}
+                        onChange={(e) => setContactName(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-2.5 text-xs text-text placeholder-text-subtle focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                    {formErrors.contactName && (
+                      <p className="mt-1 text-2xs text-accent">{formErrors.contactName}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="contact-email" className="mb-1 block text-xs font-semibold text-text">
+                      Contact Email *
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-subtle" />
+                      <input
+                        id="contact-email"
+                        type="email"
+                        placeholder="coordinator@domain.invalid"
+                        value={contactEmail}
+                        onChange={(e) => setContactEmail(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-2.5 text-xs text-text placeholder-text-subtle focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                    {formErrors.contactEmail && (
+                      <p className="mt-1 text-2xs text-accent">{formErrors.contactEmail}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Group Counts Breakdown & Live Derived Counter */}
+                <div className="rounded-xl border border-border bg-surface-sunken p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-text">Donor Counts by Group</span>
+                    <Badge variant="accent" className="font-mono text-2xs">
+                      Derived Total: {derivedRegistered}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    {BLOOD_GROUPS.map((bg) => (
+                      <div key={bg} className="rounded-lg border border-border bg-surface-raised p-1.5 text-center">
+                        <span className="block font-display text-2xs font-bold text-accent">{bg}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={counts[bg]}
+                          onChange={(e) => handleCountChange(bg, e.target.value)}
+                          className="mt-1 w-full rounded border border-border/80 bg-surface-raised px-1 py-0.5 text-center font-mono text-xs text-text focus:border-accent focus:outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {formErrors.counts && <p className="mt-2 text-2xs text-accent">{formErrors.counts}</p>}
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full justify-center"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? "Registering…" : "Register Donor Pool"}
+                </Button>
+              </form>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
+export default PoolsPage;

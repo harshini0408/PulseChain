@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { Activity, CheckCircle, ChevronRight, IndianRupee, Radio, TrendingDown, TrendingUp, Users } from "lucide-react";
 import {
   useDashboardQuery,
@@ -104,6 +105,24 @@ export function ImpactPage() {
               {formatNumber(totals?.unitsSaved ?? 0)} units reached a patient instead of a bin
             </h2>
 
+            {/* Live rescue pulse indicator */}
+            {activeRescues > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-accent/20 bg-surface-raised/80 px-3 py-1.5 text-xs font-medium text-accent backdrop-blur-sm"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+                  <span className="relative h-2 w-2 rounded-full bg-accent" />
+                </span>
+                {activeRescues === 1
+                  ? "1 rescue running now"
+                  : `${activeRescues} rescues running now`}
+              </motion.div>
+            )}
+
             <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-text-muted sm:text-base">
               That is {formatInr(totals?.valueSavedInr ?? 0)} of product kept in the system, and{" "}
               {pluralise(activeRescues, "rescue")} running right now across{" "}
@@ -116,29 +135,36 @@ export function ImpactPage() {
             <StatTile
               label="Units saved"
               value={formatNumber(totals?.unitsSaved ?? 0)}
+              animateValue={totals?.unitsSaved ?? 0}
               caption="Claimed and received in time"
               tone="saved"
               icon={<TrendingUp className="h-4 w-4" />}
+              delay={0}
             />
             <StatTile
               label="Units lost"
               value={formatNumber(totals?.unitsLost ?? 0)}
+              animateValue={totals?.unitsLost ?? 0}
               caption="Expired before anyone claimed"
               tone="lost"
               icon={<TrendingDown className="h-4 w-4" />}
+              delay={0.07}
             />
             <StatTile
               label="Value saved"
               value={formatInrCompact(totals?.valueSavedInr ?? 0)}
               caption={formatInr(totals?.valueSavedInr ?? 0)}
               icon={<IndianRupee className="h-4 w-4" />}
+              delay={0.14}
             />
             <StatTile
               label="Active rescues"
               value={formatNumber(activeRescues)}
+              animateValue={activeRescues}
               caption="Escalating right now"
               tone={activeRescues > 0 ? "saved" : "neutral"}
               icon={<Radio className="h-4 w-4" />}
+              delay={0.21}
             />
           </div>
 
@@ -147,6 +173,7 @@ export function ImpactPage() {
             <StatTile
               label="Requisitions filled"
               value={fulfilmentRatePct !== null ? `${fulfilmentRatePct}%` : "—"}
+              progressPct={fulfilmentRatePct}
               caption={
                 reqTotal > 0
                   ? `${reqFilled} of ${reqTotal} requests`
@@ -154,17 +181,21 @@ export function ImpactPage() {
               }
               tone={fulfilmentRatePct !== null && fulfilmentRatePct >= 50 ? "saved" : "neutral"}
               icon={<CheckCircle className="h-4 w-4" />}
+              delay={0.05}
             />
             <StatTile
               label="Partially filled"
               value={formatNumber(reqPartial)}
+              animateValue={reqPartial}
               caption={reqPartial > 0 ? "Units received, not complete" : "None yet"}
               tone="neutral"
               icon={<TrendingUp className="h-4 w-4" />}
+              delay={0.12}
             />
             <StatTile
               label="Mobilisation response"
               value={mobilisationResponseRatePct !== null ? `${mobilisationResponseRatePct}%` : "—"}
+              progressPct={mobilisationResponseRatePct}
               caption={
                 poolsContacted > 0
                   ? `${poolsAcknowledged} of ${poolsContacted} pools responded`
@@ -176,13 +207,16 @@ export function ImpactPage() {
                   : "neutral"
               }
               icon={<Users className="h-4 w-4" />}
+              delay={0.19}
             />
             <StatTile
               label="Still open"
               value={formatNumber(reqOpen)}
+              animateValue={reqOpen}
               caption={reqOpen > 0 ? "Requests awaiting supply" : "All requests resolved"}
               tone={reqOpen > 0 ? "lost" : "neutral"}
               icon={<Radio className="h-4 w-4" />}
+              delay={0.26}
             />
           </div>
 

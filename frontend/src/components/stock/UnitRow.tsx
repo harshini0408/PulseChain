@@ -119,7 +119,7 @@ export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
         <div className="flex items-start justify-between gap-3 pl-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <ExpiryClock compact expiresAt={unit.expiresAt} size={26} />
+              <ExpiryClock compact expiresAt={unit.expiresAt} size={30} />
               <p className="truncate font-mono text-xs font-semibold text-text">{unit.unitId}</p>
             </div>
             <p className="mt-1 font-display text-lg font-bold text-text">{unit.bloodGroup}</p>
@@ -180,10 +180,10 @@ export function UnitRow({ unit, escalation, variant = "row" }: UnitRowProps) {
           />
         )}
         <div className="flex items-center gap-2">
-          <ExpiryClock compact expiresAt={unit.expiresAt} size={24} />
+          <ExpiryClock compact expiresAt={unit.expiresAt} size={30} />
           <span className="font-mono text-xs font-semibold text-text">{unit.unitId}</span>
         </div>
-        <span className="mt-0.5 ml-8 block text-2xs text-text-subtle">
+        <span className="mt-0.5 ml-9 block text-2xs text-text-subtle">
           {formatNumber(unit.volumeMl)} ml
         </span>
       </td>

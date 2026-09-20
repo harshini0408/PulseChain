@@ -18,13 +18,17 @@ import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  Building2,
   CheckCircle2,
   Clock,
   Filter,
   Flame,
+  MapPin,
   Radio,
+  Search,
   Timer,
   Truck,
+  X,
   XCircle,
 } from "lucide-react";
 import type { ActiveEscalation, StockUnit } from "../../api/client";
@@ -71,6 +75,9 @@ export function EscalationOperationsStrip({
   simulatedTransitId,
 }: EscalationOperationsStripProps) {
   const [filter, setFilter] = useState<EscalationFilter>("ALL");
+  const [searchFrom, setSearchFrom] = useState("");
+  const [searchTo, setSearchTo] = useState("");
+  const [query, setQuery] = useState("");
 
   const facilitiesMap = useMemo(() => {
     const map = new Map<string, Facility>();
@@ -127,6 +134,23 @@ export function EscalationOperationsStrip({
     });
   }, [escalations, unitsById, facilities, facilitiesMap, simulatedTransitId]);
 
+  // Extract unique origin & target facility names for filter dropdowns
+  const uniqueOrigins = useMemo(() => {
+    const set = new Set<string>();
+    enrichedList.forEach((item) => {
+      if (item.originName) set.add(item.originName);
+    });
+    return Array.from(set).sort();
+  }, [enrichedList]);
+
+  const uniqueTargets = useMemo(() => {
+    const set = new Set<string>();
+    enrichedList.forEach((item) => {
+      if (item.targetName) set.add(item.targetName);
+    });
+    return Array.from(set).sort();
+  }, [enrichedList]);
+
   // Filter and prioritize running/in-transit first
   const filtered = useMemo(() => {
     let list = enrichedList;
@@ -134,6 +158,24 @@ export function EscalationOperationsStrip({
     else if (filter === "IN_TRANSIT") list = list.filter((e) => e.state === "IN_TRANSIT");
     else if (filter === "EXHAUSTED") list = list.filter((e) => e.state === "EXHAUSTED");
     else if (filter === "RESOLVED") list = list.filter((e) => e.state === "RESOLVED");
+
+    if (searchFrom) {
+      list = list.filter((e) => e.originName.toLowerCase().includes(searchFrom.toLowerCase()));
+    }
+    if (searchTo) {
+      list = list.filter((e) => e.targetName.toLowerCase().includes(searchTo.toLowerCase()));
+    }
+    if (query.trim()) {
+      const q = query.toLowerCase().trim();
+      list = list.filter(
+        (e) =>
+          e.originName.toLowerCase().includes(q) ||
+          e.targetName.toLowerCase().includes(q) ||
+          e.unitId.toLowerCase().includes(q) ||
+          e.bloodGroup.toLowerCase().includes(q) ||
+          e.component.toLowerCase().includes(q),
+      );
+    }
 
     // Order: IN_TRANSIT -> OFFER_SENT -> SEARCHING -> CLAIMED -> RESOLVED -> EXHAUSTED
     const rank: Record<EnrichedEscalationCard["state"], number> = {
@@ -146,27 +188,29 @@ export function EscalationOperationsStrip({
     };
 
     return [...list].sort((a, b) => rank[a.state] - rank[b.state]);
-  }, [enrichedList, filter]);
+  }, [enrichedList, filter, searchFrom, searchTo, query]);
 
   const runningCount = enrichedList.filter((e) => e.escalation.status === "RUNNING").length;
   const inTransitCount = enrichedList.filter((e) => e.state === "IN_TRANSIT").length;
   const exhaustedCount = enrichedList.filter((e) => e.state === "EXHAUSTED").length;
 
+  const isFiltered = searchFrom || searchTo || query || filter !== "ALL";
+
   return (
     <div className="mt-2 rounded-xl border border-border bg-surface-raised p-3 shadow-card">
       {/* Header Bar with Actionable Operational Counters & Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border pb-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
         <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1.5">
-            <Radio className="h-3.5 w-3.5 text-accent" />
+            <Radio className="h-3.5 w-3.5 text-accent animate-pulse" />
             <h2 className="text-xs font-bold text-text">Active Operations</h2>
           </div>
           <div className="flex items-center gap-1.5 text-3xs font-semibold text-text-muted">
-            <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-accent">
+            <span className="rounded-full bg-accent-soft px-2 py-0.5 font-mono text-accent">
               {runningCount} running
             </span>
             {inTransitCount > 0 && (
-              <span className="rounded-full bg-status-in-transit-bg px-1.5 py-0.5 text-status-in-transit">
+              <span className="rounded-full bg-status-in-transit-bg px-2 py-0.5 font-mono text-status-in-transit">
                 {inTransitCount} in transit
               </span>
             )}
@@ -174,23 +218,130 @@ export function EscalationOperationsStrip({
           </div>
         </div>
 
-        {/* Operational Filter Pills */}
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-0.5 text-2xs">
-          {(["ALL", "RUNNING", "IN_TRANSIT", "EXHAUSTED"] as EscalationFilter[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
+        {/* Operational & Facility Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* From Hospital Filter */}
+          <div className="relative flex items-center">
+            <Building2 className="absolute left-2.5 h-3 w-3 text-text-subtle pointer-events-none z-10" />
+            <select
+              value={searchFrom}
+              onChange={(e) => setSearchFrom(e.target.value)}
               className={[
-                "rounded-md px-2 py-0.5 text-3xs font-bold uppercase tracking-wider transition-colors",
-                filter === f
-                  ? "bg-surface-raised text-text shadow-xs"
-                  : "text-text-muted hover:text-text",
+                "rounded-lg border py-1 pl-7 pr-2.5 text-2xs font-medium text-text transition-all focus:outline-none cursor-pointer",
+                searchFrom
+                  ? "border-accent/80 bg-accent-soft/40 text-accent font-semibold shadow-xs"
+                  : "border-border bg-surface hover:border-border-strong",
               ].join(" ")}
             >
-              {f.replace("_", " ")}
+              <option value="">From: All Sources</option>
+              {uniqueOrigins.map((orig) => (
+                <option key={orig} value={orig}>
+                  From: {orig}
+                </option>
+              ))}
+            </select>
+            {searchFrom && (
+              <button
+                type="button"
+                onClick={() => setSearchFrom("")}
+                className="ml-1 rounded-full p-0.5 text-text-muted hover:bg-surface-overlay hover:text-text"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* To Hospital Filter */}
+          <div className="relative flex items-center">
+            <MapPin className="absolute left-2.5 h-3 w-3 text-text-subtle pointer-events-none z-10" />
+            <select
+              value={searchTo}
+              onChange={(e) => setSearchTo(e.target.value)}
+              className={[
+                "rounded-lg border py-1 pl-7 pr-2.5 text-2xs font-medium text-text transition-all focus:outline-none cursor-pointer",
+                searchTo
+                  ? "border-accent/80 bg-accent-soft/40 text-accent font-semibold shadow-xs"
+                  : "border-border bg-surface hover:border-border-strong",
+              ].join(" ")}
+            >
+              <option value="">To: All Destinations</option>
+              {uniqueTargets.map((targ) => (
+                <option key={targ} value={targ}>
+                  To: {targ}
+                </option>
+              ))}
+            </select>
+            {searchTo && (
+              <button
+                type="button"
+                onClick={() => setSearchTo("")}
+                className="ml-1 rounded-full p-0.5 text-text-muted hover:bg-surface-overlay hover:text-text"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Free-text Search Box */}
+          <div className="relative flex items-center">
+            <Search className="absolute left-2.5 h-3 w-3 text-text-subtle pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search hospital or unit..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className={[
+                "w-36 rounded-lg border py-1 pl-7 pr-6 text-2xs text-text transition-all placeholder:text-text-subtle focus:outline-none",
+                query
+                  ? "border-accent bg-accent-soft/20 font-medium"
+                  : "border-border bg-surface hover:border-border-strong focus:border-accent",
+              ].join(" ")}
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-1.5 rounded-full p-0.5 text-text-muted hover:text-text"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter Pills */}
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5 text-2xs">
+            {(["ALL", "RUNNING", "IN_TRANSIT", "EXHAUSTED"] as EscalationFilter[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={[
+                  "rounded-md px-2 py-0.5 text-3xs font-bold uppercase tracking-wider transition-all",
+                  filter === f
+                    ? "bg-accent text-white shadow-xs"
+                    : "text-text-muted hover:text-text",
+                ].join(" ")}
+              >
+                {f.replace("_", " ")}
+              </button>
+            ))}
+          </div>
+
+          {/* Reset button when filters are active */}
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchFrom("");
+                setSearchTo("");
+                setQuery("");
+                setFilter("ALL");
+              }}
+              className="rounded-lg border border-accent/40 bg-accent-soft px-2.5 py-1 text-3xs font-bold text-accent transition-all hover:bg-accent hover:text-white"
+            >
+              Reset
             </button>
-          ))}
+          )}
         </div>
       </div>
 

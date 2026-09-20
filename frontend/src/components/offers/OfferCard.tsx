@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ChevronDown, MapPin } from "lucide-react";
+import { AlertTriangle, ChevronDown, Clock, MapPin } from "lucide-react";
 import type { Offer } from "@pulsechain/shared";
 import { useClaimMutation, useDeclineMutation } from "../../api/hooks";
 import { useCountdown } from "../../lib/useCountdown";
@@ -117,8 +117,12 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
       layout={!reducedMotion}
       {...entry}
       className={[
-        "overflow-hidden rounded-xl border bg-surface-raised shadow-card transition-all",
-        failure ? "border-status-lost/40" : claimed ? "border-status-received/40" : "border-border hover:border-border-strong",
+        "overflow-hidden rounded-2xl border bg-surface-raised shadow-card transition-all hover:shadow-card-hover hover:border-accent/40",
+        failure
+          ? "border-status-lost/40"
+          : claimed
+          ? "border-status-received/40"
+          : "border-border/80",
       ].join(" ")}
     >
       {/* Failure banner */}
@@ -132,129 +136,152 @@ export const OfferCard = forwardRef<HTMLElement, OfferCardProps>(function OfferC
         </div>
       )}
 
-      <div className="p-3.5 sm:p-4">
-        <div className="flex items-start gap-3.5">
-          <BloodGroupToken
-            bloodGroup={offer.bloodGroup ?? "—"}
-            component={offer.component}
-            size="md"
-          />
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          {/* Main Left: Badge + Details */}
+          <div className="flex items-start gap-4 min-w-0 flex-1">
+            <BloodGroupToken
+              bloodGroup={offer.bloodGroup ?? "—"}
+              component={offer.component}
+              size="md"
+            />
 
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={[
-                  "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-2xs font-semibold",
-                  ring.pill,
-                ].join(" ")}
-              >
-                <span className={["h-1.5 w-1.5 rounded-full", ring.dot].join(" ")} />
-                {ring.label}
-              </span>
-              {!isOpen && <StatusPill kind="offer" value={offer.status} size="sm" />}
-              {offer.volumeMl !== undefined && (
-                <span className="text-2xs text-text-subtle font-mono">{offer.volumeMl} ml</span>
-              )}
-              <span className="text-2xs font-mono text-text-subtle">· {offer.unitId}</span>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              {/* Row 1: Ring Pill, Volume, Unit ID */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={[
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-2xs font-bold uppercase tracking-wider",
+                    ring.pill,
+                  ].join(" ")}
+                >
+                  <span className={["h-1.5 w-1.5 rounded-full", ring.dot].join(" ")} />
+                  {ring.label}
+                </span>
+
+                {!isOpen && <StatusPill kind="offer" value={offer.status} size="sm" />}
+
+                {offer.volumeMl !== undefined && (
+                  <span className="rounded-md bg-surface-sunken px-2 py-0.5 font-mono text-2xs font-semibold text-text-muted border border-border/60">
+                    {offer.volumeMl} ml
+                  </span>
+                )}
+
+                <span className="font-mono text-2xs text-text-subtle">
+                  · {offer.unitId}
+                </span>
+              </div>
+
+              {/* Row 2: Facility Name + Distance */}
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-text">
+                <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-accent" />
+                <span className="truncate">{originName}</span>
+                <span className="flex-shrink-0 font-normal text-text-muted">
+                  ({formatDistanceKm(offer.breakdown.distanceKm)})
+                </span>
+              </div>
+
+              {/* Row 3: Rationale sentence */}
+              <p className="text-xs leading-relaxed text-text-muted">
+                {offer.reason}
+              </p>
+
+              {/* Row 4: Shelf Life */}
+              <div className="flex items-center gap-1 text-2xs text-text-subtle pt-0.5">
+                <Clock className="h-3 w-3 text-text-muted" />
+                <span>Unit shelf-life:</span>
+                <strong className="font-semibold text-text tabular-nums" data-numeric="true">
+                  {unitCountdown.label} remaining
+                </strong>
+              </div>
             </div>
-
-            <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-text">
-              <MapPin className="h-3 w-3 flex-shrink-0 text-accent" />
-              <span className="truncate">{originName}</span>
-              <span className="flex-shrink-0 font-normal text-text-muted">
-                · {formatDistanceKm(offer.breakdown.distanceKm)}
-              </span>
-            </p>
-
-            <p className="mt-1 text-xs leading-normal text-text-muted">{offer.reason}</p>
-
-            <p className="mt-1.5 text-2xs text-text-subtle">
-              Unit shelf-life:{" "}
-              <span className="font-semibold tabular-nums text-text-muted" data-numeric="true">
-                {unitCountdown.label} remaining
-              </span>
-            </p>
           </div>
 
-          <CountdownRing createdAt={offer.createdAt} claimBy={offer.claimBy} size={48} />
-        </div>
+          {/* Right Action & Countdown Zone */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-border/60 pt-3 lg:border-t-0 lg:pt-0 lg:pl-4 flex-shrink-0 justify-between lg:justify-end">
+            {/* Criteria Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-sunken px-2.5 py-1.5 text-2xs font-semibold text-text-muted transition-colors hover:border-accent/40 hover:text-accent"
+            >
+              <ChevronDown
+                className={["h-3 w-3 transition-transform", expanded ? "rotate-180" : ""].join(" ")}
+              />
+              {expanded ? "Hide criteria" : "Why matched"}
+            </button>
 
-        {/* Breakdown */}
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          className="mt-2.5 inline-flex items-center gap-1 text-2xs font-semibold text-text-muted transition-colors hover:text-accent"
-        >
-          <ChevronDown
-            className={["h-3 w-3 transition-transform", expanded ? "rotate-180" : ""].join(" ")}
-          />
-          {expanded ? "Hide criteria" : "Why this offer was matched"}
-        </button>
+            {/* Countdown Ring */}
+            <CountdownRing createdAt={offer.createdAt} claimBy={offer.claimBy} size={48} />
 
-        {expanded && (
-          <div className="mt-2.5">
-            <MatchBreakdown breakdown={offer.breakdown} score={offer.score} />
-          </div>
-        )}
-
-        {/* Actions */}
-        {isOpen && !failure && (
-          <div className="mt-3 border-t border-border pt-3">
-            {decliningOpen ? (
-              <div>
-                <p className="mb-2 text-xs font-semibold text-text">Why are you declining?</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {DECLINE_REASONS.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      disabled={decline.isPending}
-                      onClick={() => void handleDecline(value)}
-                      className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent disabled:opacity-50"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setDecliningOpen(false)}
-                    className="rounded-full px-2.5 py-1 text-xs font-medium text-text-muted transition-colors hover:text-text"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : claimed ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <ClaimButton claimed onClick={() => {}} />
-                <Link
-                  to="/hospital/transfers"
-                  className="text-xs font-semibold text-accent underline-offset-2 hover:underline"
-                >
-                  Track under Transfers →
-                </Link>
-              </div>
-            ) : (
+            {/* Action Buttons */}
+            {isOpen && !failure && (
               <div className="flex items-center gap-2">
-                <ClaimButton
-                  onClick={() => void handleClaim()}
-                  loading={claim.isPending}
-                  disabled={windowClosed}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setDecliningOpen(true)}
-                  disabled={claim.isPending || windowClosed}
-                >
-                  Decline
-                </Button>
-                {windowClosed && (
-                  <span className="text-xs text-text-subtle">Window closed</span>
+                {decliningOpen ? (
+                  <div className="flex flex-col items-end gap-1.5">
+                    <p className="text-3xs font-semibold text-text-muted uppercase tracking-wider">Decline reason?</p>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {DECLINE_REASONS.map(({ value, label }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          disabled={decline.isPending}
+                          onClick={() => void handleDecline(value)}
+                          className="rounded-full border border-border bg-surface px-2.5 py-1 text-3xs font-medium text-text transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent disabled:opacity-50"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setDecliningOpen(false)}
+                        className="rounded-full px-2 py-1 text-3xs font-medium text-text-muted hover:text-text"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : claimed ? (
+                  <div className="flex items-center gap-2">
+                    <ClaimButton claimed onClick={() => {}} />
+                    <Link
+                      to="/hospital/transfers"
+                      className="text-2xs font-semibold text-accent underline-offset-2 hover:underline"
+                    >
+                      Transfers →
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <ClaimButton
+                      onClick={() => void handleClaim()}
+                      loading={claim.isPending}
+                      disabled={windowClosed}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDecliningOpen(true)}
+                      disabled={claim.isPending || windowClosed}
+                      className="px-3 text-xs text-text-muted hover:text-accent"
+                    >
+                      Decline
+                    </Button>
+                    {windowClosed && (
+                      <span className="text-3xs font-semibold text-text-subtle">Closed</span>
+                    )}
+                  </div>
                 )}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Expanded Rationale */}
+        {expanded && (
+          <div className="mt-3.5 border-t border-border/60 pt-3">
+            <MatchBreakdown breakdown={offer.breakdown} score={offer.score} />
           </div>
         )}
       </div>

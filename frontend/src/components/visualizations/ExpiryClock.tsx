@@ -61,24 +61,37 @@ export const ExpiryClock: React.FC<ExpiryClockProps> = ({
   const strokeColor = colorMap[urgency];
 
   if (compact) {
+    const effectiveSize = Math.max(28, size);
+    const strokeWidth = effectiveSize <= 30 ? 2.5 : 3;
+    const radius = (effectiveSize - strokeWidth * 2) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+    const fontSizeClass =
+      effectiveSize <= 28
+        ? "text-[7.5px]"
+        : effectiveSize <= 32
+        ? "text-[8.5px]"
+        : "text-[10px]";
+
     return (
       <div
-        className={`relative inline-flex items-center justify-center ${className}`}
-        style={{ width: size, height: size }}
+        className={`relative inline-flex flex-shrink-0 items-center justify-center ${className}`}
+        style={{ width: effectiveSize, height: effectiveSize }}
         title={`${remainingHours}h ${remainingMinutes}m remaining`}
       >
-        <svg width={size} height={size} className="-rotate-90">
+        <svg width={effectiveSize} height={effectiveSize} className="-rotate-90">
           <circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={effectiveSize / 2}
+            cy={effectiveSize / 2}
             r={radius}
             fill="transparent"
             stroke="hsl(var(--border))"
             strokeWidth={strokeWidth}
           />
           <circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={effectiveSize / 2}
+            cy={effectiveSize / 2}
             r={radius}
             fill="transparent"
             stroke={strokeColor}
@@ -96,7 +109,7 @@ export const ExpiryClock: React.FC<ExpiryClockProps> = ({
           />
         )}
         <span
-          className="absolute text-[10px] font-bold font-mono tracking-tighter"
+          className={`absolute ${fontSizeClass} font-bold font-mono tracking-tighter leading-none text-center select-none`}
           style={{ color: strokeColor }}
         >
           {remainingHours}h

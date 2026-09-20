@@ -34,24 +34,25 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState<Role | "form" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [introComplete, setIntroComplete] = useState(false);
+  const [successDestination, setSuccessDestination] = useState<string | null>(null);
 
   const next = new URLSearchParams(location.search).get("next");
   const destinationFor = (r: Role) => next || LANDING_PATHS[r];
 
   useEffect(() => {
-    if (isAuthenticated && role) {
+    if (isAuthenticated && role && !successDestination) {
       navigate(destinationFor(role), { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, role]);
+  }, [isAuthenticated, role, successDestination]);
 
   const handlePersona = async (r: Role) => {
     setError(null);
     setPending(r);
     try {
       const user = await loginAs(r);
-      navigate(destinationFor(user.role), { replace: true });
+      soundManager.play("pulse");
+      setSuccessDestination(destinationFor(user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
     } finally {
@@ -65,17 +66,13 @@ export function LoginPage() {
     setPending("form");
     try {
       const user = await login(email.trim(), password);
-      navigate(destinationFor(user.role), { replace: true });
+      soundManager.play("pulse");
+      setSuccessDestination(destinationFor(user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
     } finally {
       setPending(null);
     }
-  };
-
-  const handleIntroComplete = () => {
-    setIntroComplete(true);
-    soundManager.play("pulse");
   };
 
   return (
@@ -85,26 +82,21 @@ export function LoginPage() {
         <NetworkOrb size={800} subtle />
       </div>
 
-      {/* Blood drop intro */}
-      <BloodDropIntro onComplete={handleIntroComplete} />
-
-      {/* Main content — emerges after intro */}
+      {/* Main content is immediately available; the splash only runs after a successful sign-in. */}
       <AnimatePresence>
-        {introComplete && (
           <motion.div
             key="login-content"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, ease: [0.2, 0, 0, 1] }}
-            className="relative z-10 mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 items-center
-              gap-10 px-5 py-10 lg:grid-cols-[1.2fr_minmax(0,420px)] lg:gap-20 lg:py-16"
+            className="relative z-10 mx-auto flex min-h-screen w-full max-w-[460px] items-center px-5 py-10"
           >
             {/* ── Brand column ─────────────────────────────────────────────── */}
             <motion.div
               initial={{ opacity: 0, x: -24 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, delay: 0.1, ease: [0.2, 0, 0, 1] }}
-              className="max-w-xl"
+              className="hidden"
             >
               <div className="mb-10 flex items-center gap-2.5 text-accent">
                 <Logo className="h-7 w-7" />
@@ -291,6 +283,8 @@ export function LoginPage() {
               </div>
             </motion.div>
           </motion.div>
+        {successDestination && (
+          <BloodDropIntro onComplete={() => navigate(successDestination, { replace: true })} />
         )}
       </AnimatePresence>
     </div>
