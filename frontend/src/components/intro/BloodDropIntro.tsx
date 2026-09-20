@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrefersReducedMotion } from "../../lib/motion";
 import { Logo } from "../layout/Logo";
@@ -23,6 +23,11 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [isVisible, setIsVisible] = useState(!reducedMotion);
 
+  const handleDismiss = useCallback(() => {
+    setIsVisible(false);
+    onComplete?.();
+  }, [onComplete]);
+
   useEffect(() => {
     if (reducedMotion) {
       setIsVisible(false);
@@ -36,12 +41,7 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
     }, 1100);
 
     return () => window.clearTimeout(timer);
-  }, [reducedMotion]);
-
-  const handleDismiss = () => {
-    setIsVisible(false);
-    onComplete?.();
-  };
+  }, [reducedMotion, handleDismiss, onComplete]);
 
   if (!isVisible && reducedMotion) {
     return null;
@@ -56,7 +56,7 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
           exit={{
             opacity: 0,
             y: -24,
-            transition: { duration: 0.35, ease: [0.2, 0, 0, 1] },
+            transition: { duration: 0.35, ease: [0.2, 0, 0, 1] as const },
           }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-between overflow-hidden bg-surface select-none"
         >
@@ -185,7 +185,7 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
                 transition={{
                   duration: 0.5,
                   times: [0, 0.1, 0.55, 0.75, 1],
-                  ease: [0.45, 0, 0.7, 1],
+                  ease: [0.45, 0, 0.7, 1] as const,
                 }}
                 className="relative z-20 flex items-center justify-center text-accent drop-shadow-md"
               >
@@ -216,7 +216,7 @@ export function BloodDropIntro({ onComplete }: BloodDropIntroProps) {
             <motion.div
               initial={{ opacity: 0, scaleX: 0 }}
               animate={{ opacity: 1, scaleX: 1 }}
-              transition={{ duration: 0.45, delay: 0.32, ease: [0.2, 0, 0, 1] }}
+              transition={{ duration: 0.45, delay: 0.32, ease: [0.2, 0, 0, 1] as const }}
               className="w-64 max-w-xs -mt-5 mb-3"
             >
               <PulseLine height={20} color="hsl(var(--accent))" />
