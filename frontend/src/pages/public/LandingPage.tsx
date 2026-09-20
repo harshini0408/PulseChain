@@ -11,12 +11,14 @@ export function LandingPage() {
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#FAF6F6]">
-      {/* ── Background Illustration from Screenshot ───────────────────────── */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-cover bg-right-top bg-no-repeat opacity-95"
-        style={{ backgroundImage: "url('/image.png')" }}
-        aria-hidden="true"
-      />
+      {/* ── Background Illustration with Subtle Organic Breathing Motion ── */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        {/* Base illustration with gentle floating/breathing motion */}
+        <div
+          className="absolute inset-0 bg-cover bg-right-top bg-no-repeat opacity-95 animate-hero-breathe motion-reduce:animate-none"
+          style={{ backgroundImage: "url('/image.png')" }}
+        />
+      </div>
 
       {/* ── Top Navigation Bar ────────────────────────────────────────────── */}
       <motion.header

@@ -43,7 +43,7 @@ export const PulseLine: React.FC<PulseLineProps> = ({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeDasharray="60 260"
-            className="motion-safe:animate-[pulse-travel_2.8s_linear_infinite]"
+            className="motion-safe:animate-[pulse-travel_1.8s_ease-in-out_infinite]"
           />
         )}
       </svg>
