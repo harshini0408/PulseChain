@@ -275,11 +275,22 @@ export function LoginPage() {
                   </Button>
                 </form>
 
-                <p className="mt-5 text-[11px] leading-relaxed text-text-subtle">
-                  Credentials authenticate against Cognito when a user pool is configured. Without
-                  one, the personas above sign in locally and the interface marks the session as demo
-                  auth.
-                </p>
+                <div className="mt-5 flex items-center justify-between border-t border-border/50 pt-4 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/request")}
+                    className="font-semibold text-accent transition-colors hover:underline"
+                  >
+                    I need blood →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/")}
+                    className="text-text-muted transition-colors hover:text-text"
+                  >
+                    Home
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

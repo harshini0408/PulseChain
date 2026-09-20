@@ -549,6 +549,8 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /requisitions
             Method: POST
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:

@@ -1,183 +1,172 @@
-/**
- * frontend/src/pages/public/LandingPage.tsx
- *
- * Block 6: The thin public front door.
- *
- * Features:
- * 1. BloodDropIntro plays on initial visit (reusing components/intro/BloodDropIntro.tsx as-is).
- * 2. Clean single-screen presentation with one-line description.
- * 3. Two primary actions: "I need blood" (/request) and "Facility login" (/login).
- * 4. 4 "How it works" steps using PageHeader and Card from components/ui/*.
- * 5. Strictly on-theme, zero scope creep (no blog, CMS, stories, or FAQ).
- */
-
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Clock, HeartHandshake, ShieldCheck, Truck } from "lucide-react";
-import { BloodDropIntro } from "../../components/intro/BloodDropIntro";
-import { Card, PageHeader } from "../../components/ui";
+import { ArrowRight, Droplets, LogIn } from "lucide-react";
 import { Logo } from "../../components/layout/Logo";
 import { PulseLine } from "../../components/motion/PulseLine";
-import { NetworkOrb } from "../../components/visualizations/NetworkOrb";
-
-const HOW_IT_WORKS_STEPS = [
-  {
-    step: "01",
-    title: "Stock Monitoring",
-    description: "Centres register available units with live component-expiry countdowns.",
-    icon: Clock,
-  },
-  {
-    step: "02",
-    title: "Escalation Brokerage",
-    description: "At-risk units broker outward ring-by-ring to hospitals with matching demand.",
-    icon: ShieldCheck,
-  },
-  {
-    step: "03",
-    title: "1-Click Claim & Transfer",
-    description: "Hospitals claim incoming units instantly with tracked courier dispatch.",
-    icon: Truck,
-  },
-  {
-    step: "04",
-    title: "Community Mobilisation",
-    description: "When network stock is empty, registered regional donor pools receive secure alerts.",
-    icon: HeartHandshake,
-  },
-];
 
 export function LandingPage() {
   const navigate = useNavigate();
-  const [introDone, setIntroDone] = useState(false);
+  const goToLogin = () => navigate("/login");
+  const goToRequest = () => navigate("/request");
 
   return (
-    <div className="brand-field min-h-screen relative overflow-hidden flex flex-col justify-between">
-      {/* Play intro on first mount if not dismissed */}
-      {!introDone && (
-        <BloodDropIntro onComplete={() => setIntroDone(true)} />
-      )}
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#FAF6F6]">
+      {/* ── Background Illustration from Screenshot ───────────────────────── */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-cover bg-right-top bg-no-repeat opacity-95"
+        style={{ backgroundImage: "url('/image.png')" }}
+        aria-hidden="true"
+      />
 
-      {/* Subtle ambient background */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-8">
-        <NetworkOrb size={700} subtle />
-      </div>
+      {/* ── Top Navigation Bar ────────────────────────────────────────────── */}
+      <motion.header
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-20 flex items-center justify-between px-6 py-6 sm:px-12 lg:px-16 max-w-7xl mx-auto"
+      >
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
+          <Logo className="h-7 w-7 text-[#B71C1C]" />
+          <span className="font-display text-xl sm:text-2xl font-black tracking-tight text-[#1A1A1A]">
+            PulseChain
+          </span>
+        </div>
 
-      <div className="relative z-10 flex flex-col flex-1">
-        {/* ── Top Header ──────────────────────────────────────────────── */}
-        <header className="flex items-center justify-between px-6 py-5 sm:px-10 max-w-6xl w-full mx-auto">
-          <div className="flex items-center gap-2.5 text-accent">
-            <Logo className="h-6 w-6" />
-            <span className="font-display text-lg font-bold tracking-tight text-text">
-              PulseChain
-            </span>
+        <nav className="flex items-center gap-6 sm:gap-10">
+          <div className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#4A4A4A]">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="text-[#B71C1C] transition-colors"
+            >
+              Home
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/impact")}
+              className="hover:text-[#B71C1C] transition-colors"
+            >
+              About
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/impact")}
+              className="hover:text-[#B71C1C] transition-colors"
+            >
+              Donate
+            </button>
+            <button
+              type="button"
+              onClick={goToRequest}
+              className="hover:text-[#B71C1C] transition-colors"
+            >
+              Contact
+            </button>
           </div>
 
           <button
             type="button"
-            onClick={() => navigate("/login")}
-            className="rounded-full border border-border bg-surface-raised/80 px-4 py-1.5 text-xs font-semibold text-text backdrop-blur-sm transition-all hover:border-accent/40 hover:text-accent shadow-sm"
+            onClick={goToLogin}
+            className="rounded-full border border-white/80 bg-white/10 backdrop-blur-sm px-6 py-2 text-xs sm:text-sm font-bold text-white transition-all hover:bg-white hover:text-[#B71C1C] shadow-sm"
           >
-            Facility login
+            Facility Login
           </button>
-        </header>
+        </nav>
+      </motion.header>
 
-        {/* ── Hero Section ────────────────────────────────────────────── */}
-        <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-6 sm:px-10 flex flex-col justify-center">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
-            className="text-center max-w-3xl mx-auto mb-10"
-          >
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border/80 bg-surface-raised/90 px-3.5 py-1 text-2xs font-bold uppercase tracking-wider text-accent shadow-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-              Regional Blood Coordination Network
-            </p>
+      {/* ── Hero Section ─────────────────────────────────────────────────── */}
+      <section className="relative z-10 flex min-h-[calc(100vh-100px)] items-center px-6 py-8 sm:px-12 lg:px-16 max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.1 }}
+          className="max-w-2xl"
+        >
+          {/* Main Headline matching screenshot */}
+          <h1 className="font-display text-4xl sm:text-6xl lg:text-[68px] font-black leading-[1.02] tracking-tight text-[#1A1A1A]">
+            A unit nobody<br />
+            claims in time is<br />
+            a unit <em className="not-italic text-[#B71C1C] italic">lost</em> for<br />
+            good.
+          </h1>
 
-            <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-text leading-tight sm:leading-tight">
-              A unit nobody claims in time is a unit{" "}
-              <span className="text-accent italic">lost</span> for good.
-            </h1>
+          {/* Heartbeat pulse wave line */}
+          <div className="my-5 w-48 opacity-90">
+            <PulseLine height={20} color="#B71C1C" />
+          </div>
 
-            <div className="my-4 mx-auto w-40 opacity-70">
-              <PulseLine height={16} color="hsl(var(--accent))" />
+          {/* Subtitle matching screenshot */}
+          <p className="text-base sm:text-lg font-medium text-[#4A4A4A] leading-relaxed max-w-lg">
+            Be the reason someone gets another tomorrow.<br />
+            Donate blood. Save lives.
+          </p>
+
+          {/* ── 2 Bold Action Options ────────────────────────────────────── */}
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            {/* Option 1: I Need Blood */}
+            <button
+              type="button"
+              id="btn-landing-need-blood"
+              onClick={goToRequest}
+              className="group inline-flex items-center gap-3 rounded-full bg-[#B71C1C] px-8 py-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(183,28,28,0.38)] transition-all hover:bg-[#9E1414] hover:shadow-[0_12px_28px_rgba(183,28,28,0.48)] hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <Droplets className="h-5 w-5 fill-current" />
+              I Need Blood
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </button>
+
+            {/* Option 2: Facility Login */}
+            <button
+              type="button"
+              id="btn-landing-facility-login"
+              onClick={goToLogin}
+              className="group inline-flex items-center gap-3 rounded-full border-2 border-[#1A1A1A] bg-[#1A1A1A] px-8 py-4 text-base font-bold text-white shadow-md transition-all hover:bg-black hover:border-black hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <LogIn className="h-5 w-5" />
+              Facility Login
+            </button>
+          </div>
+
+          {/* ── 3 Stats at bottom matching screenshot ───────────────────── */}
+          <div className="mt-14 flex flex-wrap items-baseline gap-10 sm:gap-14 pt-4">
+            <div>
+              <div className="font-display text-3xl sm:text-4xl font-black text-[#B71C1C] tabular-nums">
+                48h
+              </div>
+              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#6B6B6B]">
+                PLATELET CLOCK
+              </div>
             </div>
 
-            <p className="text-sm sm:text-base text-text-muted leading-relaxed max-w-2xl mx-auto">
-              PulseChain brokers urgent blood supplies and surplus inventory between regional centres and hospitals before the expiry clock runs out.
-            </p>
-
-            {/* CTA Action Buttons */}
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3.5">
-              <button
-                type="button"
-                id="btn-public-request-blood"
-                onClick={() => navigate("/request")}
-                className="group inline-flex items-center gap-2.5 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white shadow-raised transition-all hover:bg-accent-hover hover:shadow-brand hover:-translate-y-0.5"
-              >
-                I need blood
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </button>
-
-              <button
-                type="button"
-                id="btn-public-facility-login"
-                onClick={() => navigate("/login")}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface-raised px-5 py-3 text-sm font-semibold text-text transition-all hover:border-border-strong hover:bg-surface"
-              >
-                Facility login
-              </button>
-            </div>
-          </motion.div>
-
-          {/* ── How It Works Steps ──────────────────────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.2, 0, 0, 1] }}
-            aria-label="How it works"
-            className="mt-4"
-          >
-            <div className="mb-4 text-center">
-              <PageHeader
-                eyebrow="Corridor operations"
-                title="How PulseChain works"
-                subtitle="Four coordinated stages from inventory alerting to community response"
-              />
+            <div>
+              <div className="font-display text-3xl sm:text-4xl font-black text-[#B71C1C] tabular-nums">
+                3
+              </div>
+              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#6B6B6B]">
+                ESCALATION RINGS
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {HOW_IT_WORKS_STEPS.map((step) => {
-                const Icon = step.icon;
-                return (
-                  <Card key={step.step} tier="console" className="relative p-4 flex flex-col justify-between hover:border-accent/30 transition-all">
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <span className="font-mono text-2xs font-bold text-text-subtle">
-                          {step.step}
-                        </span>
-                      </div>
-                      <h3 className="text-xs font-bold text-text mb-1">{step.title}</h3>
-                      <p className="text-2xs text-text-muted leading-relaxed">{step.description}</p>
-                    </div>
-                  </Card>
-                );
-              })}
+            <div>
+              <div className="font-display text-3xl sm:text-4xl font-black text-[#B71C1C] tabular-nums">
+                3.5s
+              </div>
+              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#6B6B6B]">
+                CONSOLE REFRESH
+              </div>
             </div>
-          </motion.section>
-        </main>
+          </div>
+        </motion.div>
+      </section>
 
-        {/* ── Minimal Footer ──────────────────────────────────────────── */}
-        <footer className="py-4 text-center text-2xs text-text-subtle border-t border-border/40">
-          PulseChain Regional Care Corridor • Secure Automated Coordination
-        </footer>
+      {/* ── Bottom Right Slogan matching screenshot ───────────────────────── */}
+      <div className="pointer-events-none hidden xl:block absolute right-16 bottom-16 text-right">
+        <p className="text-xs font-bold tracking-[0.2em] text-[#7A5858] uppercase leading-relaxed">
+          A SMALL ACT<br />
+          A BIG IMPACT
+        </p>
       </div>
-    </div>
+    </main>
   );
 }
 
