@@ -21,7 +21,7 @@ export function LandingPage() {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="pointer-events-none absolute inset-0 bg-cover bg-right-top bg-no-repeat opacity-95 origin-bottom-right"
+        className="pointer-events-none absolute inset-0 hidden md:block bg-cover bg-right-top bg-no-repeat opacity-95 origin-bottom-right"
         style={{
           backgroundImage: "url('/image.png')",
           transformOrigin: "100% 100%",
