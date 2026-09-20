@@ -10,7 +10,7 @@ export function LandingPage() {
   const goToRequest = () => navigate("/request");
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#FAF6F6]">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-[#FFF5F5] via-[#FAF6F6] to-[#FCE8E8]">
       {/* ── Background Illustration with positive-only upward micro-rotation ───── */}
       <motion.div
         animate={{
@@ -78,7 +78,7 @@ export function LandingPage() {
           <button
             type="button"
             onClick={goToLogin}
-            className="rounded-full border border-white/80 bg-white/10 backdrop-blur-sm px-6 py-2 text-xs sm:text-sm font-bold text-white transition-all hover:bg-white hover:text-[#B71C1C] shadow-sm"
+            className="rounded-full border border-[#B71C1C]/20 bg-white/40 backdrop-blur-md px-6 py-2 text-xs sm:text-sm font-bold text-[#B71C1C] transition-all hover:bg-[#B71C1C] hover:text-white shadow-sm"
           >
             Facility Login
           </button>
@@ -91,7 +91,7 @@ export function LandingPage() {
           initial={{ opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="max-w-2xl"
+          className="w-full max-w-3xl lg:max-w-4xl"
         >
           {/* Main Headline matching screenshot */}
           <h1 className="font-display text-4xl sm:text-6xl lg:text-[68px] font-black leading-[1.02] tracking-tight text-[#1A1A1A]">
@@ -107,7 +107,7 @@ export function LandingPage() {
           </div>
 
           {/* Subtitle matching screenshot */}
-          <p className="text-base sm:text-lg font-medium text-[#4A4A4A] leading-relaxed max-w-lg">
+          <p className="text-base sm:text-lg font-medium text-[#4A4A4A] leading-relaxed max-w-xl">
             Be the reason someone gets another tomorrow.<br />
             Donate blood. Save lives.
           </p>
