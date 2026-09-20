@@ -16,7 +16,6 @@ import { ConnectionDot } from "./ConnectionDot";
 import { RoleSwitcher } from "./RoleSwitcher";
 import { ROLE_LABEL } from "./nav";
 import { Logo } from "./Logo";
-import { SoundToggle } from "../ui/SoundToggle";
 import { BloodDropIntro } from "../intro/BloodDropIntro";
 import { soundManager } from "../../lib/soundManager";
 
@@ -63,7 +62,6 @@ export function TopBar() {
               Demo auth
             </Badge>
           )}
-          <SoundToggle />
           <RoleSwitcher />
           <button
             type="button"
