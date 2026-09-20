@@ -21,11 +21,9 @@ export function LandingPage() {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="pointer-events-none absolute top-0 right-0 bottom-0 left-0 hidden lg:block bg-cover bg-right-top bg-no-repeat opacity-95 origin-bottom-right"
+        className="pointer-events-none absolute inset-0 hidden md:block bg-cover bg-right-top bg-no-repeat opacity-95 origin-bottom-right"
         style={{
           backgroundImage: "url('/image.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "right top",
           transformOrigin: "100% 100%",
         }}
         aria-hidden="true"
@@ -80,7 +78,7 @@ export function LandingPage() {
           <button
             type="button"
             onClick={goToLogin}
-            className="rounded-full border border-[#B71C1C]/30 md:border-white/80 bg-[#B71C1C]/10 md:bg-white/10 backdrop-blur-sm px-6 py-2 text-xs sm:text-sm font-bold text-[#B71C1C] md:text-white transition-all hover:bg-[#B71C1C] hover:text-white md:hover:bg-white md:hover:text-[#B71C1C] shadow-sm"
+            className="hidden md:block rounded-full border border-white/80 bg-white/10 backdrop-blur-sm px-6 py-2 text-xs sm:text-sm font-bold text-white transition-all hover:bg-white hover:text-[#B71C1C] shadow-sm"
           >
             Facility Login
           </button>
