@@ -66,13 +66,6 @@ export function LandingPage() {
             >
               Donate
             </button>
-            <button
-              type="button"
-              onClick={goToRequest}
-              className="hover:text-[#B71C1C] transition-colors"
-            >
-              Contact
-            </button>
           </div>
 
           <button
