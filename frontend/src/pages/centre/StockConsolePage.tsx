@@ -16,11 +16,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Droplets,
   Radio,
   Upload,
   XCircle,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import {
   BLOOD_GROUPS,
   COMPONENTS,
@@ -34,7 +37,7 @@ import { useEscalationsQuery, useStockQuery } from "../../api/hooks";
 import type { StockUnit } from "../../api/client";
 import { api } from "../../api/client";
 import { StockTable } from "../../components/stock/StockTable";
-import { ExpiryRiskOverview, type RiskLevel, classifyUnitRisk } from "../../components/stock/ExpiryRiskOverview";
+import { ExpiryRiskOverview, classifyUnitRisk } from "../../components/stock/ExpiryRiskOverview";
 import {
   EmptyState,
   ErrorState,
@@ -50,6 +53,7 @@ type View = "alert" | "rescue" | "claimed" | "lost";
 const VIEWS: View[] = ["alert", "rescue", "claimed", "lost"];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const PAGE_SIZE = 20;
 
 function isToday(iso: string | undefined): boolean {
   if (!iso) return false;
@@ -67,6 +71,19 @@ function isWithinLastWeek(iso: string | undefined): boolean {
   if (!iso) return false;
   const t = new Date(iso).getTime();
   return !Number.isNaN(t) && Date.now() - t <= 7 * DAY_MS;
+}
+
+function getPageNumbers(currentPage: number, totalPages: number): (number | "...")[] {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  if (currentPage <= 4) {
+    return [1, 2, 3, 4, 5, "...", totalPages];
+  }
+  if (currentPage >= totalPages - 3) {
+    return [1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+  return [1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages];
 }
 
 // ── CSV Import types ──────────────────────────────────────────────────────
@@ -107,6 +124,7 @@ export function StockConsolePage() {
   const { data: escalations } = useEscalationsQuery();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
   const [showImport, setShowImport] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; total: number } | null>(null);
@@ -146,21 +164,61 @@ export function StockConsolePage() {
   const units = useMemo(() => stock.data ?? [], [stock.data]);
 
   const view = (params.get("view") as View | null) ?? null;
-  const risk = (params.get("risk") as RiskLevel | null) ?? null;
   const component = params.get("component") as Component | null;
   const group = params.get("group") as BloodGroup | null;
-  const status = params.get("status") as UnitStatus | null;
+  const rawStatus = params.get("status") as UnitStatus | null;
+  const activeStatus: UnitStatus =
+    rawStatus && UNIT_STATUSES.includes(rawStatus) ? rawStatus : "AVAILABLE";
+
+  const rawPage = parseInt(params.get("page") || "1", 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
 
   const setParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(params);
     if (value === null || value === "") next.delete(key);
     else next.set(key, value);
+    next.delete("page"); // Reset pagination whenever filters change
+    setParams(next, { replace: true });
+  };
+
+  const handleStatusChange = (newStatus: UnitStatus) => {
+    const next = new URLSearchParams(params);
+    next.set("status", newStatus);
+    next.delete("page");
+    // Clear conflicting view filters
+    if (view === "rescue" && newStatus !== "RESCUE_PENDING") next.delete("view");
+    if (view === "claimed" && newStatus !== "CLAIMED") next.delete("view");
+    if (view === "lost" && newStatus !== "LOST") next.delete("view");
     setParams(next, { replace: true });
   };
 
   const toggleView = (v: View) => {
-    setParam("view", view === v ? null : v);
+    const next = new URLSearchParams(params);
+    if (view === v) {
+      next.delete("view");
+    } else {
+      next.set("view", v);
+      // Synchronize status tab with view
+      if (v === "rescue") next.set("status", "RESCUE_PENDING");
+      else if (v === "claimed") next.set("status", "CLAIMED");
+      else if (v === "lost") next.set("status", "LOST");
+      else if (v === "alert" && activeStatus === "LOST") next.set("status", "AVAILABLE");
+    }
+    next.delete("page");
+    setParams(next, { replace: true });
   };
+
+  const goToPage = (newPage: number) => {
+    const next = new URLSearchParams(params);
+    if (newPage <= 1) next.delete("page");
+    else next.set(keyOrPage("page"), String(newPage));
+    setParams(next, { replace: true });
+    tableContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  function keyOrPage(k: string) {
+    return k;
+  }
 
   // Stat card counts
   const counts = useMemo(() => {
@@ -181,6 +239,26 @@ export function StockConsolePage() {
     return { alert, rescue, claimedToday, lostThisWeek };
   }, [units]);
 
+  // Status tab badge counts (filtered by component and group if selected)
+  const statusCounts = useMemo(() => {
+    const res: Record<UnitStatus, number> = {
+      AVAILABLE: 0,
+      RESCUE_PENDING: 0,
+      CLAIMED: 0,
+      IN_TRANSIT: 0,
+      RECEIVED: 0,
+      LOST: 0,
+    };
+    for (const u of units) {
+      if (component && u.component !== component) continue;
+      if (group && u.bloodGroup !== group) continue;
+      if (res[u.status] !== undefined) {
+        res[u.status]++;
+      }
+    }
+    return res;
+  }, [units, component, group]);
+
   // Filtered table units
   const filtered = useMemo(
     () =>
@@ -194,18 +272,42 @@ export function StockConsolePage() {
         )
           return false;
 
-        if (risk && classifyUnitRisk(u) !== risk) return false;
         if (component && u.component !== component) return false;
         if (group && u.bloodGroup !== group) return false;
-        if (status && u.status !== status) return false;
+        if (u.status !== activeStatus) return false;
 
         return true;
       }),
-    [units, view, risk, component, group, status],
+    [units, view, component, group, activeStatus],
   );
 
-  const hasFilter = Boolean(view || risk || component || group || status);
+  // Expiry sorted units
+  const sorted = useMemo(
+    () =>
+      [...filtered].sort(
+        (a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime(),
+      ),
+    [filtered],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+
+  const paginatedUnits = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sorted.slice(start, start + PAGE_SIZE);
+  }, [sorted, currentPage]);
+
+  const hasFilter = Boolean(
+    view || component || group || activeStatus !== "AVAILABLE"
+  );
   const plateletClock = componentClock("PLATELETS");
+
+  const clearAllFilters = () => {
+    const next = new URLSearchParams();
+    next.set("status", "AVAILABLE");
+    setParams(next, { replace: true });
+  };
 
   const VIEW_META: Record<
     View,
@@ -280,64 +382,57 @@ export function StockConsolePage() {
 
       {/* ── 2. Expiry Risk Overview (Non-overlapping horizon & attention queue) ── */}
       {!stock.isLoading && !stock.isError && units.length > 0 && (
-        <ExpiryRiskOverview
-          units={units}
-          activeRiskFilter={risk}
-          onSelectRiskFilter={(r) => setParam("risk", r)}
-        />
+        <ExpiryRiskOverview units={units} />
       )}
 
-      {/* ── 3. Filter bar ────────────────────────────────────────────────────── */}
+      {/* ── 3. Status Tabs (Replacing Status Dropdown) ────────────────────── */}
+      <div className="flex items-center gap-1 overflow-x-auto rounded-xl border border-border bg-surface-raised p-1.5 shadow-sm">
+        {UNIT_STATUSES.map((s) => {
+          const isActive = activeStatus === s;
+          const count = statusCounts[s];
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => handleStatusChange(s)}
+              className={[
+                "relative flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap",
+                isActive
+                  ? "text-text shadow-sm"
+                  : "text-text-muted hover:text-text hover:bg-surface-overlay/50",
+              ].join(" ")}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="stock-status-tab-pill"
+                  className="absolute inset-0 rounded-lg bg-surface-overlay border border-border"
+                  transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                />
+              )}
+              <span
+                className={[
+                  "relative z-10 h-2 w-2 rounded-full",
+                  UNIT_STATUS[s].dot,
+                ].join(" ")}
+              />
+              <span className="relative z-10">{UNIT_STATUS[s].label}</span>
+              <span
+                className={[
+                  "relative z-10 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1.5 text-3xs font-bold tabular-nums",
+                  isActive
+                    ? "bg-accent text-white font-bold"
+                    : "bg-surface-sunken text-text-muted",
+                ].join(" ")}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── 4. Secondary Filter bar (Component, Group, Clear) ──── */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-raised p-3 shadow-sm">
-        {/* Quick Risk Filters */}
-        <div className="mr-2 flex items-center rounded-lg border border-border bg-surface p-0.5">
-          <button
-            type="button"
-            onClick={() => setParam("risk", null)}
-            className={[
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-              !risk ? "bg-surface-raised font-bold text-text shadow-sm" : "text-text-muted hover:text-text",
-            ].join(" ")}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            onClick={() => setParam("risk", risk === "critical" ? null : "critical")}
-            className={[
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-              risk === "critical"
-                ? "bg-accent-soft font-bold text-accent shadow-sm"
-                : "text-text-muted hover:text-accent",
-            ].join(" ")}
-          >
-            Critical
-          </button>
-          <button
-            type="button"
-            onClick={() => setParam("risk", risk === "urgent" ? null : "urgent")}
-            className={[
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-              risk === "urgent"
-                ? "bg-status-in-transit-bg font-bold text-status-in-transit shadow-sm"
-                : "text-text-muted hover:text-status-in-transit",
-            ].join(" ")}
-          >
-            Urgent
-          </button>
-          <button
-            type="button"
-            onClick={() => setParam("risk", risk === "safe" ? null : "safe")}
-            className={[
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-              risk === "safe"
-                ? "bg-status-received-bg font-bold text-status-received shadow-sm"
-                : "text-text-muted hover:text-status-received",
-            ].join(" ")}
-          >
-            Safe
-          </button>
-        </div>
 
         <select
           aria-label="Filter by component"
@@ -367,24 +462,10 @@ export function StockConsolePage() {
           ))}
         </select>
 
-        <select
-          aria-label="Filter by status"
-          value={status ?? ""}
-          onChange={(e) => setParam("status", e.target.value)}
-          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-border-strong"
-        >
-          <option value="">All statuses</option>
-          {UNIT_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {UNIT_STATUS[s].label}
-            </option>
-          ))}
-        </select>
-
         {hasFilter && (
           <button
             type="button"
-            onClick={() => setParams(new URLSearchParams(), { replace: true })}
+            onClick={clearAllFilters}
             className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent-soft"
           >
             Clear filters
@@ -392,12 +473,24 @@ export function StockConsolePage() {
         )}
 
         <span className="ml-auto text-xs text-text-muted">
-          {pluralise(filtered.length, "unit")}
-          {hasFilter && units.length !== filtered.length ? ` of ${units.length}` : ""}
+          {filtered.length > PAGE_SIZE ? (
+            <>
+              Showing{" "}
+              <span className="font-semibold text-text">
+                {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)}
+              </span>{" "}
+              of <span className="font-semibold text-text">{filtered.length}</span> units
+            </>
+          ) : (
+            <>
+              {pluralise(filtered.length, "unit")}
+              {hasFilter && units.length !== filtered.length ? ` of ${units.length}` : ""}
+            </>
+          )}
         </span>
       </div>
 
-      {/* ── 4. Full Table ───────────────────────────────────────────────────── */}
+      {/* ── 5. Full Table & Pagination ───────────────────────────────────────── */}
       {stock.isLoading ? (
         <LoadingState variant="table" rows={6} label="Loading stock" />
       ) : stock.isError ? (
@@ -413,15 +506,76 @@ export function StockConsolePage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Droplets className="h-6 w-6" />}
-          title={hasFilter ? "Nothing matches these filters" : "No units in the alert window"}
+          title={hasFilter ? "Nothing matches these filters" : `No ${UNIT_STATUS[activeStatus].label.toLowerCase()} units`}
           message={
             hasFilter
-              ? "No unit in this facility's stock matches the current selection. Clear the filters to see everything held here."
+              ? "No unit in this facility's stock matches the current selection. Try changing the filters or status tab."
               : `All platelet stock is outside its ${plateletClock.thresholdHours}-hour clock. Units appear here as they cross into their component's alert window.`
           }
         />
       ) : (
-        <StockTable units={filtered} escalations={escalations} />
+        <div ref={tableContainerRef} className="space-y-3">
+          <StockTable units={paginatedUnits} escalations={escalations} />
+
+          {/* Pagination Controls — Rendered below the list when count exceeds 20 */}
+          {filtered.length > PAGE_SIZE && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl border border-border bg-surface-raised px-4 py-3 shadow-sm">
+              <p className="text-xs text-text-muted">
+                Showing{" "}
+                <span className="font-semibold text-text">
+                  {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)}
+                </span>{" "}
+                of <span className="font-semibold text-text">{filtered.length}</span> units
+              </p>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-text transition-colors hover:border-border-strong hover:bg-surface-overlay disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(currentPage, totalPages).map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-text-muted">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => goToPage(Number(p))}
+                        className={[
+                          "h-7 min-w-7 rounded-lg px-2 text-xs font-semibold transition-colors",
+                          currentPage === p
+                            ? "bg-accent text-white shadow-sm"
+                            : "border border-border bg-surface text-text hover:border-border-strong hover:bg-surface-overlay",
+                        ].join(" ")}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                  className="flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-text transition-colors hover:border-border-strong hover:bg-surface-overlay disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── 5. Bulk Stock Import (CSV) ────────────────────────────────────── */}

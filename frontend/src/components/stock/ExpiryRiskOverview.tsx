@@ -40,14 +40,12 @@ export function classifyUnitRisk(u: StockUnit): RiskLevel {
 
 interface ExpiryRiskOverviewProps {
   units: StockUnit[];
-  activeRiskFilter: RiskLevel | null;
-  onSelectRiskFilter: (risk: RiskLevel | null) => void;
+  activeRiskFilter?: RiskLevel | null;
+  onSelectRiskFilter?: (risk: RiskLevel | null) => void;
 }
 
 export function ExpiryRiskOverview({
   units,
-  activeRiskFilter,
-  onSelectRiskFilter,
 }: ExpiryRiskOverviewProps) {
   const navigate = useNavigate();
 
@@ -103,16 +101,7 @@ export function ExpiryRiskOverview({
         {/* Risk Bands Summary Cards */}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           {/* Critical Box */}
-          <button
-            type="button"
-            onClick={() => onSelectRiskFilter(activeRiskFilter === "critical" ? null : "critical")}
-            className={[
-              "group relative flex flex-col justify-between rounded-lg border p-2.5 sm:p-3 text-left transition-all",
-              activeRiskFilter === "critical"
-                ? "border-accent bg-accent-soft/70 ring-1 ring-accent"
-                : "border-border bg-surface hover:border-accent/50 hover:bg-accent-soft/30",
-            ].join(" ")}
-          >
+          <div className="flex flex-col justify-between rounded-lg border border-border bg-surface p-2.5 sm:p-3 text-left">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-3xs font-bold uppercase tracking-wider text-accent">
                 <span className="relative flex h-2 w-2">
@@ -123,9 +112,6 @@ export function ExpiryRiskOverview({
                 </span>
                 Critical (0–6h / Rescue)
               </span>
-              <span className="text-3xs font-medium text-text-muted group-hover:text-accent">
-                {critical.length > 0 ? "Filter" : ""}
-              </span>
             </div>
             <div className="mt-1.5 flex items-baseline gap-1.5">
               <span className="font-display text-xl font-bold tabular-nums text-accent" data-numeric="true">
@@ -134,26 +120,14 @@ export function ExpiryRiskOverview({
               <span className="text-2xs text-text-muted">units</span>
             </div>
             <p className="mt-0.5 text-3xs text-text-subtle">Immediate rescue attention required</p>
-          </button>
+          </div>
 
           {/* Urgent Box */}
-          <button
-            type="button"
-            onClick={() => onSelectRiskFilter(activeRiskFilter === "urgent" ? null : "urgent")}
-            className={[
-              "group relative flex flex-col justify-between rounded-lg border p-2.5 sm:p-3 text-left transition-all",
-              activeRiskFilter === "urgent"
-                ? "border-status-in-transit bg-status-in-transit-bg/70 ring-1 ring-status-in-transit"
-                : "border-border bg-surface hover:border-status-in-transit/50 hover:bg-status-in-transit-bg/30",
-            ].join(" ")}
-          >
+          <div className="flex flex-col justify-between rounded-lg border border-border bg-surface p-2.5 sm:p-3 text-left">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-3xs font-bold uppercase tracking-wider text-status-in-transit">
                 <span className="h-1.5 w-1.5 rounded-full bg-status-in-transit" />
                 Urgent (In Alert Window)
-              </span>
-              <span className="text-3xs font-medium text-text-muted group-hover:text-status-in-transit">
-                {urgent.length > 0 ? "Filter" : ""}
               </span>
             </div>
             <div className="mt-1.5 flex items-baseline gap-1.5">
@@ -166,26 +140,14 @@ export function ExpiryRiskOverview({
               <span className="text-2xs text-text-muted">units</span>
             </div>
             <p className="mt-0.5 text-3xs text-text-subtle">Reaching critical status within 24h</p>
-          </button>
+          </div>
 
           {/* Safe Box */}
-          <button
-            type="button"
-            onClick={() => onSelectRiskFilter(activeRiskFilter === "safe" ? null : "safe")}
-            className={[
-              "group relative flex flex-col justify-between rounded-lg border p-2.5 sm:p-3 text-left transition-all",
-              activeRiskFilter === "safe"
-                ? "border-status-received bg-status-received-bg/70 ring-1 ring-status-received"
-                : "border-border bg-surface hover:border-status-received/50 hover:bg-status-received-bg/30",
-            ].join(" ")}
-          >
+          <div className="flex flex-col justify-between rounded-lg border border-border bg-surface p-2.5 sm:p-3 text-left">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-3xs font-bold uppercase tracking-wider text-status-received">
                 <span className="h-1.5 w-1.5 rounded-full bg-status-received" />
                 Safe Stock (&gt;Threshold)
-              </span>
-              <span className="text-3xs font-medium text-text-muted group-hover:text-status-received">
-                {safe.length > 0 ? "Filter" : ""}
               </span>
             </div>
             <div className="mt-1.5 flex items-baseline gap-1.5">
@@ -198,7 +160,7 @@ export function ExpiryRiskOverview({
               <span className="text-2xs text-text-muted">units</span>
             </div>
             <p className="mt-0.5 text-3xs text-text-subtle">Stable shelf-life reserve</p>
-          </button>
+          </div>
         </div>
 
         {/* Interactive Temporal Scatter Horizon */}
