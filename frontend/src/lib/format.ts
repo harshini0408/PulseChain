@@ -1,3 +1,10 @@
+/**
+ * frontend/src/lib/format.ts
+ *
+ * Presentation helpers. Dates render in the Asia/Kolkata-facing en-IN locale
+ * because every facility in the corridor is in Tamil Nadu.
+ */
+
 import { formatDistanceToNowStrict } from "date-fns";
 
 export function formatDateTime(iso: string | undefined): string {
@@ -35,12 +42,12 @@ export function formatRelative(iso: string | undefined): string {
 }
 
 export function formatDistanceKm(km: number | undefined): string {
-  if (km === undefined || km === null || Number.isNaN(km)) return "—";
+  if (km === undefined || Number.isNaN(km)) return "—";
   return `${km.toFixed(1)} km`;
 }
 
-export function formatHoursMinutes(hours: number | undefined | null): string {
-  if (hours === undefined || hours === null || hours <= 0) return "0h 00m";
+export function formatHoursMinutes(hours: number): string {
+  if (hours <= 0) return "0h 00m";
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
   return `${h}h ${String(m).padStart(2, "0")}m`;
@@ -68,7 +75,6 @@ export function formatNumber(value: number | undefined | null): string {
 }
 
 /** "3 units" / "1 unit". */
-export function pluralise(count: number | undefined | null, singular: string, plural = `${singular}s`): string {
-  const n = count ?? 0;
-  return `${n} ${n === 1 ? singular : plural}`;
+export function pluralise(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
