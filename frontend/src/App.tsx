@@ -18,6 +18,8 @@ import { PoolsPage } from "./pages/coordinator/PoolsPage";
 import { MobiliseResponsePage } from "./pages/public/MobiliseResponsePage";
 import { LandingPage } from "./pages/public/LandingPage";
 import { PublicRequestPage } from "./pages/public/PublicRequestPage";
+import { AboutPage } from "./pages/public/AboutPage";
+import { DonatePage } from "./pages/public/DonatePage";
 
 /**
  * "/" — unauthenticated visitors see the public landing page.
@@ -55,6 +57,8 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/donate" element={<DonatePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/mobilise/:token" element={<MobiliseResponsePage />} />
       <Route path="/request" element={<PublicRequestPage />} />

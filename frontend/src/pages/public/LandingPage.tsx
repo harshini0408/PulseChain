@@ -33,7 +33,7 @@ export function LandingPage() {
         </div>
 
         <nav className="flex items-center gap-6 sm:gap-10">
-          <div className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#4A4A4A]">
+          <div className="hidden md:flex items-center gap-7 text-sm font-semibold text-[#333333]">
             <button
               type="button"
               onClick={() => navigate("/")}
@@ -43,24 +43,17 @@ export function LandingPage() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/impact")}
+              onClick={() => navigate("/about")}
               className="hover:text-[#B71C1C] transition-colors"
             >
               About
             </button>
             <button
               type="button"
-              onClick={() => navigate("/impact")}
+              onClick={() => navigate("/donate")}
               className="hover:text-[#B71C1C] transition-colors"
             >
               Donate
-            </button>
-            <button
-              type="button"
-              onClick={goToRequest}
-              className="hover:text-[#B71C1C] transition-colors"
-            >
-              Contact
             </button>
           </div>
 
@@ -83,7 +76,7 @@ export function LandingPage() {
           className="max-w-2xl"
         >
           {/* Main Headline matching screenshot */}
-          <h1 className="font-display text-4xl sm:text-6xl lg:text-[68px] font-black leading-[1.02] tracking-tight text-[#1A1A1A]">
+          <h1 className="font-display text-4xl sm:text-6xl lg:text-[68px] font-black leading-[1.02] tracking-tight text-[#111111]">
             A unit nobody<br />
             claims in time is<br />
             a unit <em className="not-italic text-[#B71C1C] italic">lost</em> for<br />
@@ -96,7 +89,7 @@ export function LandingPage() {
           </div>
 
           {/* Subtitle matching screenshot */}
-          <p className="text-base sm:text-lg font-medium text-[#4A4A4A] leading-relaxed max-w-lg">
+          <p className="text-base sm:text-lg font-semibold text-[#333333] leading-relaxed max-w-lg">
             Be the reason someone gets another tomorrow.<br />
             Donate blood. Save lives.
           </p>
@@ -133,7 +126,7 @@ export function LandingPage() {
               <div className="font-display text-3xl sm:text-4xl font-black text-[#B71C1C] tabular-nums">
                 48h
               </div>
-              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#6B6B6B]">
+              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#4A4A4A]">
                 PLATELET CLOCK
               </div>
             </div>
@@ -142,7 +135,7 @@ export function LandingPage() {
               <div className="font-display text-3xl sm:text-4xl font-black text-[#B71C1C] tabular-nums">
                 3
               </div>
-              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#6B6B6B]">
+              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#4A4A4A]">
                 ESCALATION RINGS
               </div>
             </div>
@@ -151,21 +144,13 @@ export function LandingPage() {
               <div className="font-display text-3xl sm:text-4xl font-black text-[#B71C1C] tabular-nums">
                 3.5s
               </div>
-              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#6B6B6B]">
+              <div className="mt-1 text-2xs font-bold uppercase tracking-wider text-[#4A4A4A]">
                 CONSOLE REFRESH
               </div>
             </div>
           </div>
         </motion.div>
       </section>
-
-      {/* ── Bottom Right Slogan matching screenshot ───────────────────────── */}
-      <div className="pointer-events-none hidden xl:block absolute right-16 bottom-16 text-right">
-        <p className="text-xs font-bold tracking-[0.2em] text-[#7A5858] uppercase leading-relaxed">
-          A SMALL ACT<br />
-          A BIG IMPACT
-        </p>
-      </div>
     </main>
   );
 }
