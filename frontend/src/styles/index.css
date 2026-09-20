@@ -367,6 +367,84 @@
   }
 }
 
+/* ── Hero Illustration Organic Animations ───────────────────────────────── */
+@keyframes hero-hand-breathe {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(0.35deg);
+  }
+}
+
+@keyframes hero-heartbeat {
+  0% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  14% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  28% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  42% {
+    transform: scale(1.04);
+    opacity: 0.95;
+  }
+  56% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+}
+
+@keyframes hero-heart-glow {
+  0%, 100% {
+    transform: scale(0.95);
+    opacity: 0.12;
+  }
+  14% {
+    transform: scale(1.18);
+    opacity: 0.35;
+  }
+  28% {
+    transform: scale(0.98);
+    opacity: 0.15;
+  }
+  42% {
+    transform: scale(1.12);
+    opacity: 0.28;
+  }
+  56% {
+    transform: scale(0.95);
+    opacity: 0.12;
+  }
+}
+
+.animate-hero-breathe {
+  animation: hero-hand-breathe 4.6s ease-in-out infinite;
+  will-change: transform;
+  transform-origin: bottom right;
+}
+
+.animate-hero-heartbeat {
+  animation: hero-heartbeat 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.animate-hero-heart-glow {
+  animation: hero-heart-glow 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform, opacity;
+  transform-origin: center center;
+}
+
 /* Connection flow pulse dot */
 @keyframes flow-pulse {
   0% {
