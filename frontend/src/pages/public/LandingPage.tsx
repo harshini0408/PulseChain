@@ -21,9 +21,11 @@ export function LandingPage() {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="pointer-events-none absolute inset-0 hidden md:block bg-cover bg-right-top bg-no-repeat opacity-95 origin-bottom-right"
+        className="pointer-events-none absolute top-0 right-0 bottom-0 left-0 hidden lg:block bg-cover bg-right-top bg-no-repeat opacity-95 origin-bottom-right"
         style={{
           backgroundImage: "url('/image.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "right top",
           transformOrigin: "100% 100%",
         }}
         aria-hidden="true"
