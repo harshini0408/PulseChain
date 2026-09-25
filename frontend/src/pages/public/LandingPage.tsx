@@ -71,7 +71,7 @@ export function LandingPage() {
           <button
             type="button"
             onClick={goToLogin}
-            className="hidden md:block rounded-full border border-white/80 bg-white/10 backdrop-blur-sm px-6 py-2 text-xs sm:text-sm font-bold text-white transition-all hover:bg-white hover:text-[#B71C1C] shadow-sm"
+            className="rounded-full border border-white/80 bg-white/10 backdrop-blur-sm px-6 py-2 text-xs sm:text-sm font-bold text-white transition-all hover:bg-white hover:text-[#B71C1C] shadow-sm"
           >
             Facility Login
           </button>

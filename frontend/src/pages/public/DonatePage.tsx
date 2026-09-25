@@ -24,6 +24,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Logo } from "../../components/layout/Logo";
+import { InteractivePinkBackground } from "../../components/visualizations/InteractivePinkBackground";
 
 export type FacilityType =
   | "BLOOD_CENTER"
@@ -295,9 +296,9 @@ export function DonatePage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#FAF8F7] text-[#1A1A1A] font-sans antialiased selection:bg-[#B71C1C]/15 selection:text-[#B71C1C]">
+    <InteractivePinkBackground className="text-[#1A1A1A] font-sans antialiased selection:bg-[#B71C1C]/15 selection:text-[#B71C1C]">
       {/* ── Top Navigation Bar ────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-[#FAF8F7]/90 backdrop-blur-md border-b border-black/5">
+      <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-md border-b border-black/5">
         <div className="flex items-center justify-between px-6 py-4 sm:px-12 lg:px-16 max-w-7xl mx-auto">
           <div
             className="flex items-center gap-3 cursor-pointer group"
@@ -383,7 +384,7 @@ export function DonatePage() {
                   value={searchLocation}
                   onChange={(e) => setSearchLocation(e.target.value)}
                   placeholder="e.g. Coimbatore, Peelamedu, Gandhipuram..."
-                  className="w-full pl-11 pr-24 py-3.5 rounded-2xl bg-[#FAF8F7] border border-black/10 text-sm font-semibold text-[#111111] placeholder:text-[#888888] focus:outline-none focus:border-[#B71C1C] focus:ring-2 focus:ring-[#B71C1C]/20 transition-all"
+                  className="w-full pl-11 pr-24 py-3.5 rounded-2xl bg-white/80 border border-black/10 text-sm font-semibold text-[#111111] placeholder:text-[#888888] focus:outline-none focus:border-[#B71C1C] focus:ring-2 focus:ring-[#B71C1C]/20 transition-all"
                 />
                 <button
                   type="button"
@@ -407,7 +408,7 @@ export function DonatePage() {
               <select
                 value={selectedBloodGroup}
                 onChange={(e) => setSelectedBloodGroup(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-2xl bg-[#FAF8F7] border border-black/10 text-sm font-semibold text-[#111111] focus:outline-none focus:border-[#B71C1C] focus:ring-2 focus:ring-[#B71C1C]/20 transition-all cursor-pointer"
+                className="w-full px-4 py-3.5 rounded-2xl bg-white/80 border border-black/10 text-sm font-semibold text-[#111111] focus:outline-none focus:border-[#B71C1C] focus:ring-2 focus:ring-[#B71C1C]/20 transition-all cursor-pointer"
               >
                 <option value="ALL">All Blood Types</option>
                 <option value="O+">O Positive (O+)</option>
@@ -430,7 +431,7 @@ export function DonatePage() {
               <select
                 value={maxDistance}
                 onChange={(e) => setMaxDistance(Number(e.target.value))}
-                className="w-full px-4 py-3.5 rounded-2xl bg-[#FAF8F7] border border-black/10 text-sm font-semibold text-[#111111] focus:outline-none focus:border-[#B71C1C] focus:ring-2 focus:ring-[#B71C1C]/20 transition-all cursor-pointer"
+                className="w-full px-4 py-3.5 rounded-2xl bg-white/80 border border-black/10 text-sm font-semibold text-[#111111] focus:outline-none focus:border-[#B71C1C] focus:ring-2 focus:ring-[#B71C1C]/20 transition-all cursor-pointer"
               >
                 <option value={5}>Within 5 km</option>
                 <option value={10}>Within 10 km</option>
@@ -453,7 +454,7 @@ export function DonatePage() {
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                   selectedCategory === tab.id
                     ? "bg-[#1A1A1A] text-white shadow-xs"
-                    : "bg-[#FAF8F7] border border-black/5 text-[#555555] hover:bg-neutral-100"
+                    : "bg-white/80 border border-black/5 text-[#555555] hover:bg-neutral-100"
                 }`}
               >
                 {tab.label}
@@ -538,7 +539,7 @@ export function DonatePage() {
                       {center.neededGroups.map((grp, i) => (
                         <span
                           key={i}
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#FAF8F7] border border-black/5 text-[#444444]"
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/80 border border-black/5 text-[#444444]"
                         >
                           {grp}
                         </span>
@@ -615,7 +616,7 @@ export function DonatePage() {
 
           <a
             href="tel:108"
-            className="shrink-0 px-4 py-2 rounded-xl bg-[#FAF8F7] border border-black/5 text-xs font-bold text-[#333333] hover:text-[#B71C1C] transition-colors flex items-center gap-1.5"
+            className="shrink-0 px-4 py-2 rounded-xl bg-white/80 border border-black/5 text-xs font-bold text-[#333333] hover:text-[#B71C1C] transition-colors flex items-center gap-1.5"
           >
             <Phone className="w-3.5 h-3.5 text-[#B71C1C]" />
             <span>Emergency Helpline: 108</span>
@@ -659,7 +660,7 @@ export function DonatePage() {
               </div>
 
               {/* Details List */}
-              <div className="bg-[#FAF8F7] rounded-2xl p-4 border border-black/5 space-y-3 text-xs">
+              <div className="bg-white/80 rounded-2xl p-4 border border-black/5 space-y-3 text-xs">
                 <div>
                   <div className="font-bold text-[#777777] uppercase text-[10px]">Address</div>
                   <div className="font-medium text-[#111111] mt-0.5">{selectedCenter.address}</div>
@@ -737,7 +738,7 @@ export function DonatePage() {
       </AnimatePresence>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="bg-[#FAF8F7] border-t border-black/5 py-12 px-6 sm:px-12 lg:px-16">
+      <footer className="bg-white/40 backdrop-blur-md border-t border-black/5 py-12 px-6 sm:px-12 lg:px-16">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-[#777777]">
           <div className="flex items-center gap-3">
             <Logo className="h-5 w-5 text-[#B71C1C]" />
@@ -754,7 +755,7 @@ export function DonatePage() {
           </div>
         </div>
       </footer>
-    </div>
+    </InteractivePinkBackground>
   );
 }
 

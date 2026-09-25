@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Logo } from "../../components/layout/Logo";
 import { PulseLine } from "../../components/motion/PulseLine";
+import { InteractivePinkBackground } from "../../components/visualizations/InteractivePinkBackground";
 
 // Animation Variants
 const fadeInUp = {
@@ -61,9 +62,9 @@ export function AboutPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#FAF8F7] text-[#1A1A1A] font-sans antialiased selection:bg-[#B71C1C]/15 selection:text-[#B71C1C]">
+    <InteractivePinkBackground className="text-[#1A1A1A] font-sans antialiased selection:bg-[#B71C1C]/15 selection:text-[#B71C1C]">
       {/* ── Top Navigation Bar ────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-[#FAF8F7]/90 backdrop-blur-md border-b border-black/5">
+      <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-md border-b border-black/5">
         <div className="flex items-center justify-between px-6 py-4 sm:px-12 lg:px-16 max-w-7xl mx-auto">
           <div
             className="flex items-center gap-3 cursor-pointer group"
@@ -272,7 +273,7 @@ export function AboutPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-7 rounded-3xl bg-[#FAF8F7] border border-black/5 space-y-3">
+            <div className="p-7 rounded-3xl bg-white/70 backdrop-blur-sm border border-black/5 space-y-3">
               <div className="w-10 h-10 rounded-2xl bg-red-100/60 flex items-center justify-center text-[#B71C1C]">
                 <Clock className="w-5 h-5" />
               </div>
@@ -284,7 +285,7 @@ export function AboutPage() {
               </p>
             </div>
 
-            <div className="p-7 rounded-3xl bg-[#FAF8F7] border border-black/5 space-y-3">
+            <div className="p-7 rounded-3xl bg-white/70 backdrop-blur-sm border border-black/5 space-y-3">
               <div className="w-10 h-10 rounded-2xl bg-red-100/60 flex items-center justify-center text-[#B71C1C]">
                 <Layers className="w-5 h-5" />
               </div>
@@ -296,7 +297,7 @@ export function AboutPage() {
               </p>
             </div>
 
-            <div className="p-7 rounded-3xl bg-[#FAF8F7] border border-black/5 space-y-3">
+            <div className="p-7 rounded-3xl bg-white/70 backdrop-blur-sm border border-black/5 space-y-3">
               <div className="w-10 h-10 rounded-2xl bg-red-100/60 flex items-center justify-center text-[#B71C1C]">
                 <Users className="w-5 h-5" />
               </div>
@@ -395,7 +396,7 @@ export function AboutPage() {
             </ul>
           </div>
 
-          <div className="lg:col-span-7 bg-[#FAF8F7] rounded-2xl p-6 sm:p-8 border border-black/5">
+          <div className="lg:col-span-7 bg-white/70 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-black/5">
             <div className="text-center font-bold text-xs uppercase tracking-wider text-[#666666] mb-6">
               The 7 Core Ecosystem Nodes Unified by PulseChain
             </div>
@@ -481,7 +482,7 @@ export function AboutPage() {
             ].map((item, idx) => (
               <div
                 key={idx}
-                className="relative bg-[#FAF8F7] rounded-3xl p-6 border border-black/5 flex flex-col justify-between hover:shadow-md hover:border-[#B71C1C]/30 transition-all group"
+                className="relative bg-white/70 backdrop-blur-sm rounded-3xl p-6 border border-black/5 flex flex-col justify-between hover:shadow-md hover:border-[#B71C1C]/30 transition-all group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -510,7 +511,7 @@ export function AboutPage() {
       {/* SECTION 5 — EVERY UNIT HAS A CLOCK                                  */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
       <section className="py-20 sm:py-24 px-6 sm:px-12 lg:px-16 max-w-7xl mx-auto">
-        <div className="bg-[#FAF8F7] rounded-3xl p-8 sm:p-12 border border-black/5 shadow-sm space-y-12">
+        <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 sm:p-12 border border-black/5 shadow-sm space-y-12">
           <div className="max-w-3xl space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100/60 text-[#B71C1C] text-xs font-bold uppercase tracking-wider">
               Time-Critical Inventory
@@ -630,7 +631,7 @@ export function AboutPage() {
             ].map((card, idx) => (
               <div
                 key={idx}
-                className="bg-[#FAF8F7] rounded-3xl p-7 border border-black/5 hover:border-[#B71C1C]/40 hover:shadow-lg transition-all space-y-4 flex flex-col justify-between"
+                className="bg-white/70 backdrop-blur-sm rounded-3xl p-7 border border-black/5 hover:border-[#B71C1C]/40 hover:shadow-lg transition-all space-y-4 flex flex-col justify-between"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -698,7 +699,7 @@ export function AboutPage() {
               </div>
 
               {/* Requirement Summary */}
-              <div className="grid grid-cols-2 gap-4 bg-[#FAF8F7] p-4 rounded-2xl border border-black/5">
+              <div className="grid grid-cols-2 gap-4 bg-white/70 backdrop-blur-sm p-4 rounded-2xl border border-black/5">
                 <div>
                   <div className="text-2xs font-bold uppercase text-[#777777]">Blood Group</div>
                   <div className="font-display text-2xl font-black text-[#B71C1C]">B+ Positive</div>
@@ -771,7 +772,7 @@ export function AboutPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Example Community Dashboard */}
-            <div className="lg:col-span-7 bg-[#FAF8F7] rounded-3xl p-6 sm:p-8 border border-black/5 space-y-6">
+            <div className="lg:col-span-7 bg-white/70 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border border-black/5 space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-2xs font-bold uppercase tracking-wider text-[#888888]">
@@ -887,7 +888,7 @@ export function AboutPage() {
             ].map((step, idx) => (
               <div
                 key={idx}
-                className="bg-[#FAF8F7] p-3.5 rounded-2xl border border-black/5 text-center flex flex-col justify-between"
+                className="bg-white/70 backdrop-blur-sm p-3.5 rounded-2xl border border-black/5 text-center flex flex-col justify-between"
               >
                 <div className="font-mono text-xs font-bold text-[#B71C1C]">0{idx + 1}</div>
                 <div className="font-bold text-xs text-[#111111] mt-1">{step}</div>
@@ -945,7 +946,7 @@ export function AboutPage() {
 
           {/* 3 AI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-[#FAF8F7] rounded-3xl p-8 border border-black/5 space-y-4 hover:shadow-lg transition-shadow">
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 border border-black/5 space-y-4 hover:shadow-lg transition-shadow">
               <div className="w-12 h-12 rounded-2xl bg-[#B71C1C]/10 flex items-center justify-center text-[#B71C1C]">
                 <Cpu className="w-6 h-6" />
               </div>
@@ -958,7 +959,7 @@ export function AboutPage() {
               </p>
             </div>
 
-            <div className="bg-[#FAF8F7] rounded-3xl p-8 border border-black/5 space-y-4 hover:shadow-lg transition-shadow">
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 border border-black/5 space-y-4 hover:shadow-lg transition-shadow">
               <div className="w-12 h-12 rounded-2xl bg-[#B71C1C]/10 flex items-center justify-center text-[#B71C1C]">
                 <Compass className="w-6 h-6" />
               </div>
@@ -971,7 +972,7 @@ export function AboutPage() {
               </p>
             </div>
 
-            <div className="bg-[#FAF8F7] rounded-3xl p-8 border border-black/5 space-y-4 hover:shadow-lg transition-shadow">
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 border border-black/5 space-y-4 hover:shadow-lg transition-shadow">
               <div className="w-12 h-12 rounded-2xl bg-[#B71C1C]/10 flex items-center justify-center text-[#B71C1C]">
                 <Radio className="w-6 h-6" />
               </div>
@@ -1218,7 +1219,7 @@ export function AboutPage() {
       </section>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="bg-[#FAF8F7] border-t border-black/5 py-12 px-6 sm:px-12 lg:px-16">
+      <footer className="bg-white/40 backdrop-blur-md border-t border-black/5 py-12 px-6 sm:px-12 lg:px-16">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-[#777777]">
           <div className="flex items-center gap-3">
             <Logo className="h-5 w-5 text-[#B71C1C]" />
@@ -1235,7 +1236,7 @@ export function AboutPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </InteractivePinkBackground>
   );
 }
 
