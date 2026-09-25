@@ -311,12 +311,12 @@ export function AboutPage() {
           </div>
 
           {/* Fragmented Journey Visual Comparison */}
-          <div className="rounded-3xl bg-[#111111] text-white p-8 sm:p-12 space-y-8 shadow-xl">
+          <div className="rounded-3xl bg-white/80 backdrop-blur-md border border-black/5 text-[#111111] p-8 sm:p-12 space-y-8 shadow-sm">
             <div className="text-center max-w-2xl mx-auto space-y-2">
               <span className="text-xs font-bold uppercase tracking-widest text-[#B71C1C]">
                 Traditional Breakdown
               </span>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold">
+              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#111111]">
                 The Painful Fragmented Search Journey
               </h3>
             </div>
@@ -333,16 +333,16 @@ export function AboutPage() {
               ].map((item, idx) => (
                 <div
                   key={idx}
-                  className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center flex flex-col justify-between space-y-2"
+                  className="bg-[#FAF8F7] border border-black/5 rounded-2xl p-4 text-center flex flex-col justify-between space-y-2 hover:bg-neutral-50 transition-colors"
                 >
                   <span className="text-xs font-mono text-[#B71C1C] font-bold">{item.step}</span>
-                  <div className="font-bold text-sm text-white">{item.label}</div>
-                  <div className="text-2xs text-white/60">{item.desc}</div>
+                  <div className="font-bold text-sm text-[#111111]">{item.label}</div>
+                  <div className="text-2xs text-[#666666]">{item.desc}</div>
                 </div>
               ))}
             </div>
 
-            <div className="pt-6 border-t border-white/10 text-center">
+            <div className="pt-6 border-t border-black/5 text-center">
               <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-[#B71C1C] text-white font-bold text-sm sm:text-base shadow-lg">
                 <CheckCircle2 className="w-5 h-5" />
                 PulseChain turns this fragmented journey into one coordinated workflow.
@@ -1059,11 +1059,11 @@ export function AboutPage() {
         </div>
 
         {/* Human Medical Oversight Statement */}
-        <div className="p-8 rounded-3xl bg-[#111111] text-white text-center max-w-4xl mx-auto space-y-3">
+        <div className="p-8 rounded-3xl bg-white/80 backdrop-blur-md border border-black/5 text-[#111111] text-center max-w-4xl mx-auto space-y-3 shadow-sm">
           <div className="text-xs font-bold uppercase tracking-widest text-[#B71C1C]">
             Human Medical Oversight
           </div>
-          <p className="text-base sm:text-lg font-medium leading-relaxed max-w-2xl mx-auto text-neutral-200">
+          <p className="text-base sm:text-lg font-medium leading-relaxed max-w-2xl mx-auto text-[#333333]">
             “PulseChain coordinates information; authorized healthcare professionals remain responsible for medical verification and clinical decisions.”
           </p>
         </div>
@@ -1072,22 +1072,22 @@ export function AboutPage() {
       {/* ═════════════════════════════════════════════════════════════════════ */}
       {/* SECTION 12 — OUR VISION                                              */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
-      <section className="py-24 sm:py-32 bg-[#0F0F0F] text-white border-y border-white/10 relative overflow-hidden">
-        <div className="px-6 sm:px-12 lg:px-16 max-w-7xl mx-auto space-y-16 relative z-10">
+      <section className="w-full bg-white text-[#111111] py-20 sm:py-28 border-y border-black/5 relative z-10">
+        <div className="px-6 sm:px-12 lg:px-16 max-w-7xl mx-auto space-y-12">
           <div className="max-w-3xl space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#B71C1C]/20 border border-[#B71C1C]/40 text-[#B71C1C] text-xs font-bold uppercase tracking-widest">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#B71C1C]/10 border border-[#B71C1C]/20 text-[#B71C1C] text-xs font-bold uppercase tracking-widest">
               Long-Term Horizon
             </div>
-            <h2 className="font-display text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
+            <h2 className="font-display text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-[#111111]">
               A Connected Blood Network,{" "}
               <span className="text-[#B71C1C]">Not Another Standalone App.</span>
             </h2>
-            <p className="text-lg sm:text-xl text-neutral-300 font-medium leading-relaxed">
+            <p className="text-lg sm:text-xl text-[#333333] font-medium leading-relaxed">
               “Our vision is a regional digital coordination layer where no urgent blood requirement has to start from zero and no usable resource remains invisible simply because the right people are not connected.”
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-neutral-300 text-sm sm:text-base leading-relaxed">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-[#555555] text-sm sm:text-base leading-relaxed">
             <p>
               Today, donors, hospitals, blood centers, organizations, and donation campaigns can operate as separate networks. PulseChain connects these participants into a unified response system.
             </p>
@@ -1098,7 +1098,7 @@ export function AboutPage() {
 
           {/* Network Expansion Map */}
           <div className="pt-8 space-y-4">
-            <div className="text-xs font-bold uppercase tracking-widest text-neutral-400">
+            <div className="text-xs font-bold uppercase tracking-widest text-[#777777]">
               Multi-Tier Escalation Topology
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
@@ -1111,11 +1111,11 @@ export function AboutPage() {
               ].map((tier, idx) => (
                 <div
                   key={idx}
-                  className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center space-y-1 hover:bg-white/10 transition-colors"
+                  className="bg-[#FAF8F7] border border-black/10 rounded-2xl p-4 text-center space-y-1 hover:border-[#B71C1C]/40 hover:bg-red-50/50 hover:shadow-sm transition-all"
                 >
                   <div className="text-xs font-mono text-[#B71C1C] font-bold">Tier {idx + 1}</div>
-                  <div className="font-bold text-sm text-white">{tier.title}</div>
-                  <div className="text-2xs text-neutral-400">{tier.desc}</div>
+                  <div className="font-bold text-sm text-[#111111]">{tier.title}</div>
+                  <div className="text-2xs text-[#666666]">{tier.desc}</div>
                 </div>
               ))}
             </div>
